@@ -61,7 +61,8 @@ Arrows move by character and line. OA-up/OA-down page, OA-`<`/OA-`>` jump to
 the start and end of the document. Ctrl-A/Ctrl-E line ends, Ctrl-B bold (`**`),
 Ctrl-I italic (`*`), Ctrl-D delete forward. OA-R reflow, OA-S save, OA-O open,
 OA-C/OA-X/OA-V copy, cut and paste a line. OA-F find, OA-G find again, OA-L go
-to line. OA-? (or OA-H) opens the keyboard
+to line. OA-Q quits, asking first if the document is
+modified. OA-? (or OA-H) opens the keyboard
 help screen, OA-/ toggles the one-line cheat sheet, OA-Q quits. `$89` is both Tab and Ctrl-I and dispatches on
 position -- see `docs/design.md`.
 

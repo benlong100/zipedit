@@ -36,6 +36,8 @@ START        lda   #$00             ; cheat sheet hidden by default; OA-/ shows 
              jsr   INSSTR           ; text now lives in auxiliary memory
 
              jsr   HOMECURSOR       ; rewind so RENDER starts from the top
+             lda   #$00             ; the sample is not the user's unsaved work
+             sta   MODFLAG
 
              jsr   SETMAXROW
              lda   #$00

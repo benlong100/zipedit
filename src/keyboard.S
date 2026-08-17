@@ -167,12 +167,44 @@ KRETURN      lda   #$8d
              jmp   INSCHR
 
 *--------------------------------------
-* KQUIT -- hand control back to ProDOS
+* KQUIT -- hand control back to ProDOS, but not over unsaved work
+*
+* OA-Q sits next to OA-S and OA-O on the keyboard, so a slip is easy and the
+* cost is the whole document. If anything has been edited since the last save
+* or load, ask first.
 *--------------------------------------
-KQUIT        jsr   MLI
+KQUIT        lda   MODFLAG
+             beq   DOQUIT
+             lda   #<MSGQUIT
+             sta   STRPTR
+             lda   #>MSGQUIT
+             sta   STRPTR+1
+             jsr   SHOWMSG
+
+:ask         jsr   GETKEY
+             and   #$df             ; fold case; leaves Esc alone
+             cmp   #$d3             ; S -- save first
+             beq   :save
+             cmp   #$c4             ; D -- discard
+             beq   DOQUIT
+             cmp   #$9b             ; Esc -- carry on editing
+             beq   :stay
+             jmp   :ask
+
+:stay        jmp   RESTORESTAT
+
+*--- KSAVE clears MODFLAG only if the save actually succeeded, so this both
+*    handles a cancelled prompt and refuses to quit on a write error
+:save        jsr   KSAVE
+             lda   MODFLAG
+             bne   :stay
+
+DOQUIT       jsr   MLI
              dfb   $65
              da    QUITPARM
              rts                    ; not reached
+MSGQUIT      asc   " UNSAVED CHANGES.  S = SAVE FIRST   D = DISCARD   ESC = CANCEL"
+             dfb   $00
 QUITPARM     dfb   $04
              dfb   $00
              da    $0000

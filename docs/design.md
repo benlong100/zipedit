@@ -274,8 +274,8 @@ row  23     cheat sheet   (toggled by Open-Apple-?)
 row  24     status: filename, line/col, modified flag, free space
 ```
 
-The status line shows the filename, the cursor's line and column, free space
-and the help key. Line and column update live at no measurable cost: `CURLNO`
+The status line shows the filename, a `MOD` indicator when the document has
+unsaved edits, the cursor's line and column, free space and the help key. Line and column update live at no measurable cost: `CURLNO`
 and `CCOL` are already maintained incrementally, so only the digit **cells**
 are written -- never the whole row -- and the line digits are skipped when the
 line has not changed. Measured 19.0 ms per keystroke against 19.2 ms without,
@@ -373,7 +373,7 @@ That preserves both behaviours in the contexts where each is actually wanted.
 | OA-O / OA-S | open / save |
 | OA-? | keyboard help screen |
 | OA-/ | toggle cheat sheet |
-| OA-Q | quit |
+| OA-Q | quit — asks first if the document has unsaved changes |
 
 Dispatch is a table of (key, modifier mask, handler address) scanned linearly —
 the table is short enough that a scan beats any cleverness. Open-Apple letters
@@ -412,6 +412,26 @@ the asterisk, and three is the correct Markdown for both.
 reaches `PUTAUX`, which does a `TAX`, and `GAPLEFT`/`GAPRIGHT` do the same, so
 any counter in `X` is destroyed on the first iteration. They all count in
 memory.
+
+### Unsaved changes
+
+`MODFLAG` is raised by every operation that alters the text — `INSCHR`,
+`DELBACK`, `DELFWD` — and cleared by a successful save or load. The startup
+sample clears it too: a document the user did not write is not unsaved work.
+
+OA-Q sits next to OA-S and OA-O, so a slip is easy and costs the whole
+document. If `MODFLAG` is set, quitting asks first: **S** saves then quits,
+**D** discards and quits, **Esc** returns to editing. Cancelling the filename
+prompt does not quit either, since `KSAVE` clears `MODFLAG` only on a real
+save, and the quit path re-checks it.
+
+The flag is stored, never incremented — an `INC` would wrap to zero after 255
+edits and read clean again.
+
+This work also fixed a latent bug in `SAVEFILE`: a failed `WRITERUN` jumped
+straight to the close-and-return-success path, so a write error reported
+success. That mattered little when the result was only a status message; it
+matters a great deal when quitting depends on it.
 
 ## 6. File I/O and getting files to the Mac — as built
 

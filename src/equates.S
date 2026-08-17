@@ -101,6 +101,7 @@ TEXTROWSMAX  equ   23               ; when it is hidden
 WRAPCOL      equ   76               ; hard wrap margin
 LNDIG        equ   39               ; status column of the line number digits
 CLDIG        equ   46               ; status column of the column digits
+MODCOL       equ   14               ; status column of the MOD indicator
 PHINTCOL     equ   66               ; where the prompt shows its escape hint
 PMAXLEN      equ   45               ; input length, capped so it cannot run
                                     ; over the hint at PHINTCOL

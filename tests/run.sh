@@ -504,6 +504,58 @@ else
 fi
 
 #--------------------------------------
+# Unsaved-changes guard. OA-Q sits beside OA-S and OA-O, so a slip must not
+# cost the document. Runs before the file section because quitting ends the
+# editor.
+#--------------------------------------
+echo "unsaved changes guard"
+"$VII" boot "$IMAGE" >/dev/null
+"$VII" await "Notes from the Apple" 90 || { echo "reboot failed"; exit 1; }
+"$VII" caps false >/dev/null
+
+mod_field() { "$VII" screen-raw | sed -n '24p' | cut -c15-17; }
+assert_mod() {
+    local got; got="$(mod_field)"
+    if [ "$got" = "$2" ]; then ok "$1"; else bad "$1" "MOD field reads [$got], expected [$2]"; fi
+}
+
+assert_mod "the sample document does not count as unsaved work" "   "
+ktext "x"
+assert_mod "editing raises MOD"                                 "MOD"
+
+"$VII" caps true >/dev/null
+k oa "Q"
+sleep 2; snapshot
+assert_row "OA-Q with unsaved work asks instead of quitting"   23 "UNSAVED CHANGES"
+
+"$VII" key esc >/dev/null; sleep 2
+snapshot
+assert_row "Esc returns to editing"                            23 "UNTITLED.MD"
+assert_mod "and the document is still modified"                 "MOD"
+
+# Cancelling the filename prompt must not quit either -- that is the path that
+# would silently discard work.
+k oa "Q"; sleep 1
+"$VII" text "S" >/dev/null; sleep 2
+"$VII" key esc >/dev/null; sleep 3
+snapshot
+assert_row "a cancelled save prompt does not quit"             23 "UNTITLED.MD"
+assert_mod "and still has unsaved changes"                      "MOD"
+
+k oa "S"; ktext "MODTEST.MD"
+"$VII" line "" >/dev/null
+"$VII" await "UNTITLED" 90 || bad "save never completed"
+assert_mod "saving clears MOD"                                  "   "
+
+# With nothing outstanding, OA-Q goes straight out to ProDOS.
+k oa "Q"; sleep 4
+if "$VII" screen | grep -qE "SELECT|S6,D1"; then
+    ok "OA-Q with no unsaved work quits immediately"
+else
+    bad "OA-Q with no unsaved work quits immediately" "screen: $("$VII" screen | head -2 | tr '\n' '|')"
+fi
+
+#--------------------------------------
 # File I/O. Round trips through a real ProDOS volume in the mounted image.
 #--------------------------------------
 echo "file i/o"

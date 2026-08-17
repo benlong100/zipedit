@@ -77,6 +77,7 @@ PUTAUX       tax
 * BUFINIT -- empty buffer: the gap is the whole of aux $0800-$BFFF
 *--------------------------------------
 BUFINIT      lda   #$00
+             sta   MODFLAG
              sta   CCOL
              sta   CURLNO
              sta   CURLNO+1
@@ -143,6 +144,8 @@ INSCHR       pha
              ldy   #$00
              pla
              jsr   PUTAUX
+             ldx   #$01             ; mark dirty via X: A still holds the byte
+             stx   MODFLAG
              cmp   #$8d             ; inserting a newline moves us down a line
              bne   :samel
              inc   CURLNO
@@ -183,7 +186,9 @@ INSSTR       ldy   #$00
 DELBACK      jsr   ATSTART
              bcc   :ok
              rts                    ; carry still set: nothing to delete
-:ok          jsr   PEEKBACK         ; what are we about to remove?
+:ok          lda   #$01
+             sta   MODFLAG
+             jsr   PEEKBACK         ; what are we about to remove?
              cmp   #$8d
              bne   :samel
              lda   CURLNO
@@ -212,7 +217,9 @@ DELBACK      jsr   ATSTART
 DELFWD       jsr   ATEND
              bcc   :ok
              rts
-:ok          inc   GAPEND
+:ok          lda   #$01
+             sta   MODFLAG
+             inc   GAPEND
              bne   :done
              inc   GAPEND+1
 :done        clc

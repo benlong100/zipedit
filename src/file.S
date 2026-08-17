@@ -133,7 +133,7 @@ SAVEFILE     jsr   DESTROYF         ; a missing file is not an error here
              sbc   #AUXLO
              sta   RUNLEN+1
              jsr   WRITERUN
-             bcs   :shut
+             bcs   :failed
 
 *--- run two: past the gap to the end of the buffer
              lda   GAPEND
@@ -148,10 +148,16 @@ SAVEFILE     jsr   DESTROYF         ; a missing file is not an error here
              sbc   GAPEND+1
              sta   RUNLEN+1
              jsr   WRITERUN
+             bcs   :failed
 
-:shut        jsr   CLOSEF
+             jsr   CLOSEF
+             lda   #$00             ; saved: no longer dirty
+             sta   MODFLAG
              clc
              rts
+
+*--- a failed write used to close the file and report success anyway
+:failed      jsr   CLOSEF
 :fail        sec
              rts
 
@@ -229,6 +235,8 @@ LOADFILE     jsr   OPENF
              jmp   :ins
 
 :eof         jsr   CLOSEF
+             lda   #$00             ; freshly loaded: not dirty
+             sta   MODFLAG
              clc
              rts
 :fail        sec

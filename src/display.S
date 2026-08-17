@@ -286,8 +286,9 @@ POWHI        dfb   $03,$00,$00,$00
 * message is on the status line.
 *--------------------------------------
 STATUPD      lda   MSGSHOWN
-             bne   :out
-             lda   #STATROW
+             beq   :go
+             rts                    ; a message owns the row; leave it alone
+:go          lda   #STATROW
              jsr   SETROW
 
              lda   CURLNO
@@ -312,7 +313,7 @@ STATUPD      lda   MSGSHOWN
 
 :docol       lda   CCOL
              cmp   LASTCOL
-             beq   :out
+             beq   :docol2
              sta   LASTCOL
              clc
              adc   #$01
@@ -324,6 +325,32 @@ STATUPD      lda   MSGSHOWN
              sta   PWID
              ldx   #CLDIG
              jsr   PUTNUM
+
+*--- modified indicator
+:docol2      lda   MODFLAG
+             cmp   LASTMOD
+             beq   :out
+             sta   LASTMOD
+             ldx   #MODCOL
+             lda   MODFLAG
+             beq   :clean
+             lda   #$0d             ; inverse M
+             jsr   PUTCELL
+             inx
+             lda   #$0f             ; inverse O
+             jsr   PUTCELL
+             inx
+             lda   #$04             ; inverse D
+             jsr   PUTCELL
+             rts
+:clean       lda   #$20             ; inverse space
+             jsr   PUTCELL
+             inx
+             lda   #$20
+             jsr   PUTCELL
+             inx
+             lda   #$20
+             jsr   PUTCELL
 :out         rts
 
 *--------------------------------------
@@ -374,6 +401,7 @@ DRAWSTATUS   lda   #<STATTXT
              sta   LASTCOL
              sta   LASTLN
              sta   LASTLN+1
+             sta   LASTMOD
              rts
 
 *--------------------------------------
@@ -413,5 +441,7 @@ PDIG         ds    1
 PLEAD        ds    1                ; non-zero once a digit has been emitted
 LASTLN       ds    2                ; last values painted, to skip redundant work
 LASTCOL      ds    1
+LASTMOD      ds    1
+MODFLAG      ds    1                ; non-zero when the document has unsaved edits
 MSGSHOWN     ds    1                ; a message owns the status line
              dend
