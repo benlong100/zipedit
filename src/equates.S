@@ -74,6 +74,9 @@ CURLNO       equ   $29              ; 2 bytes, line the cursor is on, maintained
 FASTDRAW     equ   $2b              ; handler opted in to a one-row redraw
 OLDLINE      equ   $2c              ; 2 bytes, CURLNO before the keystroke
 OLDTOP       equ   $2e              ; 2 bytes, SCROLLTOP before the keystroke
+CCOL         equ   $30              ; cursor column, maintained incrementally
+DSTPTR       equ   $31              ; 2 bytes, main-memory destination for AUXBLK
+BLKLEN       equ   $33              ; bytes for AUXBLK to move
 
 *--- runtime home of the aux read stub ---
 * Reads of aux cannot be done from code living in $0200-$BFFF: RAMRD redirects
@@ -81,7 +84,8 @@ OLDTOP       equ   $2e              ; 2 bytes, SCROLLTOP before the keystroke
 * of the text buffer. The stack page follows ALTZP rather than RAMRD, so a stub
 * copied there keeps executing from main while RAMRD points at aux. $0100 is
 * the last address the stack would ever reach.
-AUXRD        equ   $0100
+AUXRD        equ   $0100            ; one byte
+AUXBLK       equ   $0110            ; a block, with one bank switch for the lot
 
 *--- FLAGS bits ---
 FCHEAT       equ   %00000001        ; cheat sheet visible

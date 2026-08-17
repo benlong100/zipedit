@@ -11,11 +11,14 @@
 *--------------------------------------
 
 *--------------------------------------
-* COLUMN -- A = characters between the start of the current line and the
-*           cursor. Scans backwards through aux without moving the gap.
-*           Saturates at 255, which is well past any column we care about.
+* CALCCOL -- A = characters between the start of the current line and the
+*            cursor, counted the slow way by scanning back through aux.
+*
+* Off the hot path: CCOL is maintained incrementally by the buffer primitives.
+* This is only called when the cursor crosses back onto a previous line, where
+* the new column genuinely has to be discovered.
 *--------------------------------------
-COLUMN       lda   #$00
+CALCCOL       lda   #$00
              sta   TMPC
              lda   GAPBEG
              sta   AUXPTR
@@ -114,7 +117,7 @@ DOWRAP       jsr   FINDSPC
 *--------------------------------------
 * WRAPCHECK -- called after inserting a printable character
 *--------------------------------------
-WRAPCHECK    jsr   COLUMN
+WRAPCHECK    lda   CCOL
              cmp   #WRAPCOL+1
              bcc   :done
              jmp   DOWRAP
@@ -182,7 +185,7 @@ REFLOW       jsr   PARASTART
 
 :char        jsr   GAPRIGHT
 
-:check       jsr   COLUMN
+:check       lda   CCOL
              cmp   #WRAPCOL+1
              bcc   :loop
              jsr   DOWRAP

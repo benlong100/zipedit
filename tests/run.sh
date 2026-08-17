@@ -247,7 +247,11 @@ echo "reflow"
 "$VII" caps false >/dev/null
 k key "down arrow"; k key "down arrow"
 "$VII" oa "R" >/dev/null
-"$VII" await "was inserted into auxiliary" 180 || bad "reflow never completed"
+# Must be a phrase that exists only AFTER reflow. "was inserted into auxiliary"
+# was wrong: it sat on one line in the pre-reflow text, so it matched instantly
+# and the assertions below raced the reflow. Joining lines 2 and 3 is what puts
+# "ProDOS 8 on an" together.
+"$VII" await "ProDOS 8 on an" 180 || bad "reflow never completed"
 snapshot
 assert_maxcols "reflowed row 2 fits the margin"        2 "$WRAPCOL"
 assert_maxcols "reflowed row 3 fits the margin"        3 "$WRAPCOL"

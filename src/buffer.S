@@ -32,6 +32,11 @@ INSTSTUB     ldx   #STUBEND-STUBSRC-1
              sta   AUXRD,x
              dex
              bpl   :loop
+             ldx   #BLKEND-BLKSRC-1
+:loop2       lda   BLKSRC,x
+             sta   AUXBLK,x
+             dex
+             bpl   :loop2
              rts
 
 * Position independent: zero page indirect and absolute I/O only.
@@ -42,6 +47,21 @@ STUBSRC      sta   RAMRDON
              sta   RAMRDOFF
              rts
 STUBEND
+
+* Block copy aux -> main with a single bank switch, rather than one per byte.
+* Reads follow RAMRD and land in aux; writes follow RAMWRT, which stays off, so
+* they land in main. Zero page follows ALTZP and is untouched, so both pointers
+* stay readable. Entry: AUXPTR source, DSTPTR destination, BLKLEN count (1-255),
+* Y = 0. About 15 cycles a byte against roughly 49 through AUXRD.
+BLKSRC       sta   RAMRDON
+:loop        lda   (AUXPTR),y
+             sta   (DSTPTR),y
+             iny
+             cpy   BLKLEN
+             bne   :loop
+             sta   RAMRDOFF
+             rts
+BLKEND
 
 *--------------------------------------
 * PUTAUX -- store the byte in A at aux address AUXPTR,Y
@@ -57,6 +77,7 @@ PUTAUX       tax
 * BUFINIT -- empty buffer: the gap is the whole of aux $0800-$BFFF
 *--------------------------------------
 BUFINIT      lda   #$00
+             sta   CCOL
              sta   CURLNO
              sta   CURLNO+1
              sta   GAPBEG
@@ -123,10 +144,14 @@ INSCHR       pha
              pla
              jsr   PUTAUX
              cmp   #$8d             ; inserting a newline moves us down a line
-             bne   :adv
+             bne   :samel
              inc   CURLNO
-             bne   :adv
+             bne   :col0
              inc   CURLNO+1
+:col0        lda   #$00
+             sta   CCOL
+             beq   :adv
+:samel       inc   CCOL
 :adv         inc   GAPBEG
              bne   :done
              inc   GAPBEG+1
@@ -160,16 +185,25 @@ DELBACK      jsr   ATSTART
              rts                    ; carry still set: nothing to delete
 :ok          jsr   PEEKBACK         ; what are we about to remove?
              cmp   #$8d
-             bne   :edge
+             bne   :samel
              lda   CURLNO
              bne   :dn
              dec   CURLNO+1
 :dn          dec   CURLNO
-:edge        lda   GAPBEG
+             jsr   :shrink
+             jsr   CALCCOL          ; joined a line: column must be recounted
+             sta   CCOL
+             clc
+             rts
+:samel       dec   CCOL
+             jsr   :shrink
+             clc
+             rts
+
+:shrink      lda   GAPBEG
              bne   :dec
              dec   GAPBEG+1
 :dec         dec   GAPBEG
-             clc
              rts
 
 *--------------------------------------
@@ -204,10 +238,14 @@ GAPRIGHT     jsr   ATEND
              txa
              jsr   PUTAUX
              cpx   #$8d             ; stepped over a newline: down a line
-             bne   :1
+             bne   :samel
              inc   CURLNO
-             bne   :1
+             bne   :col0
              inc   CURLNO+1
+:col0        lda   #$00
+             sta   CCOL
+             beq   :1
+:samel       inc   CCOL
 :1           inc   GAPBEG
              bne   :2
              inc   GAPBEG+1
@@ -246,12 +284,17 @@ GAPLEFT      jsr   ATSTART
              txa
              jsr   PUTAUX
              cpx   #$8d             ; stepped back over a newline: up a line
-             bne   :3
+             bne   :samel
              lda   CURLNO
              bne   :4
              dec   CURLNO+1
 :4           dec   CURLNO
-:3           clc
+             jsr   CALCCOL          ; back on a previous line: recount
+             sta   CCOL
+             clc
+             rts
+:samel       dec   CCOL
+             clc
              rts
 
 *--------------------------------------

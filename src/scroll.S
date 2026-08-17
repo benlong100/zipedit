@@ -141,73 +141,79 @@ KPGDN        lda   MAXROW
 *--------------------------------------
 RENDERROW    jsr   CLRBUF
 
-*--- walk back to the start of the line, counting what is behind the cursor
+*--- the line begins exactly CCOL bytes before the cursor, so there is nothing
+*    to search for; that scan used to cost as much as the drawing did
              lda   GAPBEG
+             sec
+             sbc   CCOL
              sta   AUXPTR
              lda   GAPBEG+1
+             sbc   #$00
              sta   AUXPTR+1
-             lda   #$00
-             sta   TMPC
-:back        lda   AUXPTR+1
-             cmp   #AUXLO
-             bne   :step
-             lda   AUXPTR
-             beq   :atstart
-:step        lda   AUXPTR
-             bne   :s1
-             dec   AUXPTR+1
-:s1          dec   AUXPTR
-             ldy   #$00
-             jsr   AUXRD
-             cmp   #$8d
-             bne   :count
-             inc   AUXPTR           ; stand just past the newline
-             bne   :atstart
-             inc   AUXPTR+1
-             jmp   :atstart
-:count       inc   TMPC
-             lda   TMPC
-             cmp   #SCRW
-             bcc   :back            ; clamp at the screen width
 
-:atstart     lda   TMPC
+             lda   CCOL
              sta   CURSCOL
-
-*--- everything on this line before the cursor is contiguous before the gap
-             ldx   #$00
-:pre         cpx   TMPC
              beq   :post
+             sta   BLKLEN
+             lda   #<LINEBUF
+             sta   DSTPTR
+             lda   #>LINEBUF
+             sta   DSTPTR+1
              ldy   #$00
-             jsr   AUXRD
-             sta   LINEBUF,x
-             inx
-             inc   AUXPTR
-             bne   :pre
-             inc   AUXPTR+1
-             jmp   :pre
+             jsr   AUXBLK           ; one bank switch for the whole run
 
-*--- the rest of the line resumes after the gap
-:post        lda   GAPEND
+*--- the rest of the line resumes past the gap
+:post        lda   #SCRW
+             sec
+             sbc   CCOL
+             sta   BLKLEN
+             beq   :draw
+
+*--- do not read past the end of the buffer
+             lda   #$00
+             sec
+             sbc   GAPEND
+             sta   TMPA
+             lda   #AUXHI
+             sbc   GAPEND+1
+             bne   :room            ; 256+ bytes left, the cap already fits
+             lda   TMPA
+             cmp   BLKLEN
+             bcs   :room
+             sta   BLKLEN
+:room        lda   BLKLEN
+             beq   :draw
+
+             lda   GAPEND
              sta   AUXPTR
              lda   GAPEND+1
              sta   AUXPTR+1
-:ploop       cpx   #SCRW
-             bcs   :draw
-             lda   AUXPTR+1
-             cmp   #AUXHI
-             bcs   :draw
+             lda   #<LINEBUF
+             clc
+             adc   CCOL
+             sta   DSTPTR
+             lda   #>LINEBUF
+             adc   #$00
+             sta   DSTPTR+1
              ldy   #$00
-             jsr   AUXRD
-             cmp   #$8d
-             beq   :draw
-             sta   LINEBUF,x
-             inx
-             inc   AUXPTR
-             bne   :ploop
-             inc   AUXPTR+1
-             jmp   :ploop
+             jsr   AUXBLK
 
-*--- CURLNO - SCROLLTOP is the screen row; both fit a byte once on screen
+*--- that copy ran past the end of the line, so blank from the newline on.
+*    Scanning main memory costs nothing next to reading aux a byte at a time.
+             ldx   CCOL
+:scan        cpx   #SCRW
+             bcs   :draw
+             lda   LINEBUF,x
+             cmp   #$8d
+             beq   :blank
+             inx
+             bne   :scan
+:blank       lda   #$a0
+:bl          sta   LINEBUF,x
+             inx
+             cpx   #SCRW
+             bcc   :bl
+
 :draw        lda   CURLNO
              sec
              sbc   SCROLLTOP

@@ -195,6 +195,37 @@ walks the whole buffer, so skipping the lines above the viewport costs nothing
 extra — `VIS` goes true once the walk reaches `SCROLLTOP` and stays true, which
 makes it one byte compare per line rather than a 16-bit compare per character.
 
+### 4a. Redraw cost — how it was fixed
+
+Reported from real hardware: the first build was easy to out-type, and Bank
+Street Writer III was not. Measured on the same document, sending a 222
+character burst and counting what was absorbed in two seconds:
+
+| version | per keystroke | sustained |
+|---|---|---|
+| original | 125 ms | 8 chars/sec |
+| + incremental line number, one-row redraw | 20 ms | 51 chars/sec |
+| + incremental column, block copy | 19 ms | 52 chars/sec |
+
+**What actually mattered** was repainting one row instead of 23. The editor
+knows the cursor's line without scanning, so ordinary typing rebuilds a single
+line and draws a single row. Handlers opt in by setting `FASTDRAW`, and the
+main loop takes the fast path only if `CURLNO` and `SCROLLTOP` both held still
+— so a wrap, a newline, a scroll or a load all fall back to the full redraw
+without anyone having to enumerate the dangerous cases.
+
+**What barely mattered**, against prediction: maintaining the cursor column to
+avoid two backward scans, and a block-copy stub that crosses banks once per
+line instead of once per byte. Predicted 3-4x, delivered about 5%. Kept because
+both remove work that grows with line length, but the honest lesson is that the
+first change had already moved the bottleneck somewhere else.
+
+**Caveat on all of these numbers:** they are emulator measurements. Virtual ][
+waits for the program to read each key, so it can never drop a keystroke and
+cannot reproduce the feel of falling behind on real hardware. The ratios should
+hold — a real //e runs at the same 1.02 MHz — but the real machine is the
+authority.
+
 ### Screen layout
 
 ```
@@ -277,21 +308,7 @@ are folded to uppercase on read so `OA-q` and `OA-Q` both dispatch.
   before typing a word but not when wrapping one already written. The
   selection-aware behaviour described above arrives with the editing-operations
   work.
-- **Full redraw per keystroke.** `RENDER` rescans the buffer and repaints all
-  23 rows on every key. Measured:
-
-  | buffer | per keystroke | sustained |
-  |---|---|---|
-  | 600 bytes | ~120 ms | ~8 chars/sec |
-  | 1612 bytes | ~157 ms | ~6 chars/sec |
-
-  Nearly tripling the buffer cost only ~37 ms, which fits a **fixed ~100 ms
-  plus ~0.035 ms per buffer byte**. So the screen repaint dominates, not the
-  buffer walk — 1,840 screen writes against a few hundred aux reads.
-
-  That inverts the obvious fix. A **dirty-line redraw is the high-value
-  change**; the line index mainly helps the smaller term and matters more as
-  documents get long. Do the dirty-line work first.
+- ~~Full redraw per keystroke.~~ **Fixed.** See §4a.
 
 ### Emphasis insertion
 
