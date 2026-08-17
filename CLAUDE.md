@@ -38,8 +38,9 @@ make eject      flush the mounted image to disk
 make clean
 ```
 
-`SRC` defaults to `src/hello.S` (the toolchain spike). Point it at the real
-editor source as that comes up: `make SRC=src/edit.S run`.
+`SRC` defaults to `src/edit.S`, the editor itself. The spikes are still
+buildable and worth keeping: `make SRC=src/charset.S run` re-runs the character
+generator probe, `src/hello.S` is the minimal toolchain check.
 
 ## Conventions
 
