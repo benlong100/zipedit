@@ -175,15 +175,57 @@ CLRCHEAT     jsr   CLRBUF
              rts
 
 *--------------------------------------
+* SETMAXROW -- text area is one row shorter while the cheat sheet shows
+*--------------------------------------
+SETMAXROW    lda   FLAGS
+             and   #FCHEAT
+             bne   :short
+             lda   #TEXTROWSMAX
+             sta   MAXROW
+             rts
+:short       lda   #TEXTROWS
+             sta   MAXROW
+             rts
+
+*--------------------------------------
 * TOGGLECHEAT -- flip the cheat sheet on or off
 *--------------------------------------
 TOGGLECHEAT  lda   FLAGS
              eor   #FCHEAT
              sta   FLAGS
+             jsr   SETMAXROW
+             lda   FLAGS
              and   #FCHEAT
              bne   :on
              jmp   CLRCHEAT
 :on          jmp   DRAWCHEAT
+
+*--------------------------------------
+* SHOWCURSOR -- invert the character cell the cursor sits on
+*
+* With 80STORE on, PAGE2 selects which bank $0400-$07FF reaches for reads as
+* well as writes, so the same switch serves the read-modify-write.
+*--------------------------------------
+SHOWCURSOR   lda   CURSROW
+             cmp   MAXROW
+             bcs   :skip            ; cursor scrolled off the text area
+             jsr   SETROW
+             lda   CURSCOL
+             and   #$01
+             beq   :aux
+             sta   MAINWR           ; odd column
+             jmp   :rd
+:aux         sta   AUXWR            ; even column
+:rd          lda   CURSCOL
+             lsr
+             tay
+             lda   (SCRPTR),y
+             and   #$7f             ; strip to plain ASCII
+             cmp   #$60
+             bcs   :put             ; lowercase inverts to itself
+             and   #$3f
+:put         sta   (SCRPTR),y
+:skip        rts
 
 *--------------------------------------
 * DRAWSTATUS -- render the status line, inverse video

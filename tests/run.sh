@@ -39,6 +39,15 @@ assert_width() {
     fi
 }
 
+# assert_blank <name> <0-based row>
+assert_blank() {
+    local name="$1" row="$2"
+    local got; got="$(sed -n "$((row+1))p" "$SCREEN")"
+    if [ -z "${got// /}" ]; then ok "$name"; else
+        bad "$name" "row $row expected blank, got: $got"
+    fi
+}
+
 # assert_mem <name> <addr> <len> <bank> <expected-file>
 assert_mem() {
     local name="$1" addr="$2" len="$3" bank="$4" expect="$5"
@@ -132,6 +141,65 @@ echo "chrome"
 assert_row   "cheat sheet on row 22"               22 '**bold** _italic_ `code` # H1'
 assert_row   "status line on row 23"               23 "UNTITLED.MD"
 assert_width "status line fills the row"           23
+
+#--------------------------------------
+# Keyboard tests mutate the buffer, so they run last and start from a fresh
+# boot. Each keystroke triggers a full redraw, hence the settle between them.
+#--------------------------------------
+echo "keyboard"
+"$VII" boot "$IMAGE" >/dev/null
+"$VII" await "Notes from the Apple" 40 || { echo "reboot failed"; exit 1; }
+"$VII" caps false >/dev/null
+k() { "$VII" "$@" >/dev/null; sleep 0.6; }
+
+k text "draft: "
+snapshot
+assert_row "typing inserts at the cursor"             0 "draft: # Notes from the Apple //e"
+
+k key "right arrow"; k key "right arrow"; k key "right arrow"
+k text "X"
+snapshot
+assert_row "right arrow moves the cursor"             0 "draft: # NXotes from the Apple"
+
+k ctrl B
+k text "loud"
+snapshot
+assert_row "Ctrl-B wraps the cursor in bold markers"  0 "**loud**"
+
+k oa "?"
+snapshot
+assert_blank "OA-? hides the cheat sheet"            22
+k oa "?"
+snapshot
+assert_row "OA-? restores the cheat sheet"           22 '**bold** _italic_ `code` # H1'
+
+# The Tab / Ctrl-I collision: identical keycode, different meaning by position.
+k ctrl A
+k ctrl I
+snapshot
+assert_row "\$89 indents inside leading whitespace"   0 "  draft: # NX"
+
+# At the end of a long line the markers land past column 80 and are clipped
+# from the display, so this one has to be checked in the buffer itself.
+k ctrl E
+k ctrl I
+"$VII" dump 0x0000 0x20 0 "$TMP/zp.bin" >/dev/null
+GB=$(python3 -c "d=open('$TMP/zp.bin','rb').read(); print(d[0x12]|(d[0x13]<<8))")
+GE=$(python3 -c "d=open('$TMP/zp.bin','rb').read(); print(d[0x14]|(d[0x15]<<8))")
+"$VII" dump $((GB-1)) 1 1 "$TMP/before.bin" >/dev/null
+"$VII" dump "$GE"     1 1 "$TMP/after.bin"  >/dev/null
+if [ "$(xxd -p "$TMP/before.bin")" = "df" ] && [ "$(xxd -p "$TMP/after.bin")" = "df" ]; then
+    ok "\$89 italicises outside leading whitespace, cursor between the markers"
+else
+    bad "\$89 italicises outside leading whitespace, cursor between the markers" \
+        "byte before gap: $(xxd -p "$TMP/before.bin"), after gap: $(xxd -p "$TMP/after.bin"), wanted df/df"
+fi
+
+k ctrl A
+k text "zz"
+k key "left arrow"
+snapshot
+assert_row "text accumulates correctly before delete" 0 "zz  draft:"
 
 echo
 echo "$pass passed, $fail failed"

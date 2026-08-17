@@ -3,10 +3,10 @@
 *
 * Entered by ProDOS 8 as a SYS file at $2000.
 *
-* At this stage: display layer and gap buffer. Sample text is inserted into
-* the aux buffer a byte at a time and then rendered back out of it, so the
-* screen is proof of a full round trip through auxiliary memory. Keyboard and
-* file layers land next.
+* At this stage: display, gap buffer and keyboard. Sample text is inserted into
+* the aux buffer a byte at a time and rendered back out of it, then the main
+* loop takes keys and edits it. The file layer lands next, which is what turns
+* this from an editor you can type into to one you can keep work in.
 *--------------------------------------
              org   $2000
              typ   $ff
@@ -32,12 +32,52 @@ START        lda   #FCHEAT          ; cheat sheet visible at startup
 
              jsr   HOMECURSOR       ; rewind so RENDER starts from the top
 
+             jsr   SETMAXROW
              jsr   DISPINIT
-             jsr   RENDER           ; read it back out of aux and draw it
-             jsr   DRAWCHEAT
              jsr   DRAWSTATUS
 
-:hang        jmp   :hang
+*--------------------------------------
+* Main loop. Redraw, wait for a key, act on it, repeat.
+*
+* A full redraw per keystroke is more work than it needs to be -- RENDER
+* rescans the buffer from the start every time. At this size it is well under
+* a frame and invisible; the line index is the fix when it stops being.
+*--------------------------------------
+MAINLOOP     jsr   REDRAW
+             jsr   GETKEY
+             jsr   DISPATCH
+             jmp   MAINLOOP
+
+*--------------------------------------
+* REDRAW -- text area, cursor, and whichever chrome is showing
+*--------------------------------------
+REDRAW       jsr   RENDER
+             jsr   BLANKTAIL
+             jsr   SHOWCURSOR
+             lda   FLAGS
+             and   #FCHEAT
+             beq   :nocheat
+             jmp   DRAWCHEAT
+:nocheat     jmp   CLRCHEAT
+
+*--------------------------------------
+* BLANKTAIL -- clear text rows below the end of the buffer, so deleting a line
+*              does not leave its ghost on screen
+*--------------------------------------
+BLANKTAIL    lda   CURROW
+             cmp   MAXROW
+             bcs   :done
+             pha
+             jsr   CLRBUF
+             pla
+:loop        pha
+             jsr   DRAWLINE
+             pla
+             clc
+             adc   #$01
+             cmp   MAXROW
+             bcc   :loop
+:done        rts
 
 *--------------------------------------
 * HOMECURSOR -- walk the gap back to the start of the buffer
@@ -52,6 +92,7 @@ HOMECURSOR   jsr   GAPLEFT
 
 *--------------------------------------
              put   auxmem
+             put   keyboard
              put   buffer
              put   display
 

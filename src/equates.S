@@ -56,6 +56,13 @@ AUXPTR       equ   $10              ; 2 bytes, pointer into the aux buffer
 GAPBEG       equ   $12              ; 2 bytes, aux addr of gap start = cursor
 GAPEND       equ   $14              ; 2 bytes, aux addr of first byte past gap
 TMPC         equ   $16
+MAXROW       equ   $17              ; last usable text row + 1
+KEYCHR       equ   $18              ; last key read
+MODOA        equ   $19              ; $80 if Open-Apple was down with it
+MODCA        equ   $1a              ; $80 if Closed-Apple was down with it
+JMPVEC       equ   $1b              ; 2 bytes, dispatch trampoline
+CURSROW      equ   $1d              ; screen position of the cursor
+CURSCOL      equ   $1e
 
 *--- runtime home of the aux read stub ---
 * Reads of aux cannot be done from code living in $0200-$BFFF: RAMRD redirects

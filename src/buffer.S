@@ -240,6 +240,8 @@ RENDER       lda   #$00
              sta   AUXPTR
              sta   CURROW
              sta   CURCOL
+             sta   CURSROW
+             sta   CURSCOL
              lda   #AUXLO
              sta   AUXPTR+1
              jsr   CLRBUF
@@ -250,6 +252,11 @@ RENDER       lda   #$00
              lda   AUXPTR+1
              cmp   GAPBEG+1
              bne   :notgap
+*--- the gap is the cursor, so this is where it lands on screen
+             lda   CURROW
+             sta   CURSROW
+             lda   CURCOL
+             sta   CURSCOL
              lda   GAPEND
              sta   AUXPTR
              lda   GAPEND+1
@@ -275,7 +282,7 @@ RENDER       lda   #$00
              jsr   DRAWLINE
              inc   CURROW
              lda   CURROW
-             cmp   #TEXTROWS
+             cmp   MAXROW
              bcs   :fin             ; text area full
              jsr   CLRBUF
              lda   #$00
@@ -289,7 +296,7 @@ RENDER       lda   #$00
 :done        lda   CURCOL           ; flush a partial final line
              beq   :fin
              lda   CURROW
-             cmp   #TEXTROWS
+             cmp   MAXROW
              bcs   :fin
              lda   CURROW
              jsr   DRAWLINE

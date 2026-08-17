@@ -251,7 +251,23 @@ That preserves both behaviours in the contexts where each is actually wanted.
 | OA-Q | quit |
 
 Dispatch is a table of (key, modifier mask, handler address) scanned linearly —
-the table is short enough that a scan beats any cleverness.
+the table is short enough that a scan beats any cleverness. Open-Apple letters
+are folded to uppercase on read so `OA-q` and `OA-Q` both dispatch.
+
+### Known simplifications
+
+- **No goal column.** Moving down through a short line loses the original
+  column, because `KUP`/`KDOWN` recompute the column from wherever they land
+  rather than remembering an intent. Every real editor keeps a sticky goal
+  column; this one should too, and it is a small change once there is a line
+  index to hang it off.
+- **Emphasis is not word-aware yet.** `Ctrl-B` and `Ctrl-I` insert the markers
+  and place the cursor between them, which is right when reaching for emphasis
+  before typing a word but not when wrapping one already written. The
+  selection-aware behaviour described above arrives with the editing-operations
+  work.
+- **Full redraw per keystroke.** `RENDER` rescans the buffer from the start on
+  every key. Invisible at present sizes; the line index is the fix.
 
 ### Emphasis insertion
 
