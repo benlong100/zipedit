@@ -21,7 +21,7 @@ VII     := $(TOOLS)/vii.sh
 BIN     := $(BUILD)/$(NAME)
 IMAGE   := $(BUILD)/EDIT.po
 
-.PHONY: all disk run screen test clean tools pull push eject
+.PHONY: all disk run screen test clean tools pull push eject release
 
 all: $(BIN)
 
@@ -64,6 +64,12 @@ pull: eject
 
 push:
 	@$(TOOLS)/xfer.sh push $(IMAGE) $(DOCS)
+
+# A disk to hand to real hardware: editor + ProDOS + BASIC.SYSTEM, no test files.
+release: $(BIN)
+	@RELEASE=1 VOL=EDITOR $(TOOLS)/mkdisk.sh $(BUILD)/EDITOR.po $(BIN)
+	@echo
+	@echo "release image: $(BUILD)/EDITOR.po"
 
 clean:
 	@rm -rf $(BUILD) src/_FileInformation.txt src/$(NAME)
