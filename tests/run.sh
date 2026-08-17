@@ -377,7 +377,9 @@ assert_row "the bottom border is a MouseText rule"   21 "LLLLLLLL"
 assert_row "help is titled"                           1 "KEYBOARD COMMANDS"
 assert_row "help lists movement keys"                 4 "arrows"
 assert_row "help lists the Markdown keys"            10 "**bold** word"
-assert_row "help lists the file keys"                11 "OA-S      save"
+# The Open Apple is now its own glyph ($41), which Virtual ][ reads back as "A"
+# since they share a code. Verified identical on real hardware.
+assert_row "help lists the file keys"                11 "A-S       save"
 assert_row "help tells you how to leave"             20 "press any key to return"
 assert_row "help documents the prompt keys"          17 "AT ANY PROMPT"
 assert_row "cheat sheet still visible under the box" 22 '**bold** _italic_'

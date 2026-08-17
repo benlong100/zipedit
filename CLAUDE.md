@@ -75,6 +75,19 @@ directly rather than inferring it from the display.
 Use `vii.sh await <substring>` rather than fixed delays; it fails loudly on
 timeout instead of silently reading a stale screen.
 
+## MouseText
+
+The help border and the Open Apple glyph come from MouseText, at screen codes
+`$40-$5F` with the alternate character set on. `make probe` builds a standalone
+disk that identifies the ROM and dumps the glyphs on real hardware; it confirmed
+Virtual ][ matches an Enhanced //e exactly, so glyph questions can be settled in
+the emulator. Useful codes: `$4C`/`$53`/`$5C` horizontal rules at three heights,
+`$5F` vertical, `$4E` solid block, `$5B` diamond, `$40`/`$41` solid and open
+apple. There are **no** corner or T-junction glyphs.
+
+Virtual ][ reads these codes back as the ASCII characters sharing their value,
+so tests assert `\` for `$5C`, `L` for `$4C`, `_` for `$5F` and `A` for `$41`.
+
 ## Gotchas discovered the hard way
 
 - `reset` in AppleScript is a *warm* reset and will not reboot from disk. Use

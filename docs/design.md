@@ -250,6 +250,17 @@ apples, a pointer, an hourglass, check marks, a folder, and arrows — so a
 corner is simply where a rule meets a vertical. Any chart showing MouseText
 corners and T-junctions is for a different character set.
 
+**Confirmed on real hardware.** `make probe` builds a standalone disk that
+reports the ROM identification and dumps the glyphs; run on the real Enhanced
+//e it gives `$FBB3=$06`, `$FBC0=$E0` and glyphs identical to Virtual ][. The
+emulator is therefore a faithful proxy for this machine's character generator.
+
+The Open Apple key is drawn with its own glyph (`$41`) rather than spelt "OA".
+That required `INVBUF` to leave bytes with the high bit clear alone: ordinary
+text always reaches it as high ASCII, so the sign bit separates text-to-invert
+from raw screen codes, and an apple can sit in the inverse status bar without
+being mangled into an inverse letter.
+
 MouseText cannot be produced by `asc`, so help rows are emitted as raw screen
 codes. Note also that Virtual ][ reads these codes back as the ASCII characters
 sharing their value: `$5C` as backslash, `$4C` as `L`, `$5F` as underscore.
