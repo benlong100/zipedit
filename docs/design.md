@@ -115,22 +115,47 @@ move a gap edge. Only cursor movement costs anything, and it costs bytes
 proportional to the distance moved — which for an editor is almost always one
 line.
 
-### Moving bytes in and out of aux
+### Moving bytes in and out of aux — as built
 
-The complication: when `RAMRD` is switched to auxiliary memory, instruction
-fetches from `$0200-$BFFF` also come from aux, so a copy loop living in main
-memory cannot simply switch banks around itself.
+Reads and writes are **not** symmetric, and this drove the implementation.
 
-The plan of record is to use the //e firmware `AUXMOVE` routine at `$C311`,
-staging through the main-memory buffer at `$0200`. An aux-to-aux move becomes
-aux → main → aux in chunks. `AUXMOVE` takes source start/end and destination in
-`A1`/`A2`/`A4`, with the carry flag selecting direction.
+**Writing is easy.** `RAMWRT` redirects stores to `$0200-$BFFF` into aux while
+instruction fetches follow `RAMRD`, which we leave alone. So an ordinary store
+loop in main-memory code lands in aux with no special handling.
 
-If gap moves prove too slow, the escalation is a copy loop resident in the
-language card at `$D000+`, which is banked by different soft switches and so
-keeps executing while `RAMRD`/`RAMWRT` point at aux. That is faster but has to
-coexist with ProDOS, which also lives there. Start simple; measure before
-reaching for it.
+**Reading is not.** `RAMRD` redirects loads *and* instruction fetches. Code at
+`$2000` that switched `RAMRD` on would fetch its own next instruction out of the
+text buffer and die.
+
+The original plan here was firmware `AUXMOVE` at `$C311` staging through main
+memory. That was abandoned for something simpler: reads go through a
+four-instruction stub copied into the **stack page** at `$0100`.
+
+```
+        sta RAMRDON
+        lda (AUXPTR),y
+        sta RAMRDOFF
+        rts
+```
+
+`$0000-$01FF` follows `ALTZP`, not `RAMRD`, so a stub living there keeps
+executing out of main memory while `RAMRD` points at aux. `$0100` is the last
+address the stack would ever reach — the editor nests only a few frames deep.
+The stub is position independent (zero page indirect and absolute I/O only), so
+it is simply block-copied at startup.
+
+This is both simpler and faster than `AUXMOVE` for the single-byte access that
+gap shuffling and rendering actually do: roughly 20 cycles per byte against
+about 150 for an `AUXMOVE` call's setup.
+
+**One assumption, documented rather than defended against:** an interrupt taken
+between `RAMRD` on and `RAMRD` off would run its handler out of aux. Nothing in
+this configuration generates interrupts under ProDOS 8. If that ever changes,
+wrap the stub in `PHP`/`SEI` … `PLP`.
+
+`AUXMOVE` remains the right tool if bulk moves are ever needed — a jump to the
+end of a large file currently costs one shuffle per byte. Measure before
+optimising; the line index below is the better first move.
 
 ### Line index
 

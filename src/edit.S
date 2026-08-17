@@ -3,10 +3,10 @@
 *
 * Entered by ProDOS 8 as a SYS file at $2000.
 *
-* At this stage: display layer only. The text area is filled with static
-* sample content so the layout, the aux/main interleave, the cheat sheet and
-* the status line can all be verified on screen. Buffer, keyboard and file
-* layers land next.
+* At this stage: display layer and gap buffer. Sample text is inserted into
+* the aux buffer a byte at a time and then rendered back out of it, so the
+* screen is proof of a full round trip through auxiliary memory. Keyboard and
+* file layers land next.
 *--------------------------------------
              org   $2000
              typ   $ff
@@ -18,72 +18,66 @@
 START        lda   #FCHEAT          ; cheat sheet visible at startup
              sta   FLAGS
 
-             jsr   UNHOOKRAM        ; claim aux memory before anything uses it
-             lda   #$e5             ; poison the buffer so tests can see it
+             jsr   UNHOOKRAM        ; claim aux before anything else uses it
+             lda   #$e5             ; poison, so tests can see untouched gap
              jsr   AUXFILL
+             jsr   INSTSTUB         ; aux read stub into the stack page
+             jsr   BUFINIT
+
+             lda   #<SAMPLE
+             sta   STRPTR
+             lda   #>SAMPLE
+             sta   STRPTR+1
+             jsr   INSSTR           ; text now lives in auxiliary memory
+
+             jsr   HOMECURSOR       ; rewind so RENDER starts from the top
 
              jsr   DISPINIT
-             jsr   DRAWSAMPLE
+             jsr   RENDER           ; read it back out of aux and draw it
              jsr   DRAWCHEAT
              jsr   DRAWSTATUS
 
 :hang        jmp   :hang
 
 *--------------------------------------
-* DRAWSAMPLE -- fill the text area from a table of strings
+* HOMECURSOR -- walk the gap back to the start of the buffer
+*
+* Deliberately uses the single-byte primitive rather than a bulk move: it
+* exercises GAPLEFT across the whole text, so if the shuffle across the gap
+* were wrong the rendered screen would show it immediately.
 *--------------------------------------
-DRAWSAMPLE   ldx   #$00
-:loop        stx   TMPB
-             txa
-             asl                    ; two bytes per table entry
-             tay
-             lda   SAMPLE,y
-             sta   STRPTR
-             lda   SAMPLE+1,y
-             sta   STRPTR+1
-             lda   TMPB
-             jsr   SHOWSTR
-             ldx   TMPB
-             inx
-             cpx   #NSAMPLE
-             bne   :loop
+HOMECURSOR   jsr   GAPLEFT
+             bcc   HOMECURSOR
              rts
 
 *--------------------------------------
              put   auxmem
+             put   buffer
              put   display
 
 *--------------------------------------
-* Sample content
+* Sample content. CR ($8D) separates lines, $00 terminates.
 *--------------------------------------
-SAMPLE       da    L00,L01,L02,L03,L04,L05,L06,L07
-             da    L08,L09,L10,L11,L12,L13,L14,L15
-NSAMPLE      equ   16
-
-L00          asc   "# Notes from the Apple //e"
+SAMPLE       asc   "# Notes from the Apple //e"
+             dfb   $8d,$8d
+             asc   "This editor is written in 6502 assembly and runs under ProDOS 8"
+             dfb   $8d
+             asc   "on an Enhanced Apple //e with 128K. The text you are reading"
+             dfb   $8d
+             asc   "was inserted into auxiliary memory one byte at a time, then"
+             dfb   $8d
+             asc   "read back out of it to draw this screen."
+             dfb   $8d,$8d
+             asc   "## How it writes"
+             dfb   $8d,$8d
+             asc   "- lines hard wrap near column 76, so one line is one screen row"
+             dfb   $8d
+             asc   "- **bold** with Ctrl-B, _italic_ with Ctrl-I"
+             dfb   $8d
+             asc   "- `code` spans and [links](url) are typed literally"
+             dfb   $8d
+             asc   "- Open-Apple-? toggles the cheat sheet below"
+             dfb   $8d,$8d
+             asc   "> Drafted here, then carried back to the Mac as plain UTF-8."
+             dfb   $8d
              dfb   $00
-L01          dfb   $00
-L02          asc   "This editor is written in 6502 assembly and runs under ProDOS 8"
-             dfb   $00
-L03          asc   "on an Enhanced Apple //e with 128K. The text buffer lives in"
-             dfb   $00
-L04          asc   "auxiliary memory as a gap buffer, which leaves main memory for"
-             dfb   $00
-L05          asc   "the code, the line index and the clipboard."
-             dfb   $00
-L06          dfb   $00
-L07          asc   "## How it writes"
-             dfb   $00
-L08          dfb   $00
-L09          asc   "- lines hard wrap near column 76, so one line is one screen row"
-             dfb   $00
-L10          asc   "- **bold** with Ctrl-B, _italic_ with Ctrl-I"
-             dfb   $00
-L11          asc   "- `code` spans and [links](url) are typed literally"
-             dfb   $00
-L12          asc   "- Open-Apple-? toggles the cheat sheet below"
-             dfb   $00
-L13          dfb   $00
-L14          asc   "> Drafted here, then carried back to the Mac as plain UTF-8."
-             dfb   $00
-L15          dfb   $00

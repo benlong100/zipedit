@@ -53,6 +53,17 @@ TMPA         equ   $0d
 TMPB         equ   $0e
 FLAGS        equ   $0f
 AUXPTR       equ   $10              ; 2 bytes, pointer into the aux buffer
+GAPBEG       equ   $12              ; 2 bytes, aux addr of gap start = cursor
+GAPEND       equ   $14              ; 2 bytes, aux addr of first byte past gap
+TMPC         equ   $16
+
+*--- runtime home of the aux read stub ---
+* Reads of aux cannot be done from code living in $0200-$BFFF: RAMRD redirects
+* instruction fetches too, so the CPU would fetch its own next instruction out
+* of the text buffer. The stack page follows ALTZP rather than RAMRD, so a stub
+* copied there keeps executing from main while RAMRD points at aux. $0100 is
+* the last address the stack would ever reach.
+AUXRD        equ   $0100
 
 *--- FLAGS bits ---
 FCHEAT       equ   %00000001        ; cheat sheet visible

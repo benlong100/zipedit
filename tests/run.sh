@@ -58,8 +58,8 @@ assert_mem "loaded image matches build artifact" 0x2000 "$(stat -f%z "$BIN")" 0 
 
 echo "display layer"
 assert_width "screen is 80 columns wide"            0
-assert_row   "heading renders"                      0 "# Notes from the Apple //e"
-assert_row   "prose renders across full width"      2 "runs under ProDOS 8"
+assert_row   "heading rendered from the aux buffer" 0 "# Notes from the Apple //e"
+assert_row   "prose rendered from the aux buffer"    2 "runs under ProDOS 8"
 assert_row   "Markdown punctuation survives"       10 '**bold** with Ctrl-B, _italic_ with Ctrl-I'
 assert_row   "backtick code span renders"          11 '`code` spans and [links](url)'
 assert_row   "blank lines stay blank"               1 ""
@@ -79,20 +79,53 @@ else
     bad "/RAM disconnected from the ProDOS device tables" "$(cat "$TMP/err")"
 fi
 
-# The whole point of disconnecting /RAM: all 46K of aux must be ours. The
-# editor poisons the buffer with $E5 at startup, so any byte that isn't $E5
-# means something else is still living in auxiliary memory.
-"$VII" dump 0x0800 0xB800 1 "$TMP/aux.bin" >/dev/null
+# The editor poisons all of aux with $E5 at startup, then inserts sample text.
+# The untouched middle of the buffer must still read back as poison -- if
+# anything else were living in auxiliary memory, this is where it would show.
+"$VII" dump 0x2000 0x8000 1 "$TMP/auxmid.bin" >/dev/null
 if python3 -c '
 import sys
 d=open(sys.argv[1],"rb").read()
-assert len(d)==0xB800, f"short dump: {len(d)}"
+assert len(d)==0x8000, f"short dump: {len(d)}"
 bad=[i for i,b in enumerate(d) if b!=0xE5]
-assert not bad, f"{len(bad)} bytes not $E5, first at ${0x0800+bad[0]:04X}"
-' "$TMP/aux.bin" 2>"$TMP/err"; then
-    ok "all 46K of the aux text buffer is writable and intact"
+assert not bad, f"{len(bad)} bytes not $E5, first at ${0x2000+bad[0]:04X}"
+' "$TMP/auxmid.bin" 2>"$TMP/err"; then
+    ok "32K of untouched aux still reads back as poison"
 else
-    bad "all 46K of the aux text buffer is writable and intact" "$(cat "$TMP/err")"
+    bad "32K of untouched aux still reads back as poison" "$(cat "$TMP/err")"
+fi
+
+echo "gap buffer"
+# HOMECURSOR walks the gap to the buffer start one byte at a time, so the text
+# ends up at the TOP of aux. Getting there exercised one aux read and one aux
+# write per byte through the stack-page stub.
+"$VII" dump 0xBC00 0x400 1 "$TMP/auxtop.bin" >/dev/null
+check_text() {
+    python3 -c '
+import sys
+d=open(sys.argv[1],"rb").read()
+t="".join(chr(b & 0x7F) for b in d)
+assert sys.argv[2] in t, f"not found in aux: {sys.argv[2]!r}"
+' "$TMP/auxtop.bin" "$2" 2>"$TMP/err" && ok "$1" || bad "$1" "$(cat "$TMP/err")"
+}
+check_text "text is stored in auxiliary memory"        "# Notes from the Apple //e"
+check_text "gap shuffle preserved bytes across 500+ moves" "**bold** with Ctrl-B, _italic_ with Ctrl-I"
+check_text "backtick survives the round trip"          '`code` spans and [links](url)'
+
+# GAPBEG must be at the buffer start after HOMECURSOR, and GAPEND must leave
+# room for exactly the sample text.
+"$VII" dump 0x0000 0x20 0 "$TMP/zp.bin" >/dev/null
+if python3 -c '
+import sys
+d=open(sys.argv[1],"rb").read()
+w=lambda o: d[o]|(d[o+1]<<8)
+assert w(0x12)==0x0800, f"GAPBEG is ${w(0x12):04X}, expected $0800"
+n=0xC000-w(0x14)
+assert 500 < n < 600, f"text length {n} outside expected range"
+' "$TMP/zp.bin" 2>"$TMP/err"; then
+    ok "gap is at the buffer start with the full text past it"
+else
+    bad "gap is at the buffer start with the full text past it" "$(cat "$TMP/err")"
 fi
 
 echo "chrome"
