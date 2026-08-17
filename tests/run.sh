@@ -369,7 +369,11 @@ echo "help screen"
 "$VII" oa "?" >/dev/null
 "$VII" await "KEYBOARD COMMANDS" 60 || bad "OA-? never opened help"
 snapshot
-assert_row "OA-? draws the box border"                0 "+------"
+# The border is MouseText. Virtual ][ reads those codes back as the ASCII
+# characters they share a code with: $5C -> backslash, $4C -> L, $5F -> _.
+assert_row "the top border is a MouseText rule"       0 '\\\\\\\\'
+assert_row "the sides are MouseText verticals"        4 "_   arrows"
+assert_row "the bottom border is a MouseText rule"   21 "LLLLLLLL"
 assert_row "help is titled"                           1 "KEYBOARD COMMANDS"
 assert_row "help lists movement keys"                 4 "arrows"
 assert_row "help lists the Markdown keys"            10 "**bold** word"

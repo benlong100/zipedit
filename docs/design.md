@@ -226,6 +226,35 @@ cannot reproduce the feel of falling behind on real hardware. The ratios should
 hold — a real //e runs at the same 1.02 MHz — but the real machine is the
 authority.
 
+### MouseText
+
+The help screen's border is MouseText, which the alternate character set maps
+onto screen codes `$40-$5F` on an Enhanced //e. The glyph assignments were
+**probed, not recalled** — `src/mousetext.S` tiles each candidate eight times so
+its shape is unmistakable:
+
+| code | glyph |
+|---|---|
+| `$4C` | horizontal rule, high in the cell |
+| `$53` | horizontal rule, mid cell |
+| `$5C` | horizontal rule, low in the cell |
+| `$5F` | vertical rule, clean when stacked |
+| `$4E` | solid block |
+| `$5B` | diamond |
+
+A box uses `$5C` on top and `$4C` on the bottom: the low rule and the high rule
+both meet the verticals, so the box closes. Reversing them leaves gaps.
+
+**There are no corner or T-junction glyphs.** `$40-$4A` are the closed and open
+apples, a pointer, an hourglass, check marks, a folder, and arrows — so a
+corner is simply where a rule meets a vertical. Any chart showing MouseText
+corners and T-junctions is for a different character set.
+
+MouseText cannot be produced by `asc`, so help rows are emitted as raw screen
+codes. Note also that Virtual ][ reads these codes back as the ASCII characters
+sharing their value: `$5C` as backslash, `$4C` as `L`, `$5F` as underscore.
+Tests assert against those.
+
 ### Screen layout
 
 ```
