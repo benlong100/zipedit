@@ -7,7 +7,7 @@
 #   make test     run the AppleScript regression suite
 #   make clean
 
-SRC     ?= src/hello.S
+SRC     ?= src/edit.S
 NAME    ?= EDIT.SYSTEM
 BUILD   := build
 TOOLS   := tools
