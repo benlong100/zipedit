@@ -86,7 +86,7 @@ echo "display layer"
 assert_width "screen is 80 columns wide"            0
 assert_row   "heading rendered from the aux buffer" 0 "# Notes from the Apple //e"
 assert_row   "prose rendered from the aux buffer"    2 "runs under ProDOS 8"
-assert_row   "Markdown punctuation survives"       10 '**bold** with Ctrl-B, _italic_ with Ctrl-I'
+assert_row   "Markdown punctuation survives"       10 '**bold** with Ctrl-B, *italic* with Ctrl-I'
 assert_row   "backtick code span renders"          11 '`code` spans and [links](url)'
 assert_row   "blank lines stay blank"               1 ""
 
@@ -135,7 +135,7 @@ assert sys.argv[2] in t, f"not found in aux: {sys.argv[2]!r}"
 ' "$TMP/auxtop.bin" "$2" 2>"$TMP/err" && ok "$1" || bad "$1" "$(cat "$TMP/err")"
 }
 check_text "text is stored in auxiliary memory"        "# Notes from the Apple //e"
-check_text "gap shuffle preserved bytes across 500+ moves" "**bold** with Ctrl-B, _italic_ with Ctrl-I"
+check_text "gap shuffle preserved bytes across 500+ moves" "**bold** with Ctrl-B, *italic* with Ctrl-I"
 check_text "backtick survives the round trip"          '`code` spans and [links](url)'
 
 # GAPBEG must be at the buffer start after HOMECURSOR, and GAPEND must leave
@@ -218,11 +218,11 @@ k ctrl I
 GB=$(python3 -c "d=open('$TMP/zp.bin','rb').read(); print(d[0x12]|(d[0x13]<<8))")
 GE=$(python3 -c "d=open('$TMP/zp.bin','rb').read(); print(d[0x14]|(d[0x15]<<8))")
 "$VII" dump $((GB-1)) 1 1 "$TMP/before.bin" >/dev/null
-if [ "$(xxd -p "$TMP/before.bin")" = "df" ]; then
+if [ "$(xxd -p "$TMP/before.bin")" = "aa" ]; then
     ok "\$89 italicises outside leading whitespace"
 else
     bad "\$89 italicises outside leading whitespace" \
-        "byte before the cursor is $(xxd -p "$TMP/before.bin"), wanted df (closing _)"
+        "byte before the cursor is $(xxd -p "$TMP/before.bin"), wanted aa (closing *)"
 fi
 
 k ctrl A

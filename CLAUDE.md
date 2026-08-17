@@ -58,8 +58,8 @@ generator probe, `src/hello.S` is the minimal toolchain check.
 ## Keymap
 
 Arrows move by character and line. OA-up/OA-down page, OA-`<`/OA-`>` jump to
-the start and end of the document. Ctrl-A/Ctrl-E line ends, Ctrl-B bold,
-Ctrl-I italic, Ctrl-D delete forward. OA-R reflow, OA-S save, OA-O open,
+the start and end of the document. Ctrl-A/Ctrl-E line ends, Ctrl-B bold (`**`),
+Ctrl-I italic (`*`), Ctrl-D delete forward. OA-R reflow, OA-S save, OA-O open,
 OA-C/OA-X/OA-V copy, cut and paste a line. OA-F find, OA-G find again, OA-L go
 to line. OA-? (or OA-H) opens the keyboard
 help screen, OA-/ toggles the one-line cheat sheet, OA-Q quits. `$89` is both Tab and Ctrl-I and dispatches on
@@ -128,6 +128,10 @@ so tests assert `\` for `$5C`, `L` for `$4C`, `_` for `$5F` and `A` for `$41`.
   and the screen reads back stale. `vii.sh boot` now thaws first; `vii.sh thaw`
   does it on demand. A whole round of measurements was invalid before I spotted
   this.
+- **Check the emulator speed before timing anything.** Virtual ][ may be left
+  on `maximum`, which makes every measurement meaningless. `vii.sh speed
+  regular` first; `vii.sh speed maximum` is fine for everything else and makes
+  the suite much faster.
 - Typing costs a fixed ~100 ms plus ~0.035 ms per buffer byte, so tests must
   never sleep a fixed interval for a multi-character string. Use `ktext`, which
   waits for the text to appear.

@@ -172,7 +172,7 @@ SAMPLE       asc   "# Notes from the Apple //e"
              dfb   $8d,$8d
              asc   "- lines hard wrap near column 76, so one line is one screen row"
              dfb   $8d
-             asc   "- **bold** with Ctrl-B, _italic_ with Ctrl-I"
+             asc   "- **bold** with Ctrl-B, *italic* with Ctrl-I"
              dfb   $8d
              asc   "- `code` spans and [links](url) are typed literally"
              dfb   $8d

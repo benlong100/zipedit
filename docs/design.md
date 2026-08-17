@@ -349,7 +349,7 @@ That preserves both behaviours in the contexts where each is actually wanted.
 | Ctrl-D | delete char right |
 | Ctrl-Y | delete to end of line |
 | **Ctrl-B** | **bold** — wrap in `**` |
-| **Ctrl-I** | **italic** — wrap in `_` (see collision above) |
+| **Ctrl-I** | **italic** — wrap in `*` (see collision above) |
 | Tab (in leading whitespace) | indent two spaces |
 | OA-C / OA-X / OA-V | copy line / cut line / paste |
 | OA-F / OA-G | find / find again |
@@ -380,7 +380,7 @@ are folded to uppercase on read so `OA-q` and `OA-Q` both dispatch.
 
 ### Emphasis insertion — as built
 
-`Ctrl-B` (`**`) and `Ctrl-I` (`_`) share one routine:
+`Ctrl-B` (`**`) and `Ctrl-I` (`*`) share one routine:
 
 1. If the cursor is inside a word, run to the end of it first, so emphasis
    takes the whole word rather than the half behind the cursor.
@@ -390,7 +390,8 @@ are folded to uppercase on read so `OA-q` and `OA-Q` both dispatch.
    which is what you want when reaching for emphasis before typing.
 
 Marker characters count as word characters, so applying italic to `**bold**`
-produces `_**bold**_` rather than something malformed.
+produces `***bold***` rather than something malformed — bold and italic share
+the asterisk, and three is the correct Markdown for both.
 
 **A trap worth recording:** none of these loops can count in `X`. `INSCHR`
 reaches `PUTAUX`, which does a `TAX`, and `GAPLEFT`/`GAPRIGHT` do the same, so

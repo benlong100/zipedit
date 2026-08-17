@@ -398,7 +398,7 @@ KBOLD        lda   #$aa             ; '*'
              ldx   #$02
              jmp   EMPHASIS
 
-KITALIC      lda   #$df             ; '_'
+KITALIC      lda   #$aa             ; '*' -- one for italic, two for bold
              ldx   #$01
              jmp   EMPHASIS
 
