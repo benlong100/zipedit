@@ -296,11 +296,20 @@ The status line is permanent. The cheat sheet is toggled with **Open-Apple-?**
 and steals one row from the text area when shown; toggling it forces a full
 redraw and a scroll adjustment if the cursor would fall off the bottom.
 
-The cheat sheet is a single static 80-column string:
+The cheat sheet is hidden by default and toggled with **OA-/**. It is a single
+static string:
 
 ```
-**bold** _italic_ `code` # H1 ## H2 - list 1. num > quote [txt](url) --- rule
+`code` # H1 ## H2 - list 1. num - [ ] todo - [x] done > quote [link](url) ---
 ```
+
+Bold and italic are deliberately absent: they have dedicated keys (Ctrl-B and
+Ctrl-I), so the space is better spent on syntax you have to type by hand — task
+lists especially.
+
+While the sheet is hidden, row 22 belongs to the document, so `REDRAW` must not
+blank it. `TOGGLECHEAT` clears the row once when switching off, and after that
+the text layer owns it.
 
 Because hard wrap means one logical line is always one screen row, scrolling is
 a matter of moving a window over the line index — there is no logical-to-visual

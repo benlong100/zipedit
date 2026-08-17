@@ -155,7 +155,9 @@ else
 fi
 
 echo "chrome"
-assert_row   "cheat sheet on row 22"               22 '**bold** _italic_ `code` # H1'
+# The cheat sheet is hidden by default, so row 22 belongs to the document.
+assert_row   "row 22 carries text when the sheet is hidden" 22 "Paragraph"
+
 assert_row   "status line on row 23"               23 "UNTITLED.MD"
 assert_width "status line fills the row"           23
 
@@ -183,10 +185,10 @@ assert_row "Ctrl-B wraps the word at the cursor"      0 "draft: # **NXotes**"
 
 k oa "/"
 sleep 1; snapshot
-assert_blank "OA-/ hides the cheat sheet"            22
+assert_row "OA-/ shows the cheat sheet"              22 '`code` # H1 ## H2 - list'
 k oa "/"
 sleep 1; snapshot
-assert_row "OA-/ restores the cheat sheet"           22 '**bold** _italic_ `code` # H1' 
+assert_row "OA-/ hides it and row 22 returns to text" 22 "Paragraph"
 
 # The Tab / Ctrl-I collision: identical keycode, different meaning by position.
 # Ctrl-H and the left arrow are the same byte on this keyboard, which is why
@@ -382,7 +384,7 @@ assert_row "help lists the Markdown keys"            10 "**bold** word"
 assert_row "help lists the file keys"                11 "A-S       save"
 assert_row "help tells you how to leave"             20 "press any key to return"
 assert_row "help documents the prompt keys"          17 "AT ANY PROMPT"
-assert_row "cheat sheet still visible under the box" 22 '**bold** _italic_'
+assert_row "the status line still shows under the box" 23 "UNTITLED.MD"
 
 "$VII" text " " >/dev/null; sleep 3
 snapshot

@@ -379,7 +379,7 @@ DRAWSTATUS   lda   #<STATTXT
 *--------------------------------------
 * Data
 *--------------------------------------
-CHEATTXT     asc   "**bold** _italic_ `code` # H1 ## H2 - list 1. num > quote [txt](url) --- rule"
+CHEATTXT     asc   "`code` # H1 ## H2 - list 1. num - [ ] todo - [x] done > quote [link](url) ---"
              dfb   $00
 
 * Placeholder until the buffer and file layers can supply real values.

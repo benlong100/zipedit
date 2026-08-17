@@ -16,7 +16,7 @@
              put   equates
 
 *--------------------------------------
-START        lda   #FCHEAT          ; cheat sheet visible at startup
+START        lda   #$00             ; cheat sheet hidden by default; OA-/ shows it
              sta   FLAGS
              lda   #$00
              sta   SCROLLTOP
@@ -110,9 +110,9 @@ REDRAW       jsr   RENDER
              jsr   SHOWCURSOR
              lda   FLAGS
              and   #FCHEAT
-             beq   :nocheat
+             beq   :done            ; hidden: row 22 is text, leave it alone
              jmp   DRAWCHEAT
-:nocheat     jmp   CLRCHEAT
+:done        rts
 
 *--------------------------------------
 * BLANKTAIL -- clear text rows below the end of the buffer, so deleting a line
