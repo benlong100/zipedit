@@ -70,27 +70,36 @@ Hard-wrapped prose averages ~60 bytes per line, so the buffer holds roughly
 780 lines — about 15 screens, or 8,000 words. Comfortably more than a single
 article or chapter, which is the intended unit of work.
 
-### The /RAM problem
+### The /RAM problem — solved
 
-**This is the one thing that can sink the whole memory plan.** On a 128K
-machine ProDOS 8 automatically installs `/RAM`, a RAM disk that lives in
-exactly the auxiliary memory we want for the text buffer. If we start writing
-text into aux without dealing with this, `/RAM` and the editor will corrupt
-each other.
+On a 128K machine ProDOS 8 automatically installs `/RAM`, a RAM disk that lives
+in exactly the auxiliary memory we want for the text buffer. Left alone, `/RAM`
+and the editor would silently corrupt each other. This was the biggest risk in
+the memory plan.
 
-The fix is to disconnect `/RAM` at startup: remove its entry from the ProDOS
-device driver table in the global page, decrement the device count, and remove
-it from the device list. The exact global-page offsets must be taken from the
-ProDOS 8 Technical Reference rather than from memory — and then verified
-empirically, which is cheap here:
+The live ProDOS 2.4.3 global page, read out of a running machine rather than
+recalled from documentation:
 
 ```
-tools/vii.sh dump 0xBF00 0x100 0 /tmp/globals.bin   # before
-tools/vii.sh dump 0xBF00 0x100 0 /tmp/globals2.bin  # after our patch
+$BF26/$BF27  driver for slot 3 drive 2  = $FF00   <- /RAM
+every unused slot                       = $DEA3   <- "no device connected"
+$BF31 DEVCNT = $02                                <- count MINUS ONE
+$BF32 DEVLST = $E0 $60 $BF                        <- $BF is /RAM
 ```
 
-Until that is confirmed working, treat the aux buffer as unproven. It is the
-first thing to build after the display layer.
+Two details that are easy to get wrong: `DEVCNT` is the device count *minus
+one*, and `DEVLST` entries carry device ID bits in the low nibble (`$BF`, not
+`$B0`), so slot/drive comparisons must mask with `$F0`.
+
+`UNHOOKRAM` in `src/auxmem.S` points `$BF26` at the no-device routine — read
+from slot 0 drive 1, which can never be a real device, rather than hardcoding
+`$DEA3`, since it moves between ProDOS versions — then compacts `$BF` out of
+`DEVLST` and decrements `DEVCNT`.
+
+**Verified.** After the patch `DEVLST` is `$E0 $60`, and filling aux
+`$0800-$BFFF` with a poison byte and dumping all 47,104 bytes back shows every
+one intact. The regression suite asserts both, so a future change that
+reintroduces `/RAM` fails the build.
 
 ## 3. Text representation
 

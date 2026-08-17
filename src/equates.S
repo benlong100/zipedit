@@ -30,8 +30,17 @@ CLSAPPLE     equ   $c062            ; bit 7 = Closed-Apple held
 *--- firmware ---
 AUXMOVE      equ   $c311
 
-*--- ProDOS ---
+*--- ProDOS global page ---
 MLI          equ   $bf00
+DEVTBL       equ   $bf10            ; driver addresses, indexed by unit>>4
+RAMDRV       equ   $bf26            ; slot 3 drive 2 -- where /RAM hooks in
+DEVNUM       equ   $bf30
+DEVCNT       equ   $bf31            ; device count MINUS ONE
+DEVLST       equ   $bf32
+
+*--- auxiliary text buffer ---
+AUXLO        equ   $08              ; buffer starts at aux $0800
+AUXHI        equ   $c0              ; and ends below aux $C000
 
 *--- zero page ---
 * $3c-$43 are left alone: AUXMOVE uses them as A1/A2/A4.
@@ -43,6 +52,7 @@ SAVEY        equ   $0c
 TMPA         equ   $0d
 TMPB         equ   $0e
 FLAGS        equ   $0f
+AUXPTR       equ   $10              ; 2 bytes, pointer into the aux buffer
 
 *--- FLAGS bits ---
 FCHEAT       equ   %00000001        ; cheat sheet visible

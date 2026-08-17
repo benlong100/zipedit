@@ -64,6 +64,37 @@ assert_row   "Markdown punctuation survives"       10 '**bold** with Ctrl-B, _it
 assert_row   "backtick code span renders"          11 '`code` spans and [links](url)'
 assert_row   "blank lines stay blank"               1 ""
 
+echo "auxiliary memory"
+"$VII" dump 0xBF00 0x100 0 "$TMP/globals.bin" >/dev/null
+if python3 -c '
+import sys
+d=open(sys.argv[1],"rb").read()
+w=lambda o: d[o]|(d[o+1]<<8)
+cnt=d[0x31]
+assert w(0x26)==w(0x10), "slot 3 drive 2 driver still hooked"
+assert not any((d[0x32+i]&0xF0)==0xB0 for i in range(cnt+1)), "/RAM still in DEVLST"
+' "$TMP/globals.bin" 2>"$TMP/err"; then
+    ok "/RAM disconnected from the ProDOS device tables"
+else
+    bad "/RAM disconnected from the ProDOS device tables" "$(cat "$TMP/err")"
+fi
+
+# The whole point of disconnecting /RAM: all 46K of aux must be ours. The
+# editor poisons the buffer with $E5 at startup, so any byte that isn't $E5
+# means something else is still living in auxiliary memory.
+"$VII" dump 0x0800 0xB800 1 "$TMP/aux.bin" >/dev/null
+if python3 -c '
+import sys
+d=open(sys.argv[1],"rb").read()
+assert len(d)==0xB800, f"short dump: {len(d)}"
+bad=[i for i,b in enumerate(d) if b!=0xE5]
+assert not bad, f"{len(bad)} bytes not $E5, first at ${0x0800+bad[0]:04X}"
+' "$TMP/aux.bin" 2>"$TMP/err"; then
+    ok "all 46K of the aux text buffer is writable and intact"
+else
+    bad "all 46K of the aux text buffer is writable and intact" "$(cat "$TMP/err")"
+fi
+
 echo "chrome"
 assert_row   "cheat sheet on row 22"               22 '**bold** _italic_ `code` # H1'
 assert_row   "status line on row 23"               23 "UNTITLED.MD"

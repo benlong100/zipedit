@@ -18,6 +18,10 @@
 START        lda   #FCHEAT          ; cheat sheet visible at startup
              sta   FLAGS
 
+             jsr   UNHOOKRAM        ; claim aux memory before anything uses it
+             lda   #$e5             ; poison the buffer so tests can see it
+             jsr   AUXFILL
+
              jsr   DISPINIT
              jsr   DRAWSAMPLE
              jsr   DRAWCHEAT
@@ -46,6 +50,7 @@ DRAWSAMPLE   ldx   #$00
              rts
 
 *--------------------------------------
+             put   auxmem
              put   display
 
 *--------------------------------------
