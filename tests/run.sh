@@ -11,12 +11,15 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 VII="$ROOT/tools/vii.sh"
 IMAGE="${IMAGE:-$ROOT/build/EDIT.po}"
 BIN="${BIN:-$ROOT/build/EDIT.SYSTEM}"
+WRAPCOL=76        # must match src/equates.S
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 
 pass=0; fail=0
 ok()  { printf '  \033[32mPASS\033[0m %s\n' "$1"; pass=$((pass+1)); }
 bad() { printf '  \033[31mFAIL\033[0m %s\n' "$1"; shift; [ $# -gt 0 ] && printf '       %s\n' "$@"; fail=$((fail+1)); }
+
+k() { "$VII" "$@" >/dev/null; sleep 0.6; }
 
 SCREEN="$TMP/screen.txt"
 snapshot() { "$VII" screen-raw > "$SCREEN"; }
@@ -45,6 +48,15 @@ assert_blank() {
     local got; got="$(sed -n "$((row+1))p" "$SCREEN")"
     if [ -z "${got// /}" ]; then ok "$name"; else
         bad "$name" "row $row expected blank, got: $got"
+    fi
+}
+
+# assert_maxcols <name> <0-based row> <max> -- trailing spaces ignored
+assert_maxcols() {
+    local name="$1" row="$2" max="$3"
+    local got; got="$(sed -n "$((row+1))p" "$SCREEN" | sed 's/ *$//')"
+    if [ "${#got}" -le "$max" ]; then ok "$name"; else
+        bad "$name" "row $row is ${#got} columns, expected <= $max"
     fi
 }
 
@@ -150,8 +162,6 @@ echo "keyboard"
 "$VII" boot "$IMAGE" >/dev/null
 "$VII" await "Notes from the Apple" 40 || { echo "reboot failed"; exit 1; }
 "$VII" caps false >/dev/null
-k() { "$VII" "$@" >/dev/null; sleep 0.6; }
-
 k text "draft: "
 snapshot
 assert_row "typing inserts at the cursor"             0 "draft: # Notes from the Apple //e"
@@ -200,6 +210,50 @@ k text "zz"
 k key "left arrow"
 snapshot
 assert_row "text accumulates correctly before delete" 0 "zz  draft:"
+
+#--------------------------------------
+# Hard wrap. Typing is slow (~8 chars/sec: full buffer rescan and redraw per
+# keystroke), so these wait on a sentinel word rather than a fixed delay.
+#--------------------------------------
+echo "hard wrap"
+"$VII" boot "$IMAGE" >/dev/null
+"$VII" await "Notes from the Apple" 40 || { echo "reboot failed"; exit 1; }
+"$VII" caps false >/dev/null
+
+"$VII" text "aaa bbb ccc ddd eee fff ggg hhh iii jjj kkk lll mmm nnn ooo ppp qqq rrr sss ttt zebra " >/dev/null
+"$VII" await "zebra" 180 || bad "typed text never arrived"
+snapshot
+assert_maxcols "typing past the margin breaks the line" 0 "$WRAPCOL"
+assert_row     "the overflow continues on the next row" 1 "zebra"
+
+# The break must land on a space, never mid-word.
+if sed -n '1p' "$SCREEN" | sed 's/ *$//' | grep -qE '[a-z]$'; then
+    ok "line breaks at a word boundary"
+else
+    bad "line breaks at a word boundary" "row 0 ends: $(sed -n '1p' "$SCREEN" | sed 's/ *$//' | tail -c 12)"
+fi
+
+#--------------------------------------
+# Reflow. Rejoins a paragraph and re-wraps it, leaving neighbours alone.
+#--------------------------------------
+echo "reflow"
+"$VII" boot "$IMAGE" >/dev/null
+"$VII" await "Notes from the Apple" 40 || { echo "reboot failed"; exit 1; }
+"$VII" caps false >/dev/null
+k key "down arrow"; k key "down arrow"
+"$VII" oa "R" >/dev/null
+"$VII" await "was inserted into auxiliary" 180 || bad "reflow never completed"
+snapshot
+assert_maxcols "reflowed row 2 fits the margin"        2 "$WRAPCOL"
+assert_maxcols "reflowed row 3 fits the margin"        3 "$WRAPCOL"
+assert_maxcols "reflowed row 4 fits the margin"        4 "$WRAPCOL"
+assert_row     "heading above the paragraph untouched" 0 "# Notes from the Apple //e"
+assert_blank   "blank line above the paragraph kept"   1
+if grep -q "## How it writes" "$SCREEN"; then
+    ok "reflow stopped at the paragraph boundary"
+else
+    bad "reflow stopped at the paragraph boundary" "the following heading was consumed"
+fi
 
 #--------------------------------------
 # File I/O. Round trips through a real ProDOS volume in the mounted image.

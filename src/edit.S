@@ -3,9 +3,10 @@
 *
 * Entered by ProDOS 8 as a SYS file at $2000.
 *
-* Display, gap buffer, keyboard and ProDOS file I/O are all in. Sample text is
-* inserted into the aux buffer at startup, the main loop edits it, and OA-S /
-* OA-O save and load real ProDOS TXT files. Hard wrap on entry is next.
+* Display, gap buffer, keyboard, ProDOS file I/O and hard wrap are all in.
+* Sample text is inserted into the aux buffer at startup, the main loop edits
+* it with wrapping at column 76, OA-R reflows a paragraph, and OA-S / OA-O
+* save and load real ProDOS TXT files.
 *--------------------------------------
              org   $2000
              typ   $ff
@@ -94,6 +95,7 @@ HOMECURSOR   jsr   GAPLEFT
              put   auxmem
              put   keyboard
              put   file
+             put   wrap
              put   buffer
              put   display
 

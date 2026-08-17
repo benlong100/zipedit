@@ -75,6 +75,7 @@ DISPATCH     ldx   #$00
              cmp   #$ff             ; Delete
              bcs   :ret
              jsr   INSCHR
+             jsr   WRAPCHECK        ; break the line if we ran past the margin
 :ret         rts
 
 *--------------------------------------
@@ -105,6 +106,8 @@ KEYTBL
              da    KTABITAL         ; Ctrl-I / Tab
              dfb   $bf,$80
              da    TOGGLECHEAT      ; OA-?
+             dfb   $d2,$80
+             da    REFLOW           ; OA-R
              dfb   $d3,$80
              da    KSAVE            ; OA-S
              dfb   $cf,$80

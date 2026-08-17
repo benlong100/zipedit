@@ -64,6 +64,7 @@ JMPVEC       equ   $1b              ; 2 bytes, dispatch trampoline
 CURSROW      equ   $1d              ; screen position of the cursor
 CURSCOL      equ   $1e
 RUNLEN       equ   $1f              ; 2 bytes, bytes left in a file transfer
+WDIST        equ   $21              ; wrap: characters to step over
 
 *--- runtime home of the aux read stub ---
 * Reads of aux cannot be done from code living in $0200-$BFFF: RAMRD redirects
@@ -82,3 +83,4 @@ CHEATROW     equ   22               ; 0-based; row 23 in the design doc
 STATROW      equ   23
 TEXTROWS     equ   22               ; when the cheat sheet is showing
 TEXTROWSMAX  equ   23               ; when it is hidden
+WRAPCOL      equ   76               ; hard wrap margin

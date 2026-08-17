@@ -267,7 +267,10 @@ are folded to uppercase on read so `OA-q` and `OA-Q` both dispatch.
   selection-aware behaviour described above arrives with the editing-operations
   work.
 - **Full redraw per keystroke.** `RENDER` rescans the buffer from the start on
-  every key. Invisible at present sizes; the line index is the fix.
+  every key. **Measured at ~120 ms per keystroke, about 8 characters per
+  second sustained**, on a 600-byte buffer. That is comfortable for prose at
+  ordinary speed but a fast typist will outrun it, and it gets worse as the
+  file grows. The line index is the fix; see §3.
 
 ### Emphasis insertion
 
@@ -333,6 +336,27 @@ buffer itself**, not just against what happens to be on screen. That is the
 difference between testing an editor and testing a screen.
 
 Display regressions use `snap` plus `same picture` against reference PNGs.
+
+## 7a. Hard wrap — as built
+
+`WRAPCHECK` runs after every printable insert. If the cursor has passed
+`WRAPCOL` (76), `DOWRAP` scans back for the last space on the line and turns
+that space into a newline, then returns the cursor to the character it was on.
+No bytes are gained or lost, and the text either side is untouched. A word
+longer than the margin has no space to break at, so it breaks at the cursor.
+
+The wrap is an edit to the buffer, not a decoration on the display: the newline
+is a real byte and it is what gets saved.
+
+`REFLOW` (OA-R) rejoins and re-wraps the paragraph around the cursor. It walks
+forward from `PARASTART`, turning each newline that has prose after it back
+into a space, and re-breaking whenever the column passes the margin. A blank
+line ends the paragraph, so neighbouring paragraphs and headings are left
+alone.
+
+Verified: typing a long run breaks at column 76 on a word boundary, and
+reflowing a four-line paragraph reproduces it as 69/72/74-column lines with
+the heading above and below untouched.
 
 ## 8. Build order
 

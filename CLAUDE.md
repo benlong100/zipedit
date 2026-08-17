@@ -55,6 +55,13 @@ generator probe, `src/hello.S` is the minimal toolchain check.
 - **High ASCII.** Anything destined for the screen or for a text file has bit 7
   set. `asc "..."` (double quotes) sets it; single quotes do not.
 
+## Keymap
+
+Arrows move; OA-arrows are word and page (not yet wired). Ctrl-A/Ctrl-E line
+ends, Ctrl-B bold, Ctrl-I italic, Ctrl-D delete forward. OA-R reflow, OA-S
+save, OA-O open, OA-? cheat sheet, OA-Q quit. `$89` is both Tab and Ctrl-I and
+dispatches on position -- see `docs/design.md`.
+
 ## Testing
 
 `tests/run.sh` boots the built image in Virtual ][ and asserts against both the
