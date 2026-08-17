@@ -184,6 +184,17 @@ Two options for putting characters on screen:
 Decision: direct writes, with a dirty-line bitmap so a keystroke redraws only
 the line it touched. Full redraws happen only on scroll.
 
+### Scrolling
+
+`SCROLLTOP` is the buffer line drawn on the first text row. `SCROLLFIX` runs
+before each redraw: it finds the cursor's line with `CURLINE` and moves the
+viewport the minimum needed to keep it visible.
+
+Scrolling deliberately did **not** wait for the line index. `RENDER` already
+walks the whole buffer, so skipping the lines above the viewport costs nothing
+extra — `VIS` goes true once the walk reaches `SCROLLTOP` and stays true, which
+makes it one byte compare per line rather than a 16-bit compare per character.
+
 ### Screen layout
 
 ```
@@ -266,11 +277,21 @@ are folded to uppercase on read so `OA-q` and `OA-Q` both dispatch.
   before typing a word but not when wrapping one already written. The
   selection-aware behaviour described above arrives with the editing-operations
   work.
-- **Full redraw per keystroke.** `RENDER` rescans the buffer from the start on
-  every key. **Measured at ~120 ms per keystroke, about 8 characters per
-  second sustained**, on a 600-byte buffer. That is comfortable for prose at
-  ordinary speed but a fast typist will outrun it, and it gets worse as the
-  file grows. The line index is the fix; see §3.
+- **Full redraw per keystroke.** `RENDER` rescans the buffer and repaints all
+  23 rows on every key. Measured:
+
+  | buffer | per keystroke | sustained |
+  |---|---|---|
+  | 600 bytes | ~120 ms | ~8 chars/sec |
+  | 1612 bytes | ~157 ms | ~6 chars/sec |
+
+  Nearly tripling the buffer cost only ~37 ms, which fits a **fixed ~100 ms
+  plus ~0.035 ms per buffer byte**. So the screen repaint dominates, not the
+  buffer walk — 1,840 screen writes against a few hundred aux reads.
+
+  That inverts the obvious fix. A **dirty-line redraw is the high-value
+  change**; the line index mainly helps the smaller term and matters more as
+  documents get long. Do the dirty-line work first.
 
 ### Emphasis insertion
 

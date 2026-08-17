@@ -57,10 +57,11 @@ generator probe, `src/hello.S` is the minimal toolchain check.
 
 ## Keymap
 
-Arrows move; OA-arrows are word and page (not yet wired). Ctrl-A/Ctrl-E line
-ends, Ctrl-B bold, Ctrl-I italic, Ctrl-D delete forward. OA-R reflow, OA-S
-save, OA-O open, OA-? cheat sheet, OA-Q quit. `$89` is both Tab and Ctrl-I and
-dispatches on position -- see `docs/design.md`.
+Arrows move by character and line. OA-up/OA-down page, OA-`<`/OA-`>` jump to
+the start and end of the document. Ctrl-A/Ctrl-E line ends, Ctrl-B bold,
+Ctrl-I italic, Ctrl-D delete forward. OA-R reflow, OA-S save, OA-O open,
+OA-? cheat sheet, OA-Q quit. `$89` is both Tab and Ctrl-I and dispatches on
+position -- see `docs/design.md`.
 
 ## Testing
 
@@ -96,3 +97,11 @@ timeout instead of silently reading a stale screen.
   sleeping a fixed interval -- this cost two false test failures.
 - ProDOS pathnames are length-prefixed and **low** ASCII, unlike everything
   else on this machine, which is high ASCII.
+- **Virtual ][ cannot send an arrow key with Open-Apple held.** `type open
+  Apple` takes characters only, and ASCII 10 does not reach the machine as a
+  down arrow. OA-up/OA-down are therefore not verifiable from the suite; the
+  page handlers are `KUP`/`KDOWN` repeated, which the arrow tests do cover, but
+  the bindings themselves need checking by hand.
+- Typing costs a fixed ~100 ms plus ~0.035 ms per buffer byte, so tests must
+  never sleep a fixed interval for a multi-character string. Use `ktext`, which
+  waits for the text to appear.

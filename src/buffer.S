@@ -230,11 +230,15 @@ GAPLEFT      jsr   ATSTART
              rts
 
 *--------------------------------------
-* RENDER -- draw the buffer from the top of the text area
+* RENDER -- draw the buffer through the viewport
 *
 * Walks logical bytes, stepping over the gap, breaking lines on CR ($8D).
-* No line index yet, so this rescans from the buffer start; that is fine while
-* files are short and is the obvious thing to optimise once scrolling exists.
+* Lines before SCROLLTOP are counted but not drawn; VIS goes true once we
+* reach the viewport and stays true, so the test costs one byte compare per
+* line rather than a 16-bit comparison per character.
+*
+* Still rescans from the buffer start every time. That is what the line index
+* is for -- scrolling did not need it, speed does.
 *--------------------------------------
 RENDER       lda   #$00
              sta   AUXPTR
@@ -242,8 +246,19 @@ RENDER       lda   #$00
              sta   CURCOL
              sta   CURSROW
              sta   CURSCOL
+             sta   LINENO
+             sta   LINENO+1
              lda   #AUXLO
              sta   AUXPTR+1
+
+*--- already inside the viewport if it starts at line zero
+             lda   SCROLLTOP
+             ora   SCROLLTOP+1
+             beq   :vis
+             lda   #$00
+             beq   :setvis
+:vis         lda   #$01
+:setvis      sta   VIS
              jsr   CLRBUF
 
 :loop        lda   AUXPTR           ; standing at the gap? jump over it
@@ -268,32 +283,56 @@ RENDER       lda   #$00
 
              ldy   #$00
              jsr   AUXRD
+             sta   TMPA             ; keep it; the VIS test needs A
              cmp   #$8d             ; carriage return ends the line
              beq   :eol
 
              ldx   CURCOL
              cpx   #SCRW
              bcs   :next            ; past the right margin, drop it
+             lda   VIS
+             beq   :bump            ; above the viewport: count, do not draw
+             lda   TMPA
              sta   LINEBUF,x
-             inc   CURCOL
+:bump        inc   CURCOL
              jmp   :next
 
-:eol         lda   CURROW
+*--- end of line
+:eol         lda   VIS
+             beq   :skipped
+             lda   CURROW
              jsr   DRAWLINE
              inc   CURROW
              lda   CURROW
              cmp   MAXROW
              bcs   :fin             ; text area full
              jsr   CLRBUF
-             lda   #$00
+:skipped     lda   #$00
              sta   CURCOL
+             inc   LINENO
+             bne   :chkvis
+             inc   LINENO+1
+
+*--- have we just reached the first visible line?
+:chkvis      lda   VIS
+             bne   :next
+             lda   LINENO
+             cmp   SCROLLTOP
+             bne   :next
+             lda   LINENO+1
+             cmp   SCROLLTOP+1
+             bne   :next
+             lda   #$01
+             sta   VIS
 
 :next        inc   AUXPTR
              bne   :loop
              inc   AUXPTR+1
              jmp   :loop
 
-:done        lda   CURCOL           ; flush a partial final line
+:done        lda   VIS              ; flush a partial final line
+             beq   :fin
+             lda   CURCOL
              beq   :fin
              lda   CURROW
              cmp   MAXROW

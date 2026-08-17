@@ -65,6 +65,10 @@ CURSROW      equ   $1d              ; screen position of the cursor
 CURSCOL      equ   $1e
 RUNLEN       equ   $1f              ; 2 bytes, bytes left in a file transfer
 WDIST        equ   $21              ; wrap: characters to step over
+SCROLLTOP    equ   $23              ; 2 bytes, buffer line on the first text row
+LINENO       equ   $25              ; 2 bytes, line counter
+VIS          equ   $27              ; non-zero once RENDER is inside the viewport
+PGCNT        equ   $28              ; page-move counter
 
 *--- runtime home of the aux read stub ---
 * Reads of aux cannot be done from code living in $0200-$BFFF: RAMRD redirects

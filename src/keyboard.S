@@ -106,6 +106,14 @@ KEYTBL
              da    KTABITAL         ; Ctrl-I / Tab
              dfb   $bf,$80
              da    TOGGLECHEAT      ; OA-?
+             dfb   $8b,$80
+             da    KPGUP            ; OA-up
+             dfb   $8a,$80
+             da    KPGDN            ; OA-down
+             dfb   $bc,$80
+             da    KTOP             ; OA-<
+             dfb   $be,$80
+             da    KEND             ; OA->
              dfb   $d2,$80
              da    REFLOW           ; OA-R
              dfb   $d3,$80

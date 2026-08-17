@@ -21,6 +21,11 @@ bad() { printf '  \033[31mFAIL\033[0m %s\n' "$1"; shift; [ $# -gt 0 ] && printf 
 
 k() { "$VII" "$@" >/dev/null; sleep 0.6; }
 
+# Typing is slow -- a full buffer rescan and redraw per keystroke, which grows
+# with the document. Never sleep a fixed interval for a multi-character string;
+# wait for it to actually appear.
+ktext() { "$VII" text "$1" >/dev/null; "$VII" await "$1" 180 || bad "typing '$1' never completed"; }
+
 SCREEN="$TMP/screen.txt"
 snapshot() { "$VII" screen-raw > "$SCREEN"; }
 
@@ -120,7 +125,7 @@ echo "gap buffer"
 # HOMECURSOR walks the gap to the buffer start one byte at a time, so the text
 # ends up at the TOP of aux. Getting there exercised one aux read and one aux
 # write per byte through the stack-page stub.
-"$VII" dump 0xBC00 0x400 1 "$TMP/auxtop.bin" >/dev/null
+"$VII" dump 0xB800 0x800 1 "$TMP/auxtop.bin" >/dev/null
 check_text() {
     python3 -c '
 import sys
@@ -142,7 +147,7 @@ d=open(sys.argv[1],"rb").read()
 w=lambda o: d[o]|(d[o+1]<<8)
 assert w(0x12)==0x0800, f"GAPBEG is ${w(0x12):04X}, expected $0800"
 n=0xC000-w(0x14)
-assert 500 < n < 600, f"text length {n} outside expected range"
+assert 1200 < n < 2200, f"text length {n} outside expected range"
 ' "$TMP/zp.bin" 2>"$TMP/err"; then
     ok "gap is at the buffer start with the full text past it"
 else
@@ -162,17 +167,17 @@ echo "keyboard"
 "$VII" boot "$IMAGE" >/dev/null
 "$VII" await "Notes from the Apple" 40 || { echo "reboot failed"; exit 1; }
 "$VII" caps false >/dev/null
-k text "draft: "
+ktext "draft: "
 snapshot
 assert_row "typing inserts at the cursor"             0 "draft: # Notes from the Apple //e"
 
 k key "right arrow"; k key "right arrow"; k key "right arrow"
-k text "X"
+ktext "X"
 snapshot
 assert_row "right arrow moves the cursor"             0 "draft: # NXotes from the Apple"
 
 k ctrl B
-k text "loud"
+ktext "loud"
 snapshot
 assert_row "Ctrl-B wraps the cursor in bold markers"  0 "**loud**"
 
@@ -206,7 +211,7 @@ else
 fi
 
 k ctrl A
-k text "zz"
+ktext "zz"
 k key "left arrow"
 snapshot
 assert_row "text accumulates correctly before delete" 0 "zz  draft:"
@@ -256,6 +261,66 @@ else
 fi
 
 #--------------------------------------
+# Scrolling. The sample document is ~35 lines against a 22-row viewport.
+#
+# NOTE: OA-up / OA-down (page up/down) cannot be driven from here -- Virtual ][
+# has no way to send an arrow key with Open-Apple held. The page handlers are
+# just KUP/KDOWN repeated, which the arrow tests below do cover, but the
+# bindings themselves are only verifiable by hand.
+#--------------------------------------
+echo "scrolling"
+"$VII" boot "$IMAGE" >/dev/null
+"$VII" await "Notes from the Apple" 60 || { echo "reboot failed"; exit 1; }
+
+scrolltop() {
+    "$VII" dump 0x0000 0x30 0 "$TMP/zp.bin" >/dev/null
+    python3 -c "d=open('$TMP/zp.bin','rb').read(); print(d[0x23]|(d[0x24]<<8))"
+}
+
+snapshot
+assert_row "document opens at the top"                0 "# Notes from the Apple //e"
+[ "$(scrolltop)" = "0" ] && ok "viewport starts at line 0" \
+                         || bad "viewport starts at line 0" "SCROLLTOP=$(scrolltop)"
+
+# OA-> walks the gap to the very end, so the viewport must follow it down.
+"$VII" oa ">" >/dev/null
+"$VII" await "THE END" 180 || bad "OA-> never reached the end"
+snapshot
+if grep -q "THE END" "$SCREEN"; then
+    ok "OA-> scrolls the viewport to the end of the document"
+else
+    bad "OA-> scrolls the viewport to the end of the document"
+fi
+if [ "$(scrolltop)" -gt 0 ]; then
+    ok "viewport moved off line 0 (SCROLLTOP=$(scrolltop))"
+else
+    bad "viewport moved off line 0" "SCROLLTOP still 0"
+fi
+if grep -q "# Notes from the Apple //e" "$SCREEN"; then
+    bad "top of document scrolled out of view" "heading still on screen"
+else
+    ok "top of document scrolled out of view"
+fi
+
+# OA-< returns to the top and the viewport must come back with it.
+"$VII" oa "<" >/dev/null
+"$VII" await "Notes from the Apple" 180 || bad "OA-< never reached the top"
+snapshot
+assert_row "OA-< scrolls back to the top"             0 "# Notes from the Apple //e"
+[ "$(scrolltop)" = "0" ] && ok "viewport returned to line 0" \
+                         || bad "viewport returned to line 0" "SCROLLTOP=$(scrolltop)"
+
+# Walking down past the bottom row must scroll one line at a time.
+for i in $(seq 1 26); do "$VII" key "down arrow" >/dev/null; sleep 0.35; done
+sleep 3
+snapshot
+if [ "$(scrolltop)" -gt 0 ]; then
+    ok "cursor walking past the last row scrolls the viewport"
+else
+    bad "cursor walking past the last row scrolls the viewport" "SCROLLTOP=$(scrolltop)"
+fi
+
+#--------------------------------------
 # File I/O. Round trips through a real ProDOS volume in the mounted image.
 #--------------------------------------
 echo "file i/o"
@@ -266,24 +331,24 @@ echo "file i/o"
 # Disk operations take seconds of emulated time, and the Apple II keyboard has
 # no buffer -- anything typed while ProDOS is working is simply dropped. So
 # every file operation waits for its completion message before going on.
-k text "MARKER "
-k oa "S"; k text "T1.MD"; "$VII" line "" >/dev/null
+ktext "MARKER "
+k oa "S"; ktext "T1.MD"; "$VII" line "" >/dev/null
 "$VII" await "SAVED" 90 || bad "save never completed"
 snapshot
 assert_row "OA-S reports a successful save"          23 "SAVED"
 
 # Corrupt the buffer, then load it back and check the corruption is gone.
-k text "JUNKJUNK"
+ktext "JUNKJUNK"
 snapshot
 assert_row "buffer modified before reload"            0 "MARKER JUNKJUNK# Notes"
-k oa "O"; k text "T1.MD"; "$VII" line "" >/dev/null
+k oa "O"; ktext "T1.MD"; "$VII" line "" >/dev/null
 "$VII" await "LOADED" 90 || bad "load never completed"
 snapshot
 assert_row "OA-O reports a successful load"          23 "LOADED"
 assert_row "loaded file replaced the buffer"          0 "MARKER # Notes from the Apple //e"
 
 # $46 is ProDOS "file not found". The buffer must survive a failed open.
-k oa "O"; k text "NOSUCH.MD"; "$VII" line "" >/dev/null
+k oa "O"; ktext "NOSUCH.MD"; "$VII" line "" >/dev/null
 "$VII" await "PRODOS ERROR" 90 || bad "error never reported"
 snapshot
 assert_row "missing file reports a ProDOS error"     23 "PRODOS ERROR \$46"

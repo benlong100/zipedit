@@ -6,7 +6,8 @@
 * Display, gap buffer, keyboard, ProDOS file I/O and hard wrap are all in.
 * Sample text is inserted into the aux buffer at startup, the main loop edits
 * it with wrapping at column 76, OA-R reflows a paragraph, and OA-S / OA-O
-* save and load real ProDOS TXT files.
+* save and load real ProDOS TXT files. The viewport scrolls to follow the
+* cursor, so documents longer than the screen are reachable.
 *--------------------------------------
              org   $2000
              typ   $ff
@@ -17,6 +18,9 @@
 *--------------------------------------
 START        lda   #FCHEAT          ; cheat sheet visible at startup
              sta   FLAGS
+             lda   #$00
+             sta   SCROLLTOP
+             sta   SCROLLTOP+1
 
              jsr   UNHOOKRAM        ; claim aux before anything else uses it
              lda   #$e5             ; poison, so tests can see untouched gap
@@ -52,7 +56,8 @@ MAINLOOP     jsr   REDRAW
 *--------------------------------------
 * REDRAW -- text area, cursor, and whichever chrome is showing
 *--------------------------------------
-REDRAW       jsr   RENDER
+REDRAW       jsr   SCROLLFIX
+             jsr   RENDER
              jsr   BLANKTAIL
              jsr   SHOWCURSOR
              lda   FLAGS
@@ -96,6 +101,7 @@ HOMECURSOR   jsr   GAPLEFT
              put   keyboard
              put   file
              put   wrap
+             put   scroll
              put   buffer
              put   display
 
@@ -123,5 +129,43 @@ SAMPLE       asc   "# Notes from the Apple //e"
              asc   "- Open-Apple-? toggles the cheat sheet below"
              dfb   $8d,$8d
              asc   "> Drafted here, then carried back to the Mac as plain UTF-8."
+             dfb   $8d,$8d
+             asc   "Paragraph 01 of the draft, kept short for the scroll test."
+             dfb   $8d
+             asc   "Paragraph 02 of the draft, kept short for the scroll test."
+             dfb   $8d
+             asc   "Paragraph 03 of the draft, kept short for the scroll test."
+             dfb   $8d
+             asc   "Paragraph 04 of the draft, kept short for the scroll test."
+             dfb   $8d
+             asc   "Paragraph 05 of the draft, kept short for the scroll test."
+             dfb   $8d
+             asc   "Paragraph 06 of the draft, kept short for the scroll test."
+             dfb   $8d
+             asc   "Paragraph 07 of the draft, kept short for the scroll test."
+             dfb   $8d
+             asc   "Paragraph 08 of the draft, kept short for the scroll test."
+             dfb   $8d
+             asc   "Paragraph 09 of the draft, kept short for the scroll test."
+             dfb   $8d
+             asc   "Paragraph 10 of the draft, kept short for the scroll test."
+             dfb   $8d
+             asc   "Paragraph 11 of the draft, kept short for the scroll test."
+             dfb   $8d
+             asc   "Paragraph 12 of the draft, kept short for the scroll test."
+             dfb   $8d
+             asc   "Paragraph 13 of the draft, kept short for the scroll test."
+             dfb   $8d
+             asc   "Paragraph 14 of the draft, kept short for the scroll test."
+             dfb   $8d
+             asc   "Paragraph 15 of the draft, kept short for the scroll test."
+             dfb   $8d
+             asc   "Paragraph 16 of the draft, kept short for the scroll test."
+             dfb   $8d
+             asc   "Paragraph 17 of the draft, kept short for the scroll test."
+             dfb   $8d
+             asc   "Paragraph 18 of the draft, kept short for the scroll test."
+             dfb   $8d
+             asc   "THE END"
              dfb   $8d
              dfb   $00
