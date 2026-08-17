@@ -57,6 +57,8 @@ PUTAUX       tax
 * BUFINIT -- empty buffer: the gap is the whole of aux $0800-$BFFF
 *--------------------------------------
 BUFINIT      lda   #$00
+             sta   CURLNO
+             sta   CURLNO+1
              sta   GAPBEG
              sta   GAPEND
              lda   #AUXLO
@@ -120,7 +122,12 @@ INSCHR       pha
              ldy   #$00
              pla
              jsr   PUTAUX
-             inc   GAPBEG
+             cmp   #$8d             ; inserting a newline moves us down a line
+             bne   :adv
+             inc   CURLNO
+             bne   :adv
+             inc   CURLNO+1
+:adv         inc   GAPBEG
              bne   :done
              inc   GAPBEG+1
 :done        clc
@@ -151,7 +158,14 @@ INSSTR       ldy   #$00
 DELBACK      jsr   ATSTART
              bcc   :ok
              rts                    ; carry still set: nothing to delete
-:ok          lda   GAPBEG
+:ok          jsr   PEEKBACK         ; what are we about to remove?
+             cmp   #$8d
+             bne   :edge
+             lda   CURLNO
+             bne   :dn
+             dec   CURLNO+1
+:dn          dec   CURLNO
+:edge        lda   GAPBEG
              bne   :dec
              dec   GAPBEG+1
 :dec         dec   GAPBEG
@@ -189,13 +203,18 @@ GAPRIGHT     jsr   ATEND
              sta   AUXPTR+1
              txa
              jsr   PUTAUX
-             inc   GAPBEG
+             cpx   #$8d             ; stepped over a newline: down a line
              bne   :1
-             inc   GAPBEG+1
-:1           inc   GAPEND
+             inc   CURLNO
+             bne   :1
+             inc   CURLNO+1
+:1           inc   GAPBEG
              bne   :2
+             inc   GAPBEG+1
+:2           inc   GAPEND
+             bne   :3
              inc   GAPEND+1
-:2           clc
+:3           clc
              rts
 
 *--------------------------------------
@@ -226,7 +245,13 @@ GAPLEFT      jsr   ATSTART
              sta   AUXPTR+1
              txa
              jsr   PUTAUX
-             clc
+             cpx   #$8d             ; stepped back over a newline: up a line
+             bne   :3
+             lda   CURLNO
+             bne   :4
+             dec   CURLNO+1
+:4           dec   CURLNO
+:3           clc
              rts
 
 *--------------------------------------

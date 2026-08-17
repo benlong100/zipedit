@@ -48,16 +48,52 @@ START        lda   #FCHEAT          ; cheat sheet visible at startup
 * rescans the buffer from the start every time. At this size it is well under
 * a frame and invisible; the line index is the fix when it stops being.
 *--------------------------------------
-MAINLOOP     jsr   REDRAW
+MAINLOOP     jsr   SCROLLFIX
+             jsr   REDRAW
+
+*--- remember what a one-row redraw is allowed to assume
+:keys        lda   #$00
+             sta   FASTDRAW
+             lda   CURLNO
+             sta   OLDLINE
+             lda   CURLNO+1
+             sta   OLDLINE+1
+             lda   SCROLLTOP
+             sta   OLDTOP
+             lda   SCROLLTOP+1
+             sta   OLDTOP+1
+
              jsr   GETKEY
              jsr   DISPATCH
-             jmp   MAINLOOP
+             jsr   SCROLLFIX
+
+*--- one row is enough only if the handler opted in AND nothing structural
+*    moved. Anything else -- a wrap, a newline, a scroll, a file load -- falls
+*    through to the full redraw.
+             lda   FASTDRAW
+             beq   :full
+             lda   CURLNO
+             cmp   OLDLINE
+             bne   :full
+             lda   CURLNO+1
+             cmp   OLDLINE+1
+             bne   :full
+             lda   SCROLLTOP
+             cmp   OLDTOP
+             bne   :full
+             lda   SCROLLTOP+1
+             cmp   OLDTOP+1
+             bne   :full
+             jsr   RENDERROW
+             jmp   :keys
+
+:full        jsr   REDRAW
+             jmp   :keys
 
 *--------------------------------------
 * REDRAW -- text area, cursor, and whichever chrome is showing
 *--------------------------------------
-REDRAW       jsr   SCROLLFIX
-             jsr   RENDER
+REDRAW       jsr   RENDER
              jsr   BLANKTAIL
              jsr   SHOWCURSOR
              lda   FLAGS

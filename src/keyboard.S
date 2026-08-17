@@ -75,7 +75,8 @@ DISPATCH     ldx   #$00
              cmp   #$ff             ; Delete
              bcs   :ret
              jsr   INSCHR
-             jsr   WRAPCHECK        ; break the line if we ran past the margin
+             jsr   FASTOK           ; plain typing touches one row...
+             jsr   WRAPCHECK        ; ...unless this wraps, which moves CURLNO
 :ret         rts
 
 *--------------------------------------
@@ -127,10 +128,18 @@ KEYTBL
 *--------------------------------------
 * Simple handlers
 *--------------------------------------
-KLEFT        jmp   GAPLEFT
-KRIGHT       jmp   GAPRIGHT
-KDELETE      jmp   DELBACK
-KDELFWD      jmp   DELFWD
+FASTOK       lda   #$01
+             sta   FASTDRAW
+             rts
+
+KLEFT        jsr   FASTOK
+             jmp   GAPLEFT
+KRIGHT       jsr   FASTOK
+             jmp   GAPRIGHT
+KDELETE      jsr   FASTOK
+             jmp   DELBACK
+KDELFWD      jsr   FASTOK
+             jmp   DELFWD
 
 KRETURN      lda   #$8d
              jmp   INSCHR

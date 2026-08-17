@@ -11,10 +11,15 @@
 *--------------------------------------
 
 *--------------------------------------
-* CURLINE -- LINENO = the buffer line the cursor is on, counting from zero.
-*            Scans the text before the gap; the gap itself is the cursor.
+* CALCLINE -- LINENO = the cursor's line, counted the slow way by scanning all
+*             the text before the gap.
+*
+* No longer on the redraw path: CURLNO is maintained incrementally by the
+* buffer primitives, since every operation that crosses a newline already has
+* that byte in hand. Kept as the authority for resynchronising after bulk
+* changes, and as the reference an incremental counter can drift from.
 *--------------------------------------
-CURLINE      lda   #$00
+CALCLINE     lda   #$00
              sta   LINENO
              sta   LINENO+1
              sta   AUXPTR
@@ -43,7 +48,10 @@ CURLINE      lda   #$00
 * SCROLLFIX -- move the viewport the minimum needed to keep the cursor on
 *              screen. Called before every redraw.
 *--------------------------------------
-SCROLLFIX    jsr   CURLINE
+SCROLLFIX    lda   CURLNO
+             sta   LINENO
+             lda   CURLNO+1
+             sta   LINENO+1
 
 *--- cursor above the viewport? pull the viewport up to it
              lda   LINENO+1
@@ -119,3 +127,93 @@ KPGDN        lda   MAXROW
              dec   PGCNT
              bne   :loop
              rts
+
+*--------------------------------------
+* RENDERROW -- repaint only the line the cursor is on
+*
+* The whole point of the exercise: ordinary typing changes exactly one screen
+* row, but RENDER repaints all 23, and measurement showed that repaint -- not
+* the buffer walk -- is what costs ~100 ms per keystroke.
+*
+* Safe only when the line structure and the viewport are both unchanged, which
+* the caller checks. Handlers opt in by setting FASTDRAW; anything that might
+* alter more than one row simply does not, and gets the full redraw.
+*--------------------------------------
+RENDERROW    jsr   CLRBUF
+
+*--- walk back to the start of the line, counting what is behind the cursor
+             lda   GAPBEG
+             sta   AUXPTR
+             lda   GAPBEG+1
+             sta   AUXPTR+1
+             lda   #$00
+             sta   TMPC
+:back        lda   AUXPTR+1
+             cmp   #AUXLO
+             bne   :step
+             lda   AUXPTR
+             beq   :atstart
+:step        lda   AUXPTR
+             bne   :s1
+             dec   AUXPTR+1
+:s1          dec   AUXPTR
+             ldy   #$00
+             jsr   AUXRD
+             cmp   #$8d
+             bne   :count
+             inc   AUXPTR           ; stand just past the newline
+             bne   :atstart
+             inc   AUXPTR+1
+             jmp   :atstart
+:count       inc   TMPC
+             lda   TMPC
+             cmp   #SCRW
+             bcc   :back            ; clamp at the screen width
+
+:atstart     lda   TMPC
+             sta   CURSCOL
+
+*--- everything on this line before the cursor is contiguous before the gap
+             ldx   #$00
+:pre         cpx   TMPC
+             beq   :post
+             ldy   #$00
+             jsr   AUXRD
+             sta   LINEBUF,x
+             inx
+             inc   AUXPTR
+             bne   :pre
+             inc   AUXPTR+1
+             jmp   :pre
+
+*--- the rest of the line resumes after the gap
+:post        lda   GAPEND
+             sta   AUXPTR
+             lda   GAPEND+1
+             sta   AUXPTR+1
+:ploop       cpx   #SCRW
+             bcs   :draw
+             lda   AUXPTR+1
+             cmp   #AUXHI
+             bcs   :draw
+             ldy   #$00
+             jsr   AUXRD
+             cmp   #$8d
+             beq   :draw
+             sta   LINEBUF,x
+             inx
+             inc   AUXPTR
+             bne   :ploop
+             inc   AUXPTR+1
+             jmp   :ploop
+
+*--- CURLNO - SCROLLTOP is the screen row; both fit a byte once on screen
+:draw        lda   CURLNO
+             sec
+             sbc   SCROLLTOP
+             sta   CURSROW
+             cmp   MAXROW
+             bcs   :done
+             jsr   DRAWLINE
+             jmp   SHOWCURSOR
+:done        rts

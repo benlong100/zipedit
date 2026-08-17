@@ -69,6 +69,11 @@ SCROLLTOP    equ   $23              ; 2 bytes, buffer line on the first text row
 LINENO       equ   $25              ; 2 bytes, line counter
 VIS          equ   $27              ; non-zero once RENDER is inside the viewport
 PGCNT        equ   $28              ; page-move counter
+CURLNO       equ   $29              ; 2 bytes, line the cursor is on, maintained
+                                    ; incrementally rather than rescanned
+FASTDRAW     equ   $2b              ; handler opted in to a one-row redraw
+OLDLINE      equ   $2c              ; 2 bytes, CURLNO before the keystroke
+OLDTOP       equ   $2e              ; 2 bytes, SCROLLTOP before the keystroke
 
 *--- runtime home of the aux read stub ---
 * Reads of aux cannot be done from code living in $0200-$BFFF: RAMRD redirects
