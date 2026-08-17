@@ -87,14 +87,18 @@ BUFSTR       ldy   #$00
 *--------------------------------------
 * INVBUF -- convert LINEBUF from normal to inverse video in place
 *--------------------------------------
+* Bytes with the high bit clear are raw screen codes deliberately placed in the
+* buffer -- MouseText -- and must not be touched. Ordinary text always arrives
+* here as high ASCII, so the sign bit tells the two apart.
 INVBUF       ldy   #SCRW-1
 :loop        lda   LINEBUF,y
+             bpl   :raw             ; MouseText: leave as is
              and   #$7f             ; back to plain ASCII
              cmp   #$60
              bcs   :keep            ; lowercase: inverse code == ascii
              and   #$3f
 :keep        sta   LINEBUF,y
-             dey
+:raw         dey
              bpl   :loop
              rts
 
@@ -379,7 +383,10 @@ CHEATTXT     asc   "**bold** _italic_ `code` # H1 ## H2 - list 1. num > quote [t
              dfb   $00
 
 * Placeholder until the buffer and file layers can supply real values.
-STATTXT      asc   " UNTITLED.MD                          L      C      46K FREE    OA-? HELP       "
+STATTXT
+             hex   A0D5CED4C9D4CCC5C4AECDC4A0A0A0A0A0A0A0A0A0A0A0A0A0A0A0A0A0A0A0A0
+             hex   A0A0A0A0A0A0CCA0A0A0A0A0A0C3A0A0A0A0A0A0B4B6CBA0C6D2C5C5A0A0A0A0
+             hex   41ADBFA0C8C5CCD0A0A0A0A0A0A0A0A0
              dfb   $00
 
 *--- screen row base addresses (the usual non-linear Apple II layout) ---

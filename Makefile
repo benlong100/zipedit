@@ -21,7 +21,7 @@ VII     := $(TOOLS)/vii.sh
 BIN     := $(BUILD)/$(NAME)
 IMAGE   := $(BUILD)/EDIT.po
 
-.PHONY: all disk run screen test clean tools pull push eject release
+.PHONY: all disk run screen test clean tools pull push eject release probe
 
 all: $(BIN)
 
@@ -68,6 +68,17 @@ pull: eject
 
 push:
 	@$(TOOLS)/xfer.sh push $(IMAGE) $(DOCS)
+
+# A standalone probe disk for real hardware: identifies the ROM and dumps the
+# $40-$5F glyphs, so the character set can be checked on the actual machine
+# rather than inferred from an emulator.
+probe: | $(BUILD)
+	@$(MERLIN) $(ASMINC) src/charprobe.S > $(BUILD)/probe.log 2>&1 || \
+		{ echo "--- Merlin32 failed ---"; cat $(BUILD)/probe.log; exit 1; }
+	@mv src/PROBE.SYSTEM $(BUILD)/PROBE.SYSTEM
+	@rm -f src/_FileInformation.txt
+	@RELEASE=0 VOL=PROBE NAME=PROBE.SYSTEM $(TOOLS)/mkprobe.sh
+	@echo "probe disk: $(BUILD)/CHARPROBE.po"
 
 # A disk to hand to real hardware: editor + ProDOS + BASIC.SYSTEM, no test files.
 release: $(BIN)
