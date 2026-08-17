@@ -246,6 +246,14 @@ PROMPT       jsr   CLRBUF
              ldx   #$00
              jsr   BUFSTR
              stx   TMPB             ; input begins at this column
+
+*--- say how to back out; nothing else on screen does
+             lda   #<HINTESC
+             sta   STRPTR
+             lda   #>HINTESC
+             sta   STRPTR+1
+             ldx   #PHINTCOL
+             jsr   BUFSTR
              lda   #$00
              sta   PLEN
              jsr   PDRAW
@@ -261,7 +269,7 @@ PROMPT       jsr   CLRBUF
              bcc   :key
 
              ldx   PLEN
-             cpx   #$3f
+             cpx   #PMAXLEN
              bcs   :key
              sta   TMPA
              sta   PBUF,x
@@ -287,11 +295,15 @@ PROMPT       jsr   CLRBUF
              jsr   PDRAW
              jmp   :key
 
+*--- either way, hand the status row straight back rather than leaving the
+*    prompt sitting there until the user happens to press something else
 :done        lda   PLEN
              beq   :cancel          ; empty entry is a cancel
+             jsr   RESTORESTAT
              clc
              rts
-:cancel      sec
+:cancel      jsr   RESTORESTAT
+             sec
              rts
 
 *--------------------------------------
@@ -399,6 +411,8 @@ KLOAD        lda   #<MSGOPEN
 :err         jmp   SHOWERR
 :quit        rts
 
+HINTESC      asc   "ESC CANCELS"
+             dfb   $00
 MSGSAVE      asc   "SAVE AS: "
              dfb   $00
 MSGOPEN      asc   "OPEN: "

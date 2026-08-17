@@ -241,9 +241,16 @@ are written -- never the whole row -- and the line digits are skipped when the
 line has not changed. Measured 19.0 ms per keystroke against 19.2 ms without,
 i.e. inside the noise.
 
-A message (`SAVED`, `PRODOS ERROR $46`, a prompt) takes the row over and sets
+A message (`SAVED`, `PRODOS ERROR $46`) takes the row over and sets
 `MSGSHOWN`, which suppresses digit updates; the next keystroke retires the
 message and repaints the row.
+
+**Prompts are different.** A prompt hands the status row back the moment it
+ends, accepted or cancelled, rather than waiting for the next keystroke to
+retire it. Otherwise the prompt text sits there until you press something
+unrelated, and after a find or go-to you never see where you landed. Prompts
+also show `ESC CANCELS` at column 66; input is capped at 45 characters so it
+cannot run over the hint.
 
 The status line is permanent. The cheat sheet is toggled with **Open-Apple-?**
 and steals one row from the text area when shown; toggling it forces a full

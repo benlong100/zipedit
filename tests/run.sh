@@ -286,6 +286,34 @@ snapshot
 assert_row "Ctrl-B wraps the whole word from mid-word" 0 "# **Notes** from the Apple"
 
 #--------------------------------------
+# Prompts must hand the status row straight back, whether accepted or
+# cancelled -- otherwise the prompt text sits there until some unrelated key
+# happens to retire it, and you never see where a find or go-to landed.
+#--------------------------------------
+echo "prompt cancel"
+"$VII" boot "$IMAGE" >/dev/null
+"$VII" await "Notes from the Apple" 60 || { echo "reboot failed"; exit 1; }
+"$VII" caps false >/dev/null
+
+"$VII" oa "F" >/dev/null; sleep 2
+snapshot
+assert_row "the prompt says how to cancel"           23 "ESC CANCELS"
+"$VII" key esc >/dev/null; sleep 2
+snapshot
+assert_row "Esc hands the status row straight back"  23 "UNTITLED.MD"
+
+"$VII" oa "L" >/dev/null; sleep 1
+"$VII" text "20" >/dev/null; sleep 2
+"$VII" line "" >/dev/null; sleep 5
+snapshot
+assert_row "an accepted prompt restores it too"      23 "UNTITLED.MD"
+if [ "$("$VII" screen-raw | sed -n '24p' | cut -c40-43 | tr -d ' ')" = "20" ]; then
+    ok "and the new position is visible immediately"
+else
+    bad "and the new position is visible immediately" "status: $("$VII" screen-raw | sed -n '24p')"
+fi
+
+#--------------------------------------
 # Status line. Line and column are painted as individual digit cells, not by
 # repainting the row, which is why they cost nothing measurable per keystroke.
 #--------------------------------------
@@ -347,6 +375,7 @@ assert_row "help lists movement keys"                 4 "arrows"
 assert_row "help lists the Markdown keys"            10 "**bold** word"
 assert_row "help lists the file keys"                11 "OA-S      save"
 assert_row "help tells you how to leave"             20 "press any key to return"
+assert_row "help documents the prompt keys"          17 "AT ANY PROMPT"
 assert_row "cheat sheet still visible under the box" 22 '**bold** _italic_'
 
 "$VII" text " " >/dev/null; sleep 3

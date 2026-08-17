@@ -323,6 +323,14 @@ STATUPD      lda   MSGSHOWN
 :out         rts
 
 *--------------------------------------
+* RESTORESTAT -- retire whatever owns the status row and repaint it
+*--------------------------------------
+RESTORESTAT  lda   #$00
+             sta   MSGSHOWN
+             jsr   DRAWSTATUS
+             jmp   STATUPD
+
+*--------------------------------------
 * SHOWCURSOR -- invert the character cell the cursor sits on
 *
 * With 80STORE on, PAGE2 selects which bank $0400-$07FF reaches for reads as

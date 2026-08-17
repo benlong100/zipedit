@@ -14,7 +14,7 @@
 * loop already performs whenever a handler has not opted into the one-row path.
 *--------------------------------------
 HELPCOL      equ   8
-HELPN        equ   22
+HELPN        equ   21
 
 *--------------------------------------
 * HELPSHOW -- paint the box, wait for any key
@@ -62,7 +62,6 @@ HELPTBL
              da    HL18
              da    HL19
              da    HL20
-             da    HL21
 
 HL00         asc   "+--------------------------------------------------------------+"
              dfb   $00
@@ -98,15 +97,13 @@ HL15         asc   "|   OA-G        find again     OA-X      cut line           
              dfb   $00
 HL16         asc   "|   OA-L        go to line     OA-V      paste                 |"
              dfb   $00
-HL17         asc   "|  SCREEN                                                      |"
+HL17         asc   "|  SCREEN                      AT ANY PROMPT                   |"
              dfb   $00
-HL18         asc   "|   OA-/        cheat sheet    OA-?      this help             |"
+HL18         asc   "|   OA-/        cheat sheet    Return    accept                |"
              dfb   $00
-HL19         asc   "+--------------------------------------------------------------+"
+HL19         asc   "|   OA-?        this help      Esc       cancel                |"
              dfb   $00
-HL20         asc   "|   press any key to return                                    |"
-             dfb   $00
-HL21         asc   "+--------------------------------------------------------------+"
+HL20         asc   "+------------------ press any key to return -------------------+"
              dfb   $00
 
              dum   $1420
