@@ -338,6 +338,33 @@ SHOWMSG      jsr   CLRBUF
              jmp   DRAWLINE
 
 *--------------------------------------
+* SHOWBUSY -- take the whole status row for a centred, inverse notice
+*
+* Drawn before a disk operation starts, so there is something on screen while
+* ProDOS works. On a floppy the drive is audible; on a CompactFlash card
+* nothing moves and nothing sounds, so a silent pause is indistinguishable from
+* a hang.
+*--------------------------------------
+SHOWBUSY     jsr   CLRBUF
+             ldy   #$00             ; measure the message
+:len         lda   (STRPTR),y
+             beq   :got
+             iny
+             bne   :len
+:got         sty   TMPA
+             lda   #SCRW
+             sec
+             sbc   TMPA
+             lsr                    ; centre it
+             tax
+             jsr   BUFSTR
+             jsr   INVBUF
+             lda   #$01
+             sta   MSGSHOWN
+             lda   #STATROW
+             jmp   DRAWLINE
+
+*--------------------------------------
 * SHOWERR -- report the last MLI error code in hex
 *--------------------------------------
 SHOWERR      jsr   CLRBUF
@@ -383,6 +410,11 @@ KSAVE        lda   #<MSGSAVE
              jsr   PROMPT
              bcs   :quit
              jsr   MKFNAME
+             lda   #<MSGSAVING
+             sta   STRPTR
+             lda   #>MSGSAVING
+             sta   STRPTR+1
+             jsr   SHOWBUSY
              jsr   SAVEFILE
              bcs   :err
              lda   #<MSGSAVED
@@ -400,6 +432,11 @@ KLOAD        lda   #<MSGOPEN
              jsr   PROMPT
              bcs   :quit
              jsr   MKFNAME
+             lda   #<MSGLOADING
+             sta   STRPTR
+             lda   #>MSGLOADING
+             sta   STRPTR+1
+             jsr   SHOWBUSY
              jsr   LOADFILE
              bcs   :err
              jsr   HOMECURSOR
@@ -412,6 +449,10 @@ KLOAD        lda   #<MSGOPEN
 :quit        rts
 
 HINTESC      asc   "ESC CANCELS"
+             dfb   $00
+MSGSAVING    asc   "-- SAVING --"
+             dfb   $00
+MSGLOADING   asc   "-- LOADING --"
              dfb   $00
 MSGSAVE      asc   "SAVE AS: "
              dfb   $00

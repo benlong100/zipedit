@@ -285,6 +285,16 @@ A message (`SAVED`, `PRODOS ERROR $46`) takes the row over and sets
 `MSGSHOWN`, which suppresses digit updates; the next keystroke retires the
 message and repaints the row.
 
+**Disk operations show a busy notice.** Before `SAVEFILE` or `LOADFILE` runs,
+`SHOWBUSY` takes the whole status row for a centred, inverse `-- SAVING --` or
+`-- LOADING --`. On a floppy the drive is audible, but on a CompactFlash card
+nothing moves and nothing sounds, so a silent multi-second pause is
+indistinguishable from a hang.
+
+This is hard to verify in the emulator: Virtual ][ completes a save in well
+under one screen poll (~130 ms), so the notice is drawn and replaced between
+samples. It is verified on real hardware instead.
+
 **Prompts are different.** A prompt hands the status row back the moment it
 ends, accepted or cancelled, rather than waiting for the next keystroke to
 retire it. Otherwise the prompt text sits there until you press something
