@@ -181,14 +181,28 @@ sleep 2
 snapshot
 assert_row "Ctrl-B wraps the word at the cursor"      0 "draft: # **NXotes**"
 
-k oa "?"
-snapshot
-assert_blank "OA-? hides the cheat sheet"            22
-k oa "?"
-snapshot
-assert_row "OA-? restores the cheat sheet"           22 '**bold** _italic_ `code` # H1'
+k oa "/"
+sleep 1; snapshot
+assert_blank "OA-/ hides the cheat sheet"            22
+k oa "/"
+sleep 1; snapshot
+assert_row "OA-/ restores the cheat sheet"           22 '**bold** _italic_ `code` # H1' 
 
 # The Tab / Ctrl-I collision: identical keycode, different meaning by position.
+# Ctrl-H and the left arrow are the same byte on this keyboard, which is why
+# help is on OA-H. Moving right then sending Ctrl-H must move the cursor left.
+k key "right arrow"; k key "right arrow"
+"$VII" dump 0x0000 0x40 0 "$TMP/zp.bin" >/dev/null
+C1=$(python3 -c "print(open('$TMP/zp.bin','rb').read()[0x30])")
+k ctrl H
+"$VII" dump 0x0000 0x40 0 "$TMP/zp.bin" >/dev/null
+C2=$(python3 -c "print(open('$TMP/zp.bin','rb').read()[0x30])")
+if [ "$C2" -eq "$((C1-1))" ]; then
+    ok "Ctrl-H is the left arrow (so help cannot live there)"
+else
+    bad "Ctrl-H is the left arrow (so help cannot live there)" "column went $C1 -> $C2"
+fi
+
 k ctrl A
 k ctrl I
 snapshot
@@ -270,6 +284,35 @@ for i in 1 2 3 4; do "$VII" key "right arrow" >/dev/null; sleep 0.3; done
 "$VII" ctrl B >/dev/null; sleep 3
 snapshot
 assert_row "Ctrl-B wraps the whole word from mid-word" 0 "# **Notes** from the Apple"
+
+#--------------------------------------
+# Help screen. Bound to OA-H, not Ctrl-H: the //e maps Ctrl-H and the left
+# arrow to the same $88, which is verified in the keyboard section below.
+#--------------------------------------
+echo "help screen"
+"$VII" boot "$IMAGE" >/dev/null
+"$VII" await "Notes from the Apple" 60 || { echo "reboot failed"; exit 1; }
+"$VII" caps false >/dev/null
+
+"$VII" oa "?" >/dev/null
+"$VII" await "KEYBOARD COMMANDS" 60 || bad "OA-? never opened help"
+snapshot
+assert_row "OA-? draws the box border"                0 "+------"
+assert_row "help is titled"                           1 "KEYBOARD COMMANDS"
+assert_row "help lists movement keys"                 4 "arrows"
+assert_row "help lists the Markdown keys"            10 "**bold** word"
+assert_row "help lists the file keys"                11 "OA-S      save"
+assert_row "help tells you how to leave"             20 "press any key to return"
+assert_row "cheat sheet still visible under the box" 22 '**bold** _italic_'
+
+"$VII" text " " >/dev/null; sleep 3
+snapshot
+assert_row "any key dismisses and restores the text"  0 "# Notes from the Apple //e"
+
+# Ctrl-Y clears from the cursor to the end of the line.
+k ctrl Y
+sleep 2; snapshot
+assert_blank "Ctrl-Y deletes to the end of the line"  0
 
 #--------------------------------------
 # Hard wrap. Typing is slow (~8 chars/sec: full buffer rescan and redraw per

@@ -245,7 +245,7 @@ CHEATTXT     asc   "**bold** _italic_ `code` # H1 ## H2 - list 1. num > quote [t
              dfb   $00
 
 * Placeholder until the buffer and file layers can supply real values.
-STATTXT      asc   " UNTITLED.MD                          L1 C1   46K FREE   OA-? CHEAT SHEET "
+STATTXT      asc   " UNTITLED.MD                          L1 C1   46K FREE   OA-? HELP        "
              dfb   $00
 
 *--- screen row base addresses (the usual non-linear Apple II layout) ---

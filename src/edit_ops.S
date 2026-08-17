@@ -422,3 +422,60 @@ EMDIST       ds    1
 EMWORD       ds    1
 EMN          ds    1
              dend
+
+*--------------------------------------
+* KDELEOL -- delete from the cursor to the end of the line (Ctrl-Y)
+*--------------------------------------
+KDELEOL      jsr   PEEKFWD
+             bcs   :done
+             cmp   #$8d
+             beq   :done
+             jsr   DELFWD
+             jmp   KDELEOL
+:done        rts
+
+*--------------------------------------
+* KWORDL -- cursor back one word (OA-left)
+*--------------------------------------
+KWORDL       jsr   PEEKBACK
+             bcs   :done
+             cmp   #$8d             ; at a line start: step onto the line above
+             bne   :sp
+             jsr   GAPLEFT
+             jmp   KWORDL
+:sp          jsr   PEEKBACK         ; back over any spaces
+             bcs   :done
+             cmp   #$a0
+             bne   :word
+             jsr   GAPLEFT
+             jmp   :sp
+:word        jsr   PEEKBACK         ; then over the word itself
+             bcs   :done
+             cmp   #$a0
+             beq   :done
+             cmp   #$8d
+             beq   :done
+             jsr   GAPLEFT
+             jmp   :word
+:done        rts
+
+*--------------------------------------
+* KWORDR -- cursor forward one word (OA-right)
+*--------------------------------------
+KWORDR       jsr   PEEKFWD          ; forward over the current word
+             bcs   :done
+             cmp   #$a0
+             beq   :sp
+             cmp   #$8d
+             beq   :sp
+             jsr   GAPRIGHT
+             jmp   KWORDR
+:sp          jsr   PEEKFWD          ; then over the gap between words
+             bcs   :done
+             cmp   #$a0
+             beq   :take
+             cmp   #$8d
+             bne   :done
+:take        jsr   GAPRIGHT
+             jmp   :sp
+:done        rts

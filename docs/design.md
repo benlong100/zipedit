@@ -289,7 +289,8 @@ That preserves both behaviours in the contexts where each is actually wanted.
 | OA-L | go to line |
 | OA-R | reflow paragraph |
 | OA-O / OA-S | open / save |
-| OA-? | toggle cheat sheet |
+| OA-? | keyboard help screen |
+| OA-/ | toggle cheat sheet |
 | OA-Q | quit |
 
 Dispatch is a table of (key, modifier mask, handler address) scanned linearly —

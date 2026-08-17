@@ -105,6 +105,14 @@ KEYTBL
              da    KBOLD            ; Ctrl-B
              dfb   $89,$00
              da    KTABITAL         ; Ctrl-I / Tab
+             dfb   $99,$00
+             da    KDELEOL          ; Ctrl-Y
+             dfb   $88,$80
+             da    KWORDL           ; OA-left
+             dfb   $95,$80
+             da    KWORDR           ; OA-right
+             dfb   $c8,$80
+             da    HELPSHOW         ; OA-H, alias for OA-?
              dfb   $c3,$80
              da    KCOPY            ; OA-C
              dfb   $d8,$80
@@ -118,7 +126,9 @@ KEYTBL
              dfb   $cc,$80
              da    KGOTO            ; OA-L
              dfb   $bf,$80
-             da    TOGGLECHEAT      ; OA-?
+             da    HELPSHOW         ; OA-?
+             dfb   $af,$80
+             da    TOGGLECHEAT      ; OA-/  (same key as ?, unshifted)
              dfb   $8b,$80
              da    KPGUP            ; OA-up
              dfb   $8a,$80
