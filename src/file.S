@@ -417,11 +417,7 @@ KSAVE        lda   #<MSGSAVE
              jsr   SHOWBUSY
              jsr   SAVEFILE
              bcs   :err
-             lda   #<MSGSAVED
-             sta   STRPTR
-             lda   #>MSGSAVED
-             sta   STRPTR+1
-             jmp   SHOWMSG
+             jmp   RESTORESTAT      ; the busy notice was the feedback
 :err         jmp   SHOWERR
 :quit        rts
 
@@ -440,11 +436,7 @@ KLOAD        lda   #<MSGOPEN
              jsr   LOADFILE
              bcs   :err
              jsr   HOMECURSOR
-             lda   #<MSGLOADED
-             sta   STRPTR
-             lda   #>MSGLOADED
-             sta   STRPTR+1
-             jmp   SHOWMSG
+             jmp   RESTORESTAT      ; the busy notice was the feedback
 :err         jmp   SHOWERR
 :quit        rts
 
@@ -457,10 +449,6 @@ MSGLOADING   asc   "-- LOADING --"
 MSGSAVE      asc   "SAVE AS: "
              dfb   $00
 MSGOPEN      asc   "OPEN: "
-             dfb   $00
-MSGSAVED     asc   " SAVED"
-             dfb   $00
-MSGLOADED    asc   " LOADED"
              dfb   $00
 MSGERR       asc   " PRODOS ERROR $"
              dfb   $00

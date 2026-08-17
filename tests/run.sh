@@ -516,18 +516,19 @@ echo "file i/o"
 # every file operation waits for its completion message before going on.
 ktext "MARKER "
 k oa "S"; ktext "T1.MD"; "$VII" line "" >/dev/null
-"$VII" await "SAVED" 90 || bad "save never completed"
+# The busy notice is the feedback now; completion is the status row returning.
+"$VII" await "UNTITLED" 90 || bad "save never completed"
 snapshot
-assert_row "OA-S reports a successful save"          23 "SAVED"
+assert_row "OA-S returns to the status row when done" 23 "UNTITLED.MD"
 
 # Corrupt the buffer, then load it back and check the corruption is gone.
 ktext "JUNKJUNK"
 snapshot
 assert_row "buffer modified before reload"            0 "MARKER JUNKJUNK# Notes"
 k oa "O"; ktext "T1.MD"; "$VII" line "" >/dev/null
-"$VII" await "LOADED" 90 || bad "load never completed"
+"$VII" await "UNTITLED" 90 || bad "load never completed"
 snapshot
-assert_row "OA-O reports a successful load"          23 "LOADED"
+assert_row "OA-O returns to the status row when done" 23 "UNTITLED.MD"
 assert_row "loaded file replaced the buffer"          0 "MARKER # Notes from the Apple //e"
 
 # $46 is ProDOS "file not found". The buffer must survive a failed open.

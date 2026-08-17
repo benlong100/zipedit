@@ -281,7 +281,7 @@ are written -- never the whole row -- and the line digits are skipped when the
 line has not changed. Measured 19.0 ms per keystroke against 19.2 ms without,
 i.e. inside the noise.
 
-A message (`SAVED`, `PRODOS ERROR $46`) takes the row over and sets
+A message (`PRODOS ERROR $46`) takes the row over and sets
 `MSGSHOWN`, which suppresses digit updates; the next keystroke retires the
 message and repaints the row.
 
@@ -293,7 +293,12 @@ indistinguishable from a hang.
 
 This is hard to verify in the emulator: Virtual ][ completes a save in well
 under one screen poll (~130 ms), so the notice is drawn and replaced between
-samples. It is verified on real hardware instead.
+samples. It was verified on real hardware instead, where a CompactFlash write
+is long enough to read.
+
+Because the notice is itself the feedback, a successful save or load says
+nothing afterwards — it simply hands the status row back, which shows the
+current line and column. Only failures produce a message.
 
 **Prompts are different.** A prompt hands the status row back the moment it
 ends, accepted or cancelled, rather than waiting for the next keystroke to
