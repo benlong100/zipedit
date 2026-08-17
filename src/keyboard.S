@@ -105,6 +105,10 @@ KEYTBL
              da    KTABITAL         ; Ctrl-I / Tab
              dfb   $bf,$80
              da    TOGGLECHEAT      ; OA-?
+             dfb   $d3,$80
+             da    KSAVE            ; OA-S
+             dfb   $cf,$80
+             da    KLOAD            ; OA-O
              dfb   $d1,$80
              da    KQUIT            ; OA-Q
              dfb   $00              ; end of table

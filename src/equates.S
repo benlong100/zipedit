@@ -63,6 +63,7 @@ MODCA        equ   $1a              ; $80 if Closed-Apple was down with it
 JMPVEC       equ   $1b              ; 2 bytes, dispatch trampoline
 CURSROW      equ   $1d              ; screen position of the cursor
 CURSCOL      equ   $1e
+RUNLEN       equ   $1f              ; 2 bytes, bytes left in a file transfer
 
 *--- runtime home of the aux read stub ---
 * Reads of aux cannot be done from code living in $0200-$BFFF: RAMRD redirects

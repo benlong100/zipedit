@@ -10,6 +10,7 @@
 SRC     ?= src/edit.S
 NAME    ?= EDIT.SYSTEM
 BUILD   := build
+DOCS    ?= notes
 TOOLS   := tools
 
 MERLIN  := $(TOOLS)/merlin32
@@ -20,7 +21,7 @@ VII     := $(TOOLS)/vii.sh
 BIN     := $(BUILD)/$(NAME)
 IMAGE   := $(BUILD)/EDIT.po
 
-.PHONY: all disk run screen test clean tools
+.PHONY: all disk run screen test clean tools pull push eject
 
 all: $(BIN)
 
@@ -52,6 +53,17 @@ screen:
 
 test: $(IMAGE)
 	@tests/run.sh
+
+# Virtual ][ buffers image writes until eject, so pull needs a flush first.
+eject:
+	@osascript -e 'tell application "Virtual ][" to tell (last machine) to eject device "S6D1"' 2>/dev/null || true
+	@echo "ejected"
+
+pull: eject
+	@$(TOOLS)/xfer.sh pull $(IMAGE) $(DOCS)
+
+push:
+	@$(TOOLS)/xfer.sh push $(IMAGE) $(DOCS)
 
 clean:
 	@rm -rf $(BUILD) src/_FileInformation.txt src/$(NAME)

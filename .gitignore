@@ -9,3 +9,4 @@ tools/acx-mac-*
 tools/merlin32
 tests/snapshots/*.actual.png
 .DS_Store
+notes/

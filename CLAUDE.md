@@ -32,6 +32,9 @@ make            assemble $(SRC) with Merlin32
 make disk       build a bootable ProDOS 8 image at build/EDIT.po
 make run        build, boot in Virtual ][, print the screen
 make test       run the regression suite
+make pull       eject, then extract Markdown from the image into notes/
+make push       convert notes/*.md back onto the image as ProDOS TXT
+make eject      flush the mounted image to disk
 make clean
 ```
 
@@ -76,3 +79,12 @@ timeout instead of silently reading a stale screen.
 - `releases.prodos8.com` serves a GitHub Pages `*.github.io` certificate, so
   HTTPS fails name validation. `bootstrap.sh` fetches over HTTP and verifies by
   SHA-256 instead.
+- **Virtual ][ buffers writes to a mounted image until the disk is ejected.**
+  A file saved inside the emulator will not appear in the `.po` on disk until
+  then, so `make pull` ejects first.
+- **The Apple II keyboard has no buffer.** A ProDOS disk operation takes
+  seconds of emulated time, and anything typed while it runs is dropped
+  entirely. Tests must `vii.sh await` the completion message rather than
+  sleeping a fixed interval -- this cost two false test failures.
+- ProDOS pathnames are length-prefixed and **low** ASCII, unlike everything
+  else on this machine, which is high ASCII.

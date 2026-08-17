@@ -279,7 +279,7 @@ are folded to uppercase on read so `OA-q` and `OA-Q` both dispatch.
 
 Applying emphasis to text already wrapped in the same marker removes it.
 
-## 6. File I/O and getting files to the Mac
+## 6. File I/O and getting files to the Mac — as built
 
 On the //e: ProDOS TXT files (type `$04`), CR-terminated, high ASCII — the
 native Apple II text convention. MLI calls used: `OPEN $C8`, `READ $CA`,
@@ -291,11 +291,29 @@ parameter block. Loading reads straight into the aux buffer in 1K chunks with
 the gap parked at the end; saving writes out in two runs, before and after the
 gap, so no compaction pass is needed.
 
+Parameter blocks live in a dummy section rather than the code image: ProDOS
+writes reference numbers and transfer counts into them, which would break the
+immutable-image property the test suite relies on. They are initialised at
+startup from a template that does live in the image.
+
+Transfers are capped at 255 bytes so a transfer count always fits in one byte.
+Next to a floppy seek the lost efficiency is irrelevant, and it removes a pile
+of 16-bit arithmetic from the inner loop.
+
+One asymmetry worth remembering: ProDOS pathnames are length-prefixed and
+**low** ASCII, while everything else on this machine — screen codes, text
+files, the buffer — is high ASCII. The filename prompt strips the high bit on
+its way into `FNAME` and keeps it for the on-screen echo.
+
 On the Mac: `make pull` extracts every TXT file from a `.po` image and converts
 it to UTF-8 with LF line endings — clearing the high bit and translating CR to
 LF. `make push` goes the other way. The same tooling works against real
 hardware by `dd`-ing a CFFA CompactFlash card to a `.po` image first, so the
 emulator and the real //e share one workflow.
+
+**Virtual ][ buffers writes to a mounted image until it is ejected**, so
+`make pull` ejects first. Verified end to end: text typed in the emulator,
+saved with OA-S, pulled to the Mac, and read back as clean UTF-8 Markdown.
 
 ## 7. Testing
 

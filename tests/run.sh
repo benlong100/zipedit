@@ -201,6 +201,66 @@ k key "left arrow"
 snapshot
 assert_row "text accumulates correctly before delete" 0 "zz  draft:"
 
+#--------------------------------------
+# File I/O. Round trips through a real ProDOS volume in the mounted image.
+#--------------------------------------
+echo "file i/o"
+"$VII" boot "$IMAGE" >/dev/null
+"$VII" await "Notes from the Apple" 40 || { echo "reboot failed"; exit 1; }
+"$VII" caps true >/dev/null
+
+# Disk operations take seconds of emulated time, and the Apple II keyboard has
+# no buffer -- anything typed while ProDOS is working is simply dropped. So
+# every file operation waits for its completion message before going on.
+k text "MARKER "
+k oa "S"; k text "T1.MD"; "$VII" line "" >/dev/null
+"$VII" await "SAVED" 90 || bad "save never completed"
+snapshot
+assert_row "OA-S reports a successful save"          23 "SAVED"
+
+# Corrupt the buffer, then load it back and check the corruption is gone.
+k text "JUNKJUNK"
+snapshot
+assert_row "buffer modified before reload"            0 "MARKER JUNKJUNK# Notes"
+k oa "O"; k text "T1.MD"; "$VII" line "" >/dev/null
+"$VII" await "LOADED" 90 || bad "load never completed"
+snapshot
+assert_row "OA-O reports a successful load"          23 "LOADED"
+assert_row "loaded file replaced the buffer"          0 "MARKER # Notes from the Apple //e"
+
+# $46 is ProDOS "file not found". The buffer must survive a failed open.
+k oa "O"; k text "NOSUCH.MD"; "$VII" line "" >/dev/null
+"$VII" await "PRODOS ERROR" 90 || bad "error never reported"
+snapshot
+assert_row "missing file reports a ProDOS error"     23 "PRODOS ERROR \$46"
+assert_row "failed load leaves the buffer intact"     0 "MARKER # Notes from the Apple //e"
+
+# Finally, verify from the Mac side that a real ProDOS file exists in the
+# image. Virtual ][ buffers writes until eject, so flush first.
+osascript -e 'tell application "Virtual ][" to tell (last machine) to eject device "S6D1"' >/dev/null 2>&1
+sleep 2
+if "$ROOT/tools/ac" -l "$IMAGE" 2>/dev/null | grep -q "T1.MD TXT"; then
+    ok "saved file is a real ProDOS TXT file on the volume"
+else
+    bad "saved file is a real ProDOS TXT file on the volume" \
+        "$("$ROOT/tools/ac" -l "$IMAGE" 2>&1 | tr '\n' '|')"
+fi
+
+# And that it converts to clean UTF-8 Markdown on the way out.
+if "$ROOT/tools/ac" -g "$IMAGE" T1.MD 2>/dev/null > "$TMP/t1.raw" && python3 -c '
+import sys
+raw=open(sys.argv[1],"rb").read()
+assert raw, "empty file"
+assert all(b & 0x80 for b in raw), "not high ASCII"
+text="".join(chr(b & 0x7F) for b in raw).replace("\r","\n")
+assert text.startswith("MARKER # Notes from the Apple //e"), repr(text[:40])
+assert "`code` spans" in text, "content lost"
+' "$TMP/t1.raw" 2>"$TMP/err"; then
+    ok "file converts to clean UTF-8 Markdown for the Mac"
+else
+    bad "file converts to clean UTF-8 Markdown for the Mac" "$(cat "$TMP/err")"
+fi
+
 echo
 echo "$pass passed, $fail failed"
 [ "$fail" -eq 0 ]

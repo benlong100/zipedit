@@ -3,10 +3,9 @@
 *
 * Entered by ProDOS 8 as a SYS file at $2000.
 *
-* At this stage: display, gap buffer and keyboard. Sample text is inserted into
-* the aux buffer a byte at a time and rendered back out of it, then the main
-* loop takes keys and edits it. The file layer lands next, which is what turns
-* this from an editor you can type into to one you can keep work in.
+* Display, gap buffer, keyboard and ProDOS file I/O are all in. Sample text is
+* inserted into the aux buffer at startup, the main loop edits it, and OA-S /
+* OA-O save and load real ProDOS TXT files. Hard wrap on entry is next.
 *--------------------------------------
              org   $2000
              typ   $ff
@@ -22,6 +21,7 @@ START        lda   #FCHEAT          ; cheat sheet visible at startup
              lda   #$e5             ; poison, so tests can see untouched gap
              jsr   AUXFILL
              jsr   INSTSTUB         ; aux read stub into the stack page
+             jsr   INITFILE         ; ProDOS parameter blocks into RAM
              jsr   BUFINIT
 
              lda   #<SAMPLE
@@ -93,6 +93,7 @@ HOMECURSOR   jsr   GAPLEFT
 *--------------------------------------
              put   auxmem
              put   keyboard
+             put   file
              put   buffer
              put   display
 
