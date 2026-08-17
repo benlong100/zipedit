@@ -1,0 +1,11 @@
+build/
+vendor/merlin32/
+vendor/*.po
+vendor/*.dsk
+tools/ac
+tools/acx
+tools/ac-mac-*
+tools/acx-mac-*
+tools/merlin32
+tests/snapshots/*.actual.png
+.DS_Store
