@@ -110,6 +110,11 @@ timeout instead of silently reading a stale screen.
   are pulled in with `put`, and depending on `$(SRC)` alone meant edits to them
   silently did not rebuild — which produced a stale binary that looked like a
   runaway bug in new code.
+- **Virtual ][ can leave a machine frozen**, after which every AppleScript
+  command fails with "Cannot perform this command while the machine is frozen"
+  and the screen reads back stale. `vii.sh boot` now thaws first; `vii.sh thaw`
+  does it on demand. A whole round of measurements was invalid before I spotted
+  this.
 - Typing costs a fixed ~100 ms plus ~0.035 ms per buffer byte, so tests must
   never sleep a fixed interval for a multi-character string. Use `ktext`, which
   waits for the text to appear.

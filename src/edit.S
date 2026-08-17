@@ -38,8 +38,11 @@ START        lda   #FCHEAT          ; cheat sheet visible at startup
              jsr   HOMECURSOR       ; rewind so RENDER starts from the top
 
              jsr   SETMAXROW
+             lda   #$00
+             sta   MSGSHOWN
              jsr   DISPINIT
              jsr   DRAWSTATUS
+             jsr   STATUPD
 
 *--------------------------------------
 * Main loop. Redraw, wait for a key, act on it, repeat.
@@ -64,8 +67,17 @@ MAINLOOP     jsr   SCROLLFIX
              sta   OLDTOP+1
 
              jsr   GETKEY
-             jsr   DISPATCH
+
+*--- a keystroke retires whatever message was owning the status line
+             lda   MSGSHOWN
+             beq   :go
+             lda   #$00
+             sta   MSGSHOWN
+             jsr   DRAWSTATUS
+
+:go          jsr   DISPATCH
              jsr   SCROLLFIX
+             jsr   STATUPD
 
 *--- one row is enough only if the handler opted in AND nothing structural
 *    moved. Anything else -- a wrap, a newline, a scroll, a file load -- falls

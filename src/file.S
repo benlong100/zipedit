@@ -309,7 +309,9 @@ MKFNAME      lda   PLEN
              bne   :loop
 :done        rts
 
-PDRAW        lda   #STATROW
+PDRAW        lda   #$01             ; the prompt owns the row too
+             sta   MSGSHOWN
+             lda   #STATROW
              jmp   DRAWLINE
 
 *--------------------------------------
@@ -318,6 +320,8 @@ PDRAW        lda   #STATROW
 SHOWMSG      jsr   CLRBUF
              ldx   #$00
              jsr   BUFSTR
+             lda   #$01             ; the message owns the row until a key
+             sta   MSGSHOWN
              lda   #STATROW
              jmp   DRAWLINE
 
@@ -343,6 +347,8 @@ SHOWERR      jsr   CLRBUF
              and   #$0f
              jsr   HEXDIG
              sta   LINEBUF,x
+             lda   #$01
+             sta   MSGSHOWN
              lda   #STATROW
              jmp   DRAWLINE
 

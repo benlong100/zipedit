@@ -234,6 +234,17 @@ row  23     cheat sheet   (toggled by Open-Apple-?)
 row  24     status: filename, line/col, modified flag, free space
 ```
 
+The status line shows the filename, the cursor's line and column, free space
+and the help key. Line and column update live at no measurable cost: `CURLNO`
+and `CCOL` are already maintained incrementally, so only the digit **cells**
+are written -- never the whole row -- and the line digits are skipped when the
+line has not changed. Measured 19.0 ms per keystroke against 19.2 ms without,
+i.e. inside the noise.
+
+A message (`SAVED`, `PRODOS ERROR $46`, a prompt) takes the row over and sets
+`MSGSHOWN`, which suppresses digit updates; the next keystroke retires the
+message and repaints the row.
+
 The status line is permanent. The cheat sheet is toggled with **Open-Apple-?**
 and steals one row from the text area when shown; toggling it forces a full
 redraw and a scroll adjustment if the cursor would fall off the bottom.

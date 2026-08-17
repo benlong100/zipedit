@@ -99,3 +99,5 @@ STATROW      equ   23
 TEXTROWS     equ   22               ; when the cheat sheet is showing
 TEXTROWSMAX  equ   23               ; when it is hidden
 WRAPCOL      equ   76               ; hard wrap margin
+LNDIG        equ   39               ; status column of the line number digits
+CLDIG        equ   46               ; status column of the column digits

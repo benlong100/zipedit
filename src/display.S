@@ -201,6 +201,128 @@ TOGGLECHEAT  lda   FLAGS
 :on          jmp   DRAWCHEAT
 
 *--------------------------------------
+* PUTCELL -- write screen code A at column X of the row already in SCRPTR
+*--------------------------------------
+PUTCELL      pha
+             txa
+             and   #$01
+             beq   :aux
+             sta   MAINWR           ; odd column
+             jmp   :put
+:aux         sta   AUXWR            ; even column
+:put         txa
+             lsr
+             tay
+             pla
+             sta   (SCRPTR),y
+             rts
+
+*--------------------------------------
+* PUTNUM -- render NUMV right aligned in PWID cells starting at column X,
+*           space padded, in the inverse video the status line uses.
+*
+* Inverse digits are simply their ASCII codes ($30-$39), since inverse is
+* ascii AND $3F for anything below $60. Inverse space is $20.
+*--------------------------------------
+PUTNUM       stx   PCOL
+             lda   #$04
+             sec
+             sbc   PWID             ; skip the powers we do not need
+             sta   PIDX
+             lda   #$00
+             sta   PLEAD
+
+:digit       ldy   PIDX
+             cpy   #$04
+             bcs   :done
+             lda   #$00
+             sta   PDIG
+:sub         lda   NUMV             ; count how many times this power fits
+             sec
+             sbc   POWLO,y
+             tax
+             lda   NUMV+1
+             sbc   POWHI,y
+             bcc   :emit
+             stx   NUMV
+             sta   NUMV+1
+             inc   PDIG
+             ldy   PIDX
+             jmp   :sub
+
+:emit        lda   PDIG
+             bne   :show            ; a non-zero digit ends suppression
+             lda   PLEAD
+             bne   :show
+             ldy   PIDX             ; last cell always shows, even if zero
+             cpy   #$03
+             beq   :show
+             lda   #$20             ; inverse space
+             jmp   :put
+:show        lda   #$01
+             sta   PLEAD
+             lda   PDIG
+             clc
+             adc   #$30             ; inverse digit
+:put         ldx   PCOL
+             jsr   PUTCELL
+             inc   PCOL
+             inc   PIDX
+             jmp   :digit
+:done        rts
+
+POWLO        dfb   $e8,$64,$0a,$01
+POWHI        dfb   $03,$00,$00,$00
+
+*--------------------------------------
+* STATUPD -- refresh the line and column fields, if they changed
+*
+* Cheap by construction: CURLNO and CCOL are already maintained, and only the
+* digit cells are touched -- never the whole row. Skipped entirely while a
+* message is on the status line.
+*--------------------------------------
+STATUPD      lda   MSGSHOWN
+             bne   :out
+             lda   #STATROW
+             jsr   SETROW
+
+             lda   CURLNO
+             cmp   LASTLN
+             bne   :doline
+             lda   CURLNO+1
+             cmp   LASTLN+1
+             beq   :docol
+:doline      lda   CURLNO
+             sta   LASTLN
+             clc
+             adc   #$01
+             sta   NUMV
+             lda   CURLNO+1
+             sta   LASTLN+1
+             adc   #$00
+             sta   NUMV+1
+             lda   #$04
+             sta   PWID
+             ldx   #LNDIG
+             jsr   PUTNUM
+
+:docol       lda   CCOL
+             cmp   LASTCOL
+             beq   :out
+             sta   LASTCOL
+             clc
+             adc   #$01
+             sta   NUMV
+             lda   #$00
+             adc   #$00
+             sta   NUMV+1
+             lda   #$03
+             sta   PWID
+             ldx   #CLDIG
+             jsr   PUTNUM
+:out         rts
+
+*--------------------------------------
 * SHOWCURSOR -- invert the character cell the cursor sits on
 *
 * With 80STORE on, PAGE2 selects which bank $0400-$07FF reaches for reads as
@@ -236,6 +358,10 @@ DRAWSTATUS   lda   #<STATTXT
              sta   STRPTR+1
              lda   #STATROW
              jsr   SHOWSTRINV
+             lda   #$ff             ; force the digits to repaint
+             sta   LASTCOL
+             sta   LASTLN
+             sta   LASTLN+1
              rts
 
 *--------------------------------------
@@ -245,7 +371,7 @@ CHEATTXT     asc   "**bold** _italic_ `code` # H1 ## H2 - list 1. num > quote [t
              dfb   $00
 
 * Placeholder until the buffer and file layers can supply real values.
-STATTXT      asc   " UNTITLED.MD                          L1 C1   46K FREE   OA-? HELP        "
+STATTXT      asc   " UNTITLED.MD                          L      C      46K FREE    OA-? HELP       "
              dfb   $00
 
 *--- screen row base addresses (the usual non-linear Apple II layout) ---
@@ -261,4 +387,16 @@ ROWHI        dfb   $04,$04,$05,$05,$06,$06,$07,$07
 * stays byte-identical to the build artifact for as long as the program runs.
              dum   $0200
 LINEBUF      ds    SCRW             ; one screen line of screen codes
+             dend
+
+             dum   $1430
+NUMV         ds    2                ; value being rendered by PUTNUM
+PWID         ds    1
+PIDX         ds    1
+PCOL         ds    1
+PDIG         ds    1
+PLEAD        ds    1                ; non-zero once a digit has been emitted
+LASTLN       ds    2                ; last values painted, to skip redundant work
+LASTCOL      ds    1
+MSGSHOWN     ds    1                ; a message owns the status line
              dend

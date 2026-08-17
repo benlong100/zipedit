@@ -286,6 +286,50 @@ snapshot
 assert_row "Ctrl-B wraps the whole word from mid-word" 0 "# **Notes** from the Apple"
 
 #--------------------------------------
+# Status line. Line and column are painted as individual digit cells, not by
+# repainting the row, which is why they cost nothing measurable per keystroke.
+#--------------------------------------
+echo "status line"
+"$VII" boot "$IMAGE" >/dev/null
+"$VII" await "Notes from the Apple" 60 || { echo "reboot failed"; exit 1; }
+"$VII" caps false >/dev/null
+
+# digit fields, 1-based cut columns
+ln_field() { "$VII" screen-raw | sed -n '24p' | cut -c40-43 | tr -d ' '; }
+cl_field() { "$VII" screen-raw | sed -n '24p' | cut -c47-49 | tr -d ' '; }
+assert_lc() {
+    local name="$1" wl="$2" wc="$3" gl gc
+    gl=$(ln_field); gc=$(cl_field)
+    if [ "$gl" = "$wl" ] && [ "$gc" = "$wc" ]; then ok "$name"; else
+        bad "$name" "status reads L$gl C$gc, expected L$wl C$wc"
+    fi
+}
+
+assert_lc "status opens at line 1 column 1"            1 1
+for i in 1 2 3 4 5; do "$VII" key "right arrow" >/dev/null; sleep 0.3; done
+assert_lc "column tracks rightward movement"           1 6
+for i in 1 2 3; do "$VII" key "down arrow" >/dev/null; sleep 0.3; done
+assert_lc "line tracks downward movement"              4 1
+"$VII" text "hello" >/dev/null; "$VII" await "hello" 60 >/dev/null; sleep 1
+assert_lc "column tracks typing"                       4 6
+"$VII" key "left arrow" >/dev/null; sleep 1
+assert_lc "column tracks backward movement"            4 5
+"$VII" oa ">" >/dev/null; "$VII" await "THE END" 180 >/dev/null; sleep 1
+assert_lc "line tracks a jump to the end"             36 1
+
+# A message takes the status row, then the next keystroke restores it.
+"$VII" oa "C" >/dev/null
+"$VII" await "LINE COPIED" 60 || bad "copy never reported"
+snapshot
+assert_row "a message takes over the status row"      23 "LINE COPIED"
+# The left arrow both retires the message and moves: from the empty final line
+# back over the newline to the end of "THE END", i.e. line 35 column 8.
+"$VII" key "left arrow" >/dev/null; sleep 2
+snapshot
+assert_row "the next keystroke restores the status"   23 "UNTITLED.MD"
+assert_lc "and the digits come back correct"          35 8
+
+#--------------------------------------
 # Help screen. Bound to OA-H, not Ctrl-H: the //e maps Ctrl-H and the left
 # arrow to the same $88, which is verified in the keyboard section below.
 #--------------------------------------

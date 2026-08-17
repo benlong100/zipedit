@@ -33,6 +33,7 @@ boot)
     img="${1:?usage: vii.sh boot <image>}"
     img="$(cd "$(dirname "$img")" && pwd)/$(basename "$img")"
     ensure_machine
+    "$0" thaw
     osascript <<EOF >/dev/null
 tell application "Virtual ]["
     set m to last machine
@@ -117,12 +118,17 @@ settle)
     ;;
 
 caps) as "set caps lock of (last machine) to $1" ;;
+
+# thaw -- Virtual ][ can leave a machine frozen (it refuses every command with
+# "Cannot perform this command while the machine is frozen"). A frozen machine
+# silently serves stale screens, so unfreeze before anything else.
+thaw) osascript -e 'tell application "Virtual ][" to unfreeze (last machine)' >/dev/null 2>&1 || true ;;
 speed) as "set speed of (last machine) to $1" ;;
 
 *)
     sed -n '2,10p' "$0"
     echo
-    echo "subcommands: boot screen screen-raw text line ctrl oa ca key dump snap await settle caps speed"
+    echo "subcommands: boot screen screen-raw text line ctrl oa ca key dump snap await settle caps speed thaw"
     exit 1
     ;;
 esac
