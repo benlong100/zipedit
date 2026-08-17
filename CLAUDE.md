@@ -60,7 +60,8 @@ generator probe, `src/hello.S` is the minimal toolchain check.
 Arrows move by character and line. OA-up/OA-down page, OA-`<`/OA-`>` jump to
 the start and end of the document. Ctrl-A/Ctrl-E line ends, Ctrl-B bold,
 Ctrl-I italic, Ctrl-D delete forward. OA-R reflow, OA-S save, OA-O open,
-OA-? cheat sheet, OA-Q quit. `$89` is both Tab and Ctrl-I and dispatches on
+OA-C/OA-X/OA-V copy, cut and paste a line. OA-F find, OA-G find again, OA-L go
+to line. OA-? cheat sheet, OA-Q quit. `$89` is both Tab and Ctrl-I and dispatches on
 position -- see `docs/design.md`.
 
 ## Testing
@@ -102,6 +103,12 @@ timeout instead of silently reading a stale screen.
   down arrow. OA-up/OA-down are therefore not verifiable from the suite; the
   page handlers are `KUP`/`KDOWN` repeated, which the arrow tests do cover, but
   the bindings themselves need checking by hand.
+- **`X` cannot hold a loop counter across `INSCHR`, `GAPLEFT` or `GAPRIGHT`.**
+  All of them reach a `TAX`. Count in memory.
+- **The Makefile must depend on all of `src/*.S`, not just `$(SRC)`.** The rest
+  are pulled in with `put`, and depending on `$(SRC)` alone meant edits to them
+  silently did not rebuild — which produced a stale binary that looked like a
+  runaway bug in new code.
 - Typing costs a fixed ~100 ms plus ~0.035 ms per buffer byte, so tests must
   never sleep a fixed interval for a multi-character string. Use `ktext`, which
   waits for the text to appear.

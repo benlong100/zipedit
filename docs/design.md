@@ -284,7 +284,7 @@ That preserves both behaviours in the contexts where each is actually wanted.
 | **Ctrl-B** | **bold** — wrap in `**` |
 | **Ctrl-I** | **italic** — wrap in `_` (see collision above) |
 | Tab (in leading whitespace) | indent two spaces |
-| OA-C / OA-X / OA-V | copy / cut / paste |
+| OA-C / OA-X / OA-V | copy line / cut line / paste |
 | OA-F / OA-G | find / find again |
 | OA-L | go to line |
 | OA-R | reflow paragraph |
@@ -303,22 +303,31 @@ are folded to uppercase on read so `OA-q` and `OA-Q` both dispatch.
   rather than remembering an intent. Every real editor keeps a sticky goal
   column; this one should too, and it is a small change once there is a line
   index to hang it off.
-- **Emphasis is not word-aware yet.** `Ctrl-B` and `Ctrl-I` insert the markers
-  and place the cursor between them, which is right when reaching for emphasis
-  before typing a word but not when wrapping one already written. The
-  selection-aware behaviour described above arrives with the editing-operations
-  work.
+- **The clipboard is line based, not selection based.** With hard wrap a line
+  is a natural unit and it needs no selection UI at all. Mark-and-region
+  selection can be added later without changing the clipboard itself.
+- **Emphasis does not toggle off.** Applying `Ctrl-B` to already-bold text
+  wraps it again rather than unwrapping it.
 - ~~Full redraw per keystroke.~~ **Fixed.** See §4a.
 
-### Emphasis insertion
+### Emphasis insertion — as built
 
-`Ctrl-B` and `Ctrl-I` behave the same way with different markers:
+`Ctrl-B` (`**`) and `Ctrl-I` (`_`) share one routine:
 
-1. If there is a selection, wrap it.
-2. Otherwise, if the cursor is on or immediately after a word, wrap that word.
-3. Otherwise, insert both markers and place the cursor between them.
+1. If the cursor is inside a word, run to the end of it first, so emphasis
+   takes the whole word rather than the half behind the cursor.
+2. Walk back to the start of that word, insert the opening marker, walk forward
+   over the word, insert the closing marker.
+3. With no word under the cursor, insert both markers and sit between them —
+   which is what you want when reaching for emphasis before typing.
 
-Applying emphasis to text already wrapped in the same marker removes it.
+Marker characters count as word characters, so applying italic to `**bold**`
+produces `_**bold**_` rather than something malformed.
+
+**A trap worth recording:** none of these loops can count in `X`. `INSCHR`
+reaches `PUTAUX`, which does a `TAX`, and `GAPLEFT`/`GAPRIGHT` do the same, so
+any counter in `X` is destroyed on the first iteration. They all count in
+memory.
 
 ## 6. File I/O and getting files to the Mac — as built
 

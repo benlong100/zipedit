@@ -138,6 +138,7 @@ HOMECURSOR   jsr   GAPLEFT
              put   file
              put   wrap
              put   scroll
+             put   edit_ops
              put   buffer
              put   display
 

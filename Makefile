@@ -25,8 +25,12 @@ IMAGE   := $(BUILD)/EDIT.po
 
 all: $(BIN)
 
+# Every source file, not just $(SRC): the rest are pulled in with Merlin's put
+# directive, and depending on $(SRC) alone meant edits to them never rebuilt.
+SOURCES := $(wildcard src/*.S)
+
 # Merlin32 writes its object next to the source, named by the `dsk` directive.
-$(BIN): $(SRC) | $(BUILD)
+$(BIN): $(SOURCES) | $(BUILD)
 	@$(MERLIN) $(ASMINC) $(SRC) > $(BUILD)/merlin32.log 2>&1 || \
 		{ echo "--- Merlin32 failed ---"; cat $(BUILD)/merlin32.log; exit 1; }
 	@grep -iE '^\s+(Error|Warning)' $(BUILD)/merlin32.log && exit 1 || true

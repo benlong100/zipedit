@@ -235,17 +235,19 @@ LOADFILE     jsr   OPENF
              rts
 
 *--------------------------------------
-* PROMPT -- ask for a filename on the status line.
-*           STRPTR -> prompt. Carry set if cancelled with Esc.
+* PROMPT -- read a line on the status line. STRPTR -> prompt text.
+*           Result in PBUF/PLEN as high ASCII. Carry set if cancelled.
 *
-* Y cannot hold the character count: DRAWLINE clobbers it on every echo.
+* High ASCII because that is what the buffer and the screen use; MKFNAME
+* converts to the low ASCII ProDOS wants for a pathname. Y cannot hold the
+* character count -- DRAWLINE clobbers it on every echo.
 *--------------------------------------
 PROMPT       jsr   CLRBUF
              ldx   #$00
              jsr   BUFSTR
              stx   TMPB             ; input begins at this column
              lda   #$00
-             sta   TMPC
+             sta   PLEN
              jsr   PDRAW
 
 :key         jsr   GETKEY
@@ -258,26 +260,25 @@ PROMPT       jsr   CLRBUF
              cmp   #$a0             ; ignore other control keys
              bcc   :key
 
-             ldx   TMPC
+             ldx   PLEN
              cpx   #$3f
              bcs   :key
              sta   TMPA
-             and   #$7f             ; ProDOS pathnames are low ASCII
-             sta   FNAME+1,x
+             sta   PBUF,x
              txa
              clc
              adc   TMPB
              tax
-             lda   TMPA             ; echo in high ASCII
+             lda   TMPA             ; echo
              sta   LINEBUF,x
-             inc   TMPC
+             inc   PLEN
              jsr   PDRAW
              jmp   :key
 
-:del         lda   TMPC
+:del         lda   PLEN
              beq   :key
-             dec   TMPC
-             lda   TMPC
+             dec   PLEN
+             lda   PLEN
              clc
              adc   TMPB
              tax
@@ -286,13 +287,27 @@ PROMPT       jsr   CLRBUF
              jsr   PDRAW
              jmp   :key
 
-:done        lda   TMPC
-             beq   :cancel          ; empty name is a cancel
-             sta   FNAME
+:done        lda   PLEN
+             beq   :cancel          ; empty entry is a cancel
              clc
              rts
 :cancel      sec
              rts
+
+*--------------------------------------
+* MKFNAME -- turn what PROMPT collected into a ProDOS pathname
+*--------------------------------------
+MKFNAME      lda   PLEN
+             sta   FNAME
+             ldx   #$00
+:loop        cpx   PLEN
+             beq   :done
+             lda   PBUF,x
+             and   #$7f             ; ProDOS pathnames are low ASCII
+             sta   FNAME+1,x
+             inx
+             bne   :loop
+:done        rts
 
 PDRAW        lda   #STATROW
              jmp   DRAWLINE
@@ -349,6 +364,7 @@ KSAVE        lda   #<MSGSAVE
              sta   STRPTR+1
              jsr   PROMPT
              bcs   :quit
+             jsr   MKFNAME
              jsr   SAVEFILE
              bcs   :err
              lda   #<MSGSAVED
@@ -365,6 +381,7 @@ KLOAD        lda   #<MSGOPEN
              sta   STRPTR+1
              jsr   PROMPT
              bcs   :quit
+             jsr   MKFNAME
              jsr   LOADFILE
              bcs   :err
              jsr   HOMECURSOR
@@ -395,6 +412,10 @@ MSGERR       asc   " PRODOS ERROR $"
 IOBUF        ds    1024
 DATBUF       ds    256
 FNAME        ds    65               ; length byte + up to 64 characters
+PBUF         ds    64               ; what PROMPT collected, high ASCII
+PLEN         ds    1
+CLIPBUF      ds    256              ; line clipboard
+FINDBUF      ds    64               ; search pattern, high ASCII
 OPENPARM     ds    6
 READPARM     ds    8
 WRITEPARM    ds    8

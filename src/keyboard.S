@@ -105,6 +105,18 @@ KEYTBL
              da    KBOLD            ; Ctrl-B
              dfb   $89,$00
              da    KTABITAL         ; Ctrl-I / Tab
+             dfb   $c3,$80
+             da    KCOPY            ; OA-C
+             dfb   $d8,$80
+             da    KCUT             ; OA-X
+             dfb   $d6,$80
+             da    KPASTE           ; OA-V
+             dfb   $c6,$80
+             da    KFIND            ; OA-F
+             dfb   $c7,$80
+             da    FINDNEXT         ; OA-G
+             dfb   $cc,$80
+             da    KGOTO            ; OA-L
              dfb   $bf,$80
              da    TOGGLECHEAT      ; OA-?
              dfb   $8b,$80
@@ -308,9 +320,10 @@ INLEAD       lda   GAPBEG
 *             italic anywhere else.
 *--------------------------------------
 KTABITAL     jsr   INLEAD
-             bcc   KITALIC
+             bcs   :indent
+             jmp   KITALIC          ; too far for a relative branch
 *--- indent two spaces
-             lda   #$a0
+:indent      lda   #$a0
              jsr   INSCHR
              lda   #$a0
              jmp   INSCHR
@@ -322,19 +335,3 @@ KTABITAL     jsr   INLEAD
 * inserts the markers and leaves the cursor in the middle, which is what you
 * want when reaching for emphasis before typing the word.
 *--------------------------------------
-KBOLD        lda   #$aa             ; '*'
-             jsr   INSCHR
-             lda   #$aa
-             jsr   INSCHR
-             lda   #$aa
-             jsr   INSCHR
-             lda   #$aa
-             jsr   INSCHR
-             jsr   GAPLEFT
-             jmp   GAPLEFT
-
-KITALIC      lda   #$df             ; '_'
-             jsr   INSCHR
-             lda   #$df
-             jsr   INSCHR
-             jmp   GAPLEFT

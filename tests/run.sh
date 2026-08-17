@@ -177,9 +177,9 @@ snapshot
 assert_row "right arrow moves the cursor"             0 "draft: # NXotes from the Apple"
 
 k ctrl B
-ktext "loud"
+sleep 2
 snapshot
-assert_row "Ctrl-B wraps the cursor in bold markers"  0 "**loud**"
+assert_row "Ctrl-B wraps the word at the cursor"      0 "draft: # **NXotes**"
 
 k oa "?"
 snapshot
@@ -192,7 +192,7 @@ assert_row "OA-? restores the cheat sheet"           22 '**bold** _italic_ `code
 k ctrl A
 k ctrl I
 snapshot
-assert_row "\$89 indents inside leading whitespace"   0 "  draft: # NX"
+assert_row "\$89 indents inside leading whitespace"   0 "  draft: # **NXotes**"
 
 # At the end of a long line the markers land past column 80 and are clipped
 # from the display, so this one has to be checked in the buffer itself.
@@ -202,12 +202,11 @@ k ctrl I
 GB=$(python3 -c "d=open('$TMP/zp.bin','rb').read(); print(d[0x12]|(d[0x13]<<8))")
 GE=$(python3 -c "d=open('$TMP/zp.bin','rb').read(); print(d[0x14]|(d[0x15]<<8))")
 "$VII" dump $((GB-1)) 1 1 "$TMP/before.bin" >/dev/null
-"$VII" dump "$GE"     1 1 "$TMP/after.bin"  >/dev/null
-if [ "$(xxd -p "$TMP/before.bin")" = "df" ] && [ "$(xxd -p "$TMP/after.bin")" = "df" ]; then
-    ok "\$89 italicises outside leading whitespace, cursor between the markers"
+if [ "$(xxd -p "$TMP/before.bin")" = "df" ]; then
+    ok "\$89 italicises outside leading whitespace"
 else
-    bad "\$89 italicises outside leading whitespace, cursor between the markers" \
-        "byte before gap: $(xxd -p "$TMP/before.bin"), after gap: $(xxd -p "$TMP/after.bin"), wanted df/df"
+    bad "\$89 italicises outside leading whitespace" \
+        "byte before the cursor is $(xxd -p "$TMP/before.bin"), wanted df (closing _)"
 fi
 
 k ctrl A
@@ -215,6 +214,62 @@ ktext "zz"
 k key "left arrow"
 snapshot
 assert_row "text accumulates correctly before delete" 0 "zz  draft:"
+
+#--------------------------------------
+# Editing operations: clipboard, find, go to line, emphasis.
+#--------------------------------------
+echo "editing operations"
+"$VII" boot "$IMAGE" >/dev/null
+"$VII" await "Notes from the Apple" 60 || { echo "reboot failed"; exit 1; }
+"$VII" caps false >/dev/null
+
+# curline <name> <expected 0-based line>
+curline() {
+    "$VII" dump 0x0000 0x40 0 "$TMP/zp.bin" >/dev/null
+    local got; got=$(python3 -c "d=open('$TMP/zp.bin','rb').read(); print(d[0x29]|(d[0x2a]<<8))")
+    if [ "$got" = "$2" ]; then ok "$1"; else bad "$1" "cursor on line $got, expected $2"; fi
+}
+
+"$VII" oa "C" >/dev/null
+"$VII" await "LINE COPIED" 60 || bad "OA-C never reported"
+snapshot
+assert_row "OA-C copies the current line"            23 "LINE COPIED"
+
+"$VII" oa "V" >/dev/null; sleep 3
+snapshot
+assert_row "OA-V pastes it back as a new line"        0 "# Notes from the Apple //e"
+assert_row "the pasted copy sits below the original"  1 "# Notes from the Apple //e"
+
+"$VII" oa "X" >/dev/null
+"$VII" await "LINE CUT" 60 || bad "OA-X never reported"
+sleep 2; snapshot
+assert_row "OA-X removes the line again"              1 ""
+assert_blank "the duplicate is gone"                  1
+
+# Find walks the cursor to the hit, so the maintained line number proves it.
+"$VII" oa "F" >/dev/null; sleep 1
+"$VII" text "cheat sheet" >/dev/null; "$VII" await "cheat sheet" 60 >/dev/null
+"$VII" line "" >/dev/null; sleep 4
+curline "OA-F moves the cursor to the match" 12
+
+"$VII" oa "F" >/dev/null; sleep 1
+"$VII" text "notpresentanywhere" >/dev/null; "$VII" await "notpresentanywhere" 60 >/dev/null
+"$VII" line "" >/dev/null
+"$VII" await "NOT FOUND" 90 || bad "missing pattern never reported"
+snapshot
+assert_row "a missing pattern reports NOT FOUND"     23 "NOT FOUND"
+
+"$VII" oa "L" >/dev/null; sleep 1
+"$VII" text "20" >/dev/null; sleep 2
+"$VII" line "" >/dev/null; sleep 6
+curline "OA-L jumps to a line number (1-based)" 19
+
+# Emphasis takes the whole word even from the middle of it.
+"$VII" oa "<" >/dev/null; "$VII" await "Notes from the Apple" 120 >/dev/null; sleep 2
+for i in 1 2 3 4; do "$VII" key "right arrow" >/dev/null; sleep 0.3; done
+"$VII" ctrl B >/dev/null; sleep 3
+snapshot
+assert_row "Ctrl-B wraps the whole word from mid-word" 0 "# **Notes** from the Apple"
 
 #--------------------------------------
 # Hard wrap. Typing is slow (~8 chars/sec: full buffer rescan and redraw per

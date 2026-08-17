@@ -77,6 +77,8 @@ OLDTOP       equ   $2e              ; 2 bytes, SCROLLTOP before the keystroke
 CCOL         equ   $30              ; cursor column, maintained incrementally
 DSTPTR       equ   $31              ; 2 bytes, main-memory destination for AUXBLK
 BLKLEN       equ   $33              ; bytes for AUXBLK to move
+CLIPLEN      equ   $34              ; bytes in the clipboard
+FINDLEN      equ   $35              ; length of the search pattern
 
 *--- runtime home of the aux read stub ---
 * Reads of aux cannot be done from code living in $0200-$BFFF: RAMRD redirects
