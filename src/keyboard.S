@@ -153,6 +153,10 @@ KEYTBL
              da    KQUIT            ; OA-Q
              dfb   $ce,$80
              da    KNEW             ; OA-N
+             dfb   $d7,$80
+             da    KWORDS           ; OA-W
+             dfb   $c1,$80
+             da    KSAVEAS          ; OA-A
              dfb   $00              ; end of table
 
 *--------------------------------------

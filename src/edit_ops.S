@@ -288,6 +288,149 @@ KCUT         jsr   COPYSEL          ; a selection wins over the whole line
 :done        rts                       ; no message: the line visibly went away
 
 *--------------------------------------
+* KWORDS -- count the words in the document and report them (OA-W)
+*
+* A word is a run of non-blank characters, so the count is simply the number of
+* blank-to-non-blank transitions. Blank means a space or the carriage return
+* that ends a line; nothing else in a Markdown document separates words, and
+* Tab inserts spaces rather than a tab byte.
+*
+* The gap is stepped over exactly as RENDER steps over it -- it is not text.
+*
+* This deliberately is NOT live in the status row. Typing costs 19 ms because
+* the editor stopped walking the whole buffer on every keystroke; a live count
+* would put that walk straight back and undo it.
+*--------------------------------------
+KWORDS       lda   #$00
+             sta   WCNT
+             sta   WCNT+1
+             sta   INWORD
+             sta   AUXPTR
+             lda   #AUXLO
+             sta   AUXPTR+1
+
+:loop        lda   AUXPTR           ; standing at the gap? jump over it
+             cmp   GAPBEG
+             bne   :notgap
+             lda   AUXPTR+1
+             cmp   GAPBEG+1
+             bne   :notgap
+             lda   GAPEND
+             sta   AUXPTR
+             lda   GAPEND+1
+             sta   AUXPTR+1
+
+:notgap      lda   AUXPTR+1         ; ran off the end of the buffer?
+             cmp   #AUXHI
+             bcs   :count
+             ldy   #$00
+             jsr   AUXRD
+             cmp   #$a0             ; space
+             beq   :blank
+             cmp   #$8d             ; carriage return
+             beq   :blank
+
+*--- non-blank: a word begins here unless we were already inside one
+             lda   INWORD
+             bne   :next
+             lda   #$01
+             sta   INWORD
+             inc   WCNT
+             bne   :next
+             inc   WCNT+1
+             jmp   :next
+
+:blank       lda   #$00
+             sta   INWORD
+
+:next        inc   AUXPTR
+             bne   :back
+             inc   AUXPTR+1
+:back        jmp   :loop
+
+*--- render the total as decimal, left aligned, into the message buffer.
+*    Pick the tail first: the formatter consumes WCNT as it divides, so the
+*    total is gone by the time the word itself has to be chosen.
+:count       lda   #<WTAIL
+             sta   STRPTR
+             lda   #>WTAIL
+             sta   STRPTR+1
+             lda   WCNT+1
+             bne   :fmt
+             lda   WCNT
+             cmp   #$01
+             bne   :fmt
+             lda   #<WTAIL1         ; exactly one: "WORD", not "WORDS"
+             sta   STRPTR
+             lda   #>WTAIL1
+             sta   STRPTR+1
+
+:fmt         lda   #$a0             ; messages open with a space
+             sta   WBUF
+             lda   #$01
+             sta   WIDX
+             lda   #$00
+             sta   WLEAD
+             ldy   #$00
+
+:pow         lda   #$00
+             sta   WDIG
+:sub         lda   WCNT             ; how many times does this power fit?
+             sec
+             sbc   TENLO,y
+             sta   TMPA
+             lda   WCNT+1
+             sbc   TENHI,y
+             bcc   :emit
+             sta   WCNT+1
+             lda   TMPA
+             sta   WCNT
+             inc   WDIG
+             jmp   :sub
+
+:emit        lda   WDIG
+             bne   :put
+             lda   WLEAD
+             bne   :put
+             cpy   #$04             ; the units digit shows even as a zero
+             beq   :put
+             jmp   :nextpow         ; drop this leading zero entirely
+:put         lda   #$01
+             sta   WLEAD
+             lda   WDIG
+             clc
+             adc   #$b0             ; high ASCII digit
+             ldx   WIDX
+             sta   WBUF,x
+             inc   WIDX
+:nextpow     iny
+             cpy   #$05
+             bne   :pow
+
+*--- and the word "WORDS" after it, terminator included
+             ldx   WIDX
+             ldy   #$00
+:tail        lda   (STRPTR),y
+             sta   WBUF,x
+             beq   :show
+             inx
+             iny
+             jmp   :tail
+
+:show        lda   #<WBUF
+             sta   STRPTR
+             lda   #>WBUF
+             sta   STRPTR+1
+             jmp   SHOWMSG
+
+WTAIL        asc   " WORDS"
+             dfb   $00
+WTAIL1       asc   " WORD"
+             dfb   $00
+TENLO        dfb   $10,$e8,$64,$0a,$01
+TENHI        dfb   $27,$03,$00,$00,$00
+
+*--------------------------------------
 * KPASTE -- insert the clipboard at the cursor, then a newline (OA-V)
 *--------------------------------------
 * Paste replaces a selection, and only re-adds a newline when the clipboard
@@ -448,6 +591,12 @@ EMCNT        ds    1
 EMDIST       ds    1
 EMWORD       ds    1
 EMN          ds    1
+WCNT         ds    2                ; KWORDS: running total
+INWORD       ds    1                ; non-zero while inside a word
+WDIG         ds    1                ; KWORDS: digit being emitted
+WLEAD        ds    1                ; non-zero once a digit has been emitted
+WIDX         ds    1                ; write position in WBUF
+WBUF         ds    16               ; " 1234 WORDS" and its terminator
              dend
 
 *--------------------------------------
