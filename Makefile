@@ -88,7 +88,7 @@ release: $(BIN)
 
 # Copy the release image to a card, cleanly. VOL is the mounted volume name.
 card: release
-	@$(TOOLS)/tocard.sh $(VOL) $(BUILD)/EDITOR.po
+	@$(TOOLS)/tocard.sh "$(VOL)" $(BUILD)/EDITOR.po
 
 clean:
 	@rm -rf $(BUILD) src/_FileInformation.txt src/$(NAME)

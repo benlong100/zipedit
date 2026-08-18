@@ -21,6 +21,10 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 IMAGES=("$@")
 [ ${#IMAGES[@]} -eq 0 ] && IMAGES=("$ROOT/build/EDITOR.po")
 
+# Stop Spotlight re-creating its index here; that is what keeps scattering
+# directories among the disk images.
+touch "$DEST/.metadata_never_index" 2>/dev/null || true
+
 echo "==> clearing macOS metadata from $DEST"
 rm -rf "$DEST/.Spotlight-V100" "$DEST/.fseventsd" "$DEST/.Trashes" 2>/dev/null || true
 find "$DEST" -name '._*' -delete 2>/dev/null || true
