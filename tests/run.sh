@@ -715,7 +715,7 @@ assert_mod "and still has unsaved changes"                      "MOD"
 
 k oa "S"; ktext "MODTEST.MD"
 "$VII" line "" >/dev/null
-"$VII" await "UNTITLED" 90 || bad "save never completed"
+"$VII" await "MODTEST.MD" 90 || bad "save never completed"
 assert_mod "saving clears MOD"                                  "   "
 
 # With nothing outstanding, OA-Q goes straight out to ProDOS. The save above
@@ -807,6 +807,31 @@ assert_row "typing starts the new document"                     0 "fresh"
 assert_mod "and typing marks the new document modified"         "MOD"
 
 #--------------------------------------
+# Status filename. The row carried UNTITLED.MD as static text, so it went on
+# claiming that name after a save. It now shows whatever the last save or load
+# used, and reverts when OA-N starts a fresh document.
+#--------------------------------------
+echo "status filename"
+reboot
+
+snapshot
+assert_row "an unnamed document reads UNTITLED.MD"     23 " UNTITLED.MD"
+
+ktext "x"
+k oa "S"; ktext "NAMED.MD"; "$VII" line "" >/dev/null
+"$VII" await "NAMED.MD" 90 || bad "save never completed"
+snapshot
+assert_row "saving puts the name in the status row"    23 " NAMED.MD"
+# The field is blanked past the end of the name, so no tail of the longer
+# placeholder is left behind -- UNTITLED.MD is 11 characters, NAMED.MD is 8.
+assert_row "and no tail of the placeholder survives"   23 "NAMED.MD    "
+
+"$VII" caps true >/dev/null; k oa "N"; "$VII" caps false >/dev/null
+"$VII" settle 2 >/dev/null
+snapshot
+assert_row "a new document goes back to UNTITLED.MD"   23 " UNTITLED.MD"
+
+#--------------------------------------
 # File I/O. Round trips through a real ProDOS volume in the mounted image.
 #--------------------------------------
 echo "file i/o"
@@ -817,19 +842,21 @@ reboot true
 # every file operation waits for its completion message before going on.
 ktext "MARKER "
 k oa "S"; ktext "T1.MD"; "$VII" line "" >/dev/null
-# The busy notice is the feedback now; completion is the status row returning.
-"$VII" await "UNTITLED" 90 || bad "save never completed"
+# The busy notice is the feedback; completion is the status row coming back,
+# and it comes back carrying the name that was just saved to.
+"$VII" await "T1.MD" 90 || bad "save never completed"
 snapshot
-assert_row "OA-S returns to the status row when done" 23 "UNTITLED.MD"
+assert_row "OA-S returns to the status row when done" 23 "T1.MD"
+assert_row "and the status row now names the saved file" 23 " T1.MD"
 
 # Corrupt the buffer, then load it back and check the corruption is gone.
 ktext "JUNKJUNK"
 snapshot
 assert_row "buffer modified before reload"            0 "MARKER JUNKJUNK# Notes"
 k oa "O"; ktext "T1.MD"; "$VII" line "" >/dev/null
-"$VII" await "UNTITLED" 90 || bad "load never completed"
+"$VII" await "T1.MD" 90 || bad "load never completed"
 snapshot
-assert_row "OA-O returns to the status row when done" 23 "UNTITLED.MD"
+assert_row "OA-O returns to the status row when done" 23 "T1.MD"
 assert_row "loaded file replaced the buffer"          0 "MARKER # Notes from the Apple //e"
 
 # $46 is ProDOS "file not found". The buffer must survive a failed open.

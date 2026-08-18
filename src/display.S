@@ -362,6 +362,60 @@ RESTORESTAT  lda   #$00
              jmp   STATUPD
 
 *--------------------------------------
+* SHOWNAME -- paint the current filename into the status row
+*
+* The status template carries UNTITLED.MD as a placeholder; the real name goes
+* over the top of it. FNAME is whatever the last save or load used -- low ASCII
+* with a length byte -- and is empty until the document has been named, which
+* is what the placeholder is for.
+*
+* The row is inverse video, so each character is folded the way INVBUF folds
+* it: below $60 comes down with AND #$3F, $60 and up inverts to itself.
+*
+* PUTCELL clobbers Y, so the index lives in memory rather than in a register.
+*--------------------------------------
+SHOWNAME     lda   #STATROW
+             jsr   SETROW
+             lda   FNAME            ; length; zero means never named
+             beq   :untitled
+             sta   NAMELEN
+             lda   #<FNAME+1
+             sta   STRPTR
+             lda   #>FNAME+1
+             sta   STRPTR+1
+             jmp   :draw
+:untitled    lda   #UNTLEN
+             sta   NAMELEN
+             lda   #<UNTITLED
+             sta   STRPTR
+             lda   #>UNTITLED
+             sta   STRPTR+1
+
+:draw        lda   #$00
+             sta   NAMEI
+:loop        ldy   NAMEI
+             cpy   NAMELEN
+             bcs   :pad             ; past the name: blank the rest of the field
+             lda   (STRPTR),y
+             and   #$7f
+             cmp   #$60
+             bcs   :put             ; lowercase inverts to itself
+             and   #$3f
+             jmp   :put
+:pad         lda   #$20             ; inverse space
+:put         ldx   NAMEI
+             inx                    ; NAMECOL is 1
+             jsr   PUTCELL
+             inc   NAMEI
+             lda   NAMEI
+             cmp   #NAMEW
+             bne   :loop
+             rts
+
+UNTITLED     asc   "UNTITLED.MD"
+             dfb   $00
+
+*--------------------------------------
 * SHOWCURSOR -- invert the character cell the cursor sits on
 *
 * With 80STORE on, PAGE2 selects which bank $0400-$07FF reaches for reads as
@@ -402,7 +456,7 @@ DRAWSTATUS   lda   #<STATTXT
              sta   LASTLN
              sta   LASTLN+1
              sta   LASTMOD
-             rts
+             jmp   SHOWNAME
 
 *--------------------------------------
 * Data
@@ -444,4 +498,6 @@ LASTCOL      ds    1
 LASTMOD      ds    1
 MODFLAG      ds    1                ; non-zero when the document has unsaved edits
 MSGSHOWN     ds    1                ; a message owns the status line
+NAMEI        ds    1                ; SHOWNAME: index into the name
+NAMELEN      ds    1                ; SHOWNAME: how many characters it has
              dend

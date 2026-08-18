@@ -302,7 +302,8 @@ row  24     status: filename, line/col, modified flag, free space
 ```
 
 The status line shows the filename, a `MOD` indicator when the document has
-unsaved edits, the cursor's line and column, free space and the help key. Line and column update live at no measurable cost: `CURLNO`
+the current filename, unsaved edits, the cursor's line and column, free space
+and the help key. Line and column update live at no measurable cost: `CURLNO`
 and `CCOL` are already maintained incrementally, so only the digit **cells**
 are written -- never the whole row -- and the line digits are skipped when the
 line has not changed. Measured 19.0 ms per keystroke against 19.2 ms without,
@@ -331,6 +332,14 @@ Cutting follows the same rule for the same reason: the line visibly goes away,
 so `OA-X` says nothing either. Copying still announces itself, because nothing
 visible happens when a line goes to the clipboard — a message is the only sign
 it worked.
+
+The filename field is painted by `SHOWNAME` rather than baked into the status
+template, which is what it used to be -- so the row went on reading
+`UNTITLED.MD` after a save. It shows `FNAME`, whatever the last save or load
+used, and falls back to the `UNTITLED.MD` placeholder while the document has no
+name. `OA-N` clears `FNAME`, so a fresh document reads as untitled again. The
+field is 12 columns, blanked past the end of the name so no tail of a longer
+previous name survives.
 
 **Prompts are different.** A prompt hands the status row back the moment it
 ends, accepted or cancelled, rather than waiting for the next keystroke to
