@@ -26,6 +26,7 @@ KBD          equ   $c000            ; bit 7 set when a key is waiting
 KBDSTRB      equ   $c010
 OPNAPPLE     equ   $c061            ; bit 7 = Open-Apple held
 CLSAPPLE     equ   $c062            ; bit 7 = Closed-Apple held
+SHIFTKEY     equ   $c063            ; //e shift key -- bit 7 LOW when held
 
 *--- firmware ---
 AUXMOVE      equ   $c311
@@ -77,8 +78,27 @@ OLDTOP       equ   $2e              ; 2 bytes, SCROLLTOP before the keystroke
 CCOL         equ   $30              ; cursor column, maintained incrementally
 DSTPTR       equ   $31              ; 2 bytes, main-memory destination for AUXBLK
 BLKLEN       equ   $33              ; bytes for AUXBLK to move
-CLIPLEN      equ   $34              ; bytes in the clipboard
+CLIPLEN      equ   $63              ; 2 bytes, bytes in the clipboard
 FINDLEN      equ   $35              ; length of the search pattern
+
+*--- selection. $36-$4F are avoided: the monitor keeps A1-A4 there and ProDOS
+*    scribbles on $40-$4F during an MLI call.
+SELACT       equ   $50              ; non-zero when text is selected
+SELMODE      equ   $51              ; non-zero when arrows extend without shift
+SELANC       equ   $52              ; 2 bytes, logical offset of the anchor
+SELLEN       equ   $54              ; 2 bytes, length of the selection
+MODSHIFT     equ   $56              ; shift state at the last key read
+LPOS         equ   $57              ; 2 bytes, scratch logical position
+INSEL        equ   $59              ; RENDER: inside the selection right now
+SELDIR       equ   $5a              ; 0 = selection before the gap, 1 = after
+SELLO        equ   $5b              ; 2 bytes, selection bounds as logical
+SELHI        equ   $5d              ; 2 bytes, offsets, for RENDER
+RPOS         equ   $5f              ; 2 bytes, RENDER's walking position
+CLIPPTR      equ   $61              ; 2 bytes, paste cursor
+CLIPLINE     equ   $65              ; clipboard holds a whole line, not a range
+OLDSEL       equ   $66              ; selection state before the keystroke
+SHIFTIDLE    equ   $67              ; what $C063 reads with shift NOT held
+CLIPMAX      equ   1024             ; clipboard capacity
 
 *--- runtime home of the aux read stub ---
 * Reads of aux cannot be done from code living in $0200-$BFFF: RAMRD redirects

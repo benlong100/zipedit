@@ -27,6 +27,7 @@ START        lda   #$00             ; cheat sheet hidden by default; OA-/ shows 
              jsr   AUXFILL
              jsr   INSTSTUB         ; aux read stub into the stack page
              jsr   INITFILE         ; ProDOS parameter blocks into RAM
+             jsr   SELINIT
              jsr   BUFINIT
 
              lda   #<SAMPLE
@@ -67,6 +68,8 @@ MAINLOOP     jsr   SCROLLFIX
              sta   OLDTOP
              lda   SCROLLTOP+1
              sta   OLDTOP+1
+             lda   SELACT
+             sta   OLDSEL
 
              jsr   GETKEY
 
@@ -84,6 +87,9 @@ MAINLOOP     jsr   SCROLLFIX
 *--- one row is enough only if the handler opted in AND nothing structural
 *    moved. Anything else -- a wrap, a newline, a scroll, a file load -- falls
 *    through to the full redraw.
+             lda   SELACT           ; a selection spans rows: repaint the lot
+             ora   OLDSEL
+             bne   :full
              lda   FASTDRAW
              beq   :full
              lda   CURLNO
@@ -152,6 +158,7 @@ HOMECURSOR   jsr   GAPLEFT
              put   file
              put   wrap
              put   scroll
+             put   select
              put   edit_ops
              put   help
              put   buffer

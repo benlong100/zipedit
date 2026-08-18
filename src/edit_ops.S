@@ -193,9 +193,18 @@ PARSENUM     lda   #$00
 * unit, and it needs no selection UI. Paragraph and mark selection can come
 * later without changing the clipboard itself.
 *--------------------------------------
-KCOPY        jsr   GRABLINE
+KCOPY        jsr   COPYSEL          ; a selection wins over the whole line
+             bcs   :line
+             lda   #$00
+             sta   CLIPLINE
+             jsr   SELDONE
              lda   #<MSGCOPIED
-             sta   STRPTR
+             jmp   :say
+:line        jsr   GRABLINE
+             lda   #$01
+             sta   CLIPLINE
+             lda   #<MSGCOPIED
+:say         sta   STRPTR
              lda   #>MSGCOPIED
              sta   STRPTR+1
              jmp   SHOWMSG
@@ -247,12 +256,27 @@ GRABLINE     lda   #$00
              inc   AUXPTR+1
              jmp   :ploop
 :done        stx   CLIPLEN
+             lda   #$00
+             sta   CLIPLEN+1
              rts
 
 *--------------------------------------
 * KCUT -- copy the line, then remove it (OA-X)
 *--------------------------------------
-KCUT         jsr   GRABLINE
+KCUT         jsr   COPYSEL          ; a selection wins over the whole line
+             bcs   :line
+             lda   #$00
+             sta   CLIPLINE
+             jsr   DELSEL
+             lda   #<MSGCUT
+             sta   STRPTR
+             lda   #>MSGCUT
+             sta   STRPTR+1
+             jmp   SHOWMSG
+
+:line        jsr   GRABLINE
+             lda   #$01
+             sta   CLIPLINE
              jsr   BOL              ; stand at the start of the line
              lda   CLIPLEN
              sta   TMPA
@@ -274,18 +298,31 @@ KCUT         jsr   GRABLINE
 *--------------------------------------
 * KPASTE -- insert the clipboard at the cursor, then a newline (OA-V)
 *--------------------------------------
-KPASTE       lda   CLIPLEN
+* Paste replaces a selection, and only re-adds a newline when the clipboard
+* holds a whole line rather than an arbitrary range.
+KPASTE       jsr   DELSEL
+             lda   CLIPLEN
+             ora   CLIPLEN+1
              beq   :done
-             ldx   #$00
-:loop        cpx   CLIPLEN
-             beq   :nl
-             stx   TMPA
-             lda   CLIPBUF,x
+             lda   #<CLIPBUF
+             sta   CLIPPTR
+             lda   #>CLIPBUF
+             sta   CLIPPTR+1
+             lda   CLIPLEN          ; SELLEN doubles as the counter
+             sta   SELLEN
+             lda   CLIPLEN+1
+             sta   SELLEN+1
+:loop        ldy   #$00
+             lda   (CLIPPTR),y
              jsr   INSCHR
-             ldx   TMPA
-             inx
+             inc   CLIPPTR
+             bne   :dec
+             inc   CLIPPTR+1
+:dec         jsr   DECLEN
              bne   :loop
-:nl          lda   #$8d
+             lda   CLIPLINE
+             beq   :done
+             lda   #$8d
              jsr   INSCHR
 :done        rts
 

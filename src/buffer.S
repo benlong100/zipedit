@@ -323,6 +323,13 @@ RENDER       lda   #$00
              sta   CURSCOL
              sta   LINENO
              sta   LINENO+1
+             sta   RPOS
+             sta   RPOS+1
+             sta   INSEL
+             lda   SELACT
+             beq   :nosel
+             jsr   SELBOUNDS
+:nosel
              lda   #AUXLO
              sta   AUXPTR+1
 
@@ -359,6 +366,13 @@ RENDER       lda   #$00
              ldy   #$00
              jsr   AUXRD
              sta   TMPA             ; keep it; the VIS test needs A
+
+*--- the selection boundaries are logical positions, so this must run for
+*    every byte, including ones above the viewport that are never drawn
+             lda   SELACT
+             beq   :notsel
+             jsr   SELTEST
+:notsel      lda   TMPA
              cmp   #$8d             ; carriage return ends the line
              beq   :eol
 
@@ -367,8 +381,16 @@ RENDER       lda   #$00
              bcs   :next            ; past the right margin, drop it
              lda   VIS
              beq   :bump            ; above the viewport: count, do not draw
-             lda   TMPA
-             sta   LINEBUF,x
+             lda   INSEL
+             beq   :plain
+             lda   TMPA             ; selected: draw it inverse
+             and   #$7f
+             cmp   #$60
+             bcs   :store
+             and   #$3f
+             jmp   :store
+:plain       lda   TMPA
+:store       sta   LINEBUF,x
 :bump        inc   CURCOL
              jmp   :next
 
@@ -400,10 +422,13 @@ RENDER       lda   #$00
              lda   #$01
              sta   VIS
 
-:next        inc   AUXPTR
-             bne   :loop
+:next        inc   RPOS             ; one more logical byte consumed
+             bne   :rp
+             inc   RPOS+1
+:rp          inc   AUXPTR
+             bne   :back            ; :loop is out of branch range now
              inc   AUXPTR+1
-             jmp   :loop
+:back        jmp   :loop
 
 :done        lda   VIS              ; flush a partial final line
              beq   :fin

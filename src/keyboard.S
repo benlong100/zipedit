@@ -24,6 +24,11 @@ GETKEY       lda   KBD
              lda   CLSAPPLE
              and   #$80
              sta   MODCA
+*--- shift, measured against the idle reading taken at startup
+             lda   SHIFTKEY
+             and   #$80
+             eor   SHIFTIDLE
+             sta   MODSHIFT
              sta   KBDSTRB          ; value written is irrelevant
 
 *--- fold Open-Apple letters to uppercase so OA-q and OA-Q both dispatch
@@ -74,6 +79,8 @@ DISPATCH     ldx   #$00
              bcc   :ret
              cmp   #$ff             ; Delete
              bcs   :ret
+             jsr   DELSEL           ; typing replaces the selection
+             lda   KEYCHR
              jsr   INSCHR
              jsr   FASTOK           ; plain typing touches one row...
              jsr   WRAPCHECK        ; ...unless this wraps, which moves CURLNO
@@ -88,9 +95,13 @@ KEYTBL
              dfb   $95,$00
              da    KRIGHT           ; right arrow
              dfb   $8b,$00
-             da    KUP              ; up arrow
+             da    KUPSEL           ; up arrow
              dfb   $8a,$00
-             da    KDOWN            ; down arrow
+             da    KDOWNSEL         ; down arrow
+             dfb   $9b,$00
+             da    SELESC           ; Esc cancels selecting
+             dfb   $a0,$80
+             da    SELTOGGLE        ; OA-Space latches selection mode
              dfb   $8d,$00
              da    KRETURN          ; Return
              dfb   $ff,$00
@@ -108,9 +119,9 @@ KEYTBL
              dfb   $99,$00
              da    KDELEOL          ; Ctrl-Y
              dfb   $88,$80
-             da    KWORDL           ; OA-left
+             da    KWORDLSEL        ; OA-left
              dfb   $95,$80
-             da    KWORDR           ; OA-right
+             da    KWORDRSEL        ; OA-right
              dfb   $c8,$80
              da    HELPSHOW         ; OA-H, alias for OA-?
              dfb   $c3,$80
@@ -154,13 +165,31 @@ FASTOK       lda   #$01
              sta   FASTDRAW
              rts
 
-KLEFT        jsr   FASTOK
+KLEFT        jsr   SELUPD
+             jsr   FASTOK
              jmp   GAPLEFT
-KRIGHT       jsr   FASTOK
+KRIGHT       jsr   SELUPD
+             jsr   FASTOK
              jmp   GAPRIGHT
-KDELETE      jsr   FASTOK
+KUPSEL       jsr   SELUPD
+             jmp   KUP
+KDOWNSEL     jsr   SELUPD
+             jmp   KDOWN
+KWORDLSEL    jsr   SELUPD
+             jmp   KWORDL
+KWORDRSEL    jsr   SELUPD
+             jmp   KWORDR
+
+*--- with a selection up, Delete removes the selection rather than a character
+KDELETE      lda   SELACT
+             beq   :plain
+             jmp   DELSEL
+:plain       jsr   FASTOK
              jmp   DELBACK
-KDELFWD      jsr   FASTOK
+KDELFWD      lda   SELACT
+             beq   :plain
+             jmp   DELSEL
+:plain       jsr   FASTOK
              jmp   DELFWD
 
 KRETURN      lda   #$8d

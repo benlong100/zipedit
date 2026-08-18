@@ -471,7 +471,7 @@ DATBUF       ds    256
 FNAME        ds    65               ; length byte + up to 64 characters
 PBUF         ds    64               ; what PROMPT collected, high ASCII
 PLEN         ds    1
-CLIPBUF      ds    256              ; line clipboard
+CLIPBUF      ds    1024             ; clipboard: a line or a selection
 FINDBUF      ds    64               ; search pattern, high ASCII
 OPENPARM     ds    6
 READPARM     ds    8

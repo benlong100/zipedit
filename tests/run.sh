@@ -375,15 +375,16 @@ snapshot
 # characters they share a code with: $5C -> backslash, $4C -> L, $5F -> _.
 assert_row "the top border is a MouseText rule"       0 '\\\\\\\\'
 assert_row "the sides are MouseText verticals"        4 "_   arrows"
-assert_row "the bottom border is a MouseText rule"   21 "LLLLLLLL"
+assert_row "the bottom border is a MouseText rule"   20 "LLLLLLLL"
 assert_row "help is titled"                           1 "KEYBOARD COMMANDS"
 assert_row "help lists movement keys"                 4 "arrows"
-assert_row "help lists the Markdown keys"            10 "**bold** word"
+assert_row "help lists the Markdown keys"            14 "**bold** word"
 # The Open Apple is now its own glyph ($41), which Virtual ][ reads back as "A"
 # since they share a code. Verified identical on real hardware.
-assert_row "help lists the file keys"                11 "A-S       save"
-assert_row "help tells you how to leave"             20 "press any key to return"
-assert_row "help documents the prompt keys"          17 "AT ANY PROMPT"
+assert_row "help lists selecting"                    10 "shift-arrows paint"
+assert_row "help lists the file keys"                15 "A-S       save"
+assert_row "help tells you how to leave"             19 "press any key to return"
+assert_row "help lists the clipboard"                 9 "CLIPBOARD"
 assert_row "the status line still shows under the box" 23 "UNTITLED.MD"
 
 "$VII" text " " >/dev/null; sleep 3
@@ -502,6 +503,59 @@ if [ "$(scrolltop)" -gt 0 ]; then
 else
     bad "cursor walking past the last row scrolls the viewport" "SCROLLTOP=$(scrolltop)"
 fi
+
+#--------------------------------------
+# Selection. Shift-arrow cannot be driven from here -- Virtual ][ has no way to
+# send an arrow with a modifier held -- so these exercise the OA-Space mode,
+# which shares every code path except the trigger.
+#--------------------------------------
+echo "selection"
+"$VII" boot "$IMAGE" >/dev/null
+"$VII" await "Notes from the Apple" 90 || { echo "reboot failed"; exit 1; }
+"$VII" caps false >/dev/null
+
+selstate() {
+    "$VII" dump 0x0050 0x08 0 "$TMP/sel.bin" >/dev/null
+    python3 -c "d=open('$TMP/sel.bin','rb').read(); print(d[0], d[1])"
+}
+assert_sel() {
+    local got; got="$(selstate)"
+    if [ "$got" = "$2 $3" ]; then ok "$1"; else bad "$1" "SELACT/SELMODE are [$got], expected [$2 $3]"; fi
+}
+
+assert_sel "selection state is clean at startup"        0 0
+k oa " "
+assert_sel "OA-Space latches selection mode"            1 1
+for i in 1 2 3 4 5 6 7 8 9 10 11 12; do "$VII" key "right arrow" >/dev/null; sleep 0.25; done
+sleep 2
+
+# The selected run is drawn inverse, which Virtual ][ reads back as the plain
+# characters -- so prove it from the buffer instead: cut and see what moved.
+"$VII" caps true >/dev/null
+k oa "X"
+sleep 3; snapshot
+assert_row "OA-X cuts the selected run, not the line"    0 " the Apple //e"
+assert_sel "cutting ends selection mode"                0 0
+
+k oa "V"
+sleep 3; snapshot
+assert_row "OA-V pastes the run back, without a newline" 0 "# Notes from the Apple //e"
+
+# Typing over a selection replaces it.
+"$VII" oa "<" >/dev/null; "$VII" await "Notes" 90 >/dev/null; sleep 1
+k oa " "
+for i in 1 2 3; do "$VII" key "right arrow" >/dev/null; sleep 0.25; done
+"$VII" caps false >/dev/null
+"$VII" text "Q" >/dev/null; sleep 3; snapshot
+assert_row "typing replaces the selection"               0 "Qotes from the Apple"
+assert_sel "and returns to ordinary editing"            0 0
+
+# Esc abandons a selection without changing the text.
+k oa " "
+for i in 1 2 3 4; do "$VII" key "right arrow" >/dev/null; sleep 0.25; done
+"$VII" key esc >/dev/null; sleep 2; snapshot
+assert_row "Esc leaves the text alone"                   0 "Qotes from the Apple"
+assert_sel "Esc cancels selecting entirely"             0 0
 
 #--------------------------------------
 # Unsaved-changes guard. OA-Q sits beside OA-S and OA-O, so a slip must not

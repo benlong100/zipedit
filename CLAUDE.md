@@ -76,6 +76,15 @@ directly rather than inferring it from the display.
 Use `vii.sh await <substring>` rather than fixed delays; it fails loudly on
 timeout instead of silently reading a stale screen.
 
+## Selection
+
+Shift-arrow or OA-Space latches selection mode; Esc cancels. Because the gap is
+at the cursor, a selection is always contiguous in aux — before the gap or
+after it, never split. Shift is detected by comparing `$C063` against a reading
+calibrated at startup, since its polarity is not dependable and Virtual ][ reads
+it as permanently held. Shift-arrow itself cannot be tested from the suite; the
+OA-Space path shares every code path except the trigger.
+
 ## MouseText
 
 The help border and the Open Apple glyph come from MouseText, at screen codes

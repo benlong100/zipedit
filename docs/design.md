@@ -433,6 +433,41 @@ straight to the close-and-return-success path, so a write error reported
 success. That mattered little when the result was only a status message; it
 matters a great deal when quitting depends on it.
 
+## 5a. Selection
+
+The selection runs between an anchor and the cursor. Because the gap sits at
+the cursor, **the selected text is always contiguous in auxiliary memory** —
+either the bytes immediately before the gap or the bytes immediately after it.
+Nothing has to cope with a range split across the gap, which makes copy a
+single block move.
+
+The anchor is a *logical offset*, not an aux address: an address stops meaning
+the same byte as soon as the gap moves past it.
+
+`DELSEL` is built from repeated `DELBACK`/`DELFWD` rather than by moving a gap
+edge directly. Moving the edge would be O(1), but `CURLNO` and `CCOL` are
+maintained incrementally and a selection may span newlines, so letting the
+primitives do their own bookkeeping is worth the loop.
+
+Selected text renders inverse. `SELTEST` runs for **every** byte the renderer
+walks, including ones above the viewport that are never drawn, because the
+boundaries are logical positions and `INSEL` has to flip at the right one. A
+selection also forces a full redraw: it spans rows, so the one-row fast path
+cannot be used while one is up.
+
+### Shift detection is calibrated, not assumed
+
+`$C063` is documented as the //e's shift key, but the polarity is not worth
+taking on trust and an emulator may not implement it at all — Virtual ][ reads
+it as permanently held, which made every arrow key select and broke ordinary
+cursor movement.
+
+So `SELINIT` samples the bit once at startup, when shift is presumably up, and
+`GETKEY` reports "held" only when the current reading *differs* from that. A
+reversed polarity self-corrects, and a switch that never changes simply never
+fires, leaving OA-Space as the way in. The one failure mode is holding shift
+while the editor starts, which inverts the sense until the next launch.
+
 ## 6. File I/O and getting files to the Mac — as built
 
 On the //e: ProDOS TXT files (type `$04`), CR-terminated, high ASCII — the
