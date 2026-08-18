@@ -42,5 +42,10 @@ if [ "${RELEASE:-0}" = "1" ]; then
     rm -f /tmp/.basic.$$
 fi
 
+# Strip macOS metadata: on a FAT card these become ._ sidecar files, which
+# clutter the volume and help fragment it. The Floppy Emu needs each image
+# stored contiguously and refuses one that is not.
+xattr -c "$OUT" 2>/dev/null || true
+
 echo "built $OUT"
 "$AC" -l "$OUT"

@@ -21,7 +21,7 @@ VII     := $(TOOLS)/vii.sh
 BIN     := $(BUILD)/$(NAME)
 IMAGE   := $(BUILD)/EDIT.po
 
-.PHONY: all disk run screen test clean tools pull push eject release probe
+.PHONY: all disk run screen test clean tools pull push eject release probe card
 
 all: $(BIN)
 
@@ -85,6 +85,10 @@ release: $(BIN)
 	@RELEASE=1 VOL=EDITOR $(TOOLS)/mkdisk.sh $(BUILD)/EDITOR.po $(BIN)
 	@echo
 	@echo "release image: $(BUILD)/EDITOR.po"
+
+# Copy the release image to a card, cleanly. VOL is the mounted volume name.
+card: release
+	@$(TOOLS)/tocard.sh $(VOL) $(BUILD)/EDITOR.po
 
 clean:
 	@rm -rf $(BUILD) src/_FileInformation.txt src/$(NAME)
