@@ -100,6 +100,15 @@ new_doc() {
     "$VII" caps false >/dev/null
 }
 
+# prompt_open <OA key> <prompt text> -- open a prompt and wait for it to be up.
+# A fixed sleep here is a race: type too early and the text goes into the
+# document instead, the command gets an empty answer, and the failure looks
+# like the command is broken.
+prompt_open() {
+    "$VII" oa "$1" >/dev/null
+    "$VII" await "$2" 30 >/dev/null || bad "the $2 prompt never appeared"
+}
+
 # open_file <name> -- OA-O, answering the unsaved-changes guard only if it
 # actually appears. Sending "D" unconditionally would type a D into the
 # document on the runs where the buffer happens to be clean.
@@ -393,19 +402,19 @@ assert_row "OA-X removes the line again"              1 ""
 assert_blank "the duplicate is gone"                  1
 
 # Find walks the cursor to the hit, so the maintained line number proves it.
-"$VII" oa "F" >/dev/null; sleep 1
+prompt_open F "FIND:"
 "$VII" text "cheat sheet" >/dev/null; "$VII" await "cheat sheet" 60 >/dev/null
 "$VII" line "" >/dev/null; sleep 4
 curline "OA-F moves the cursor to the match" 12
 
-"$VII" oa "F" >/dev/null; sleep 1
+prompt_open F "FIND:"
 "$VII" text "notpresentanywhere" >/dev/null; "$VII" await "notpresentanywhere" 60 >/dev/null
 "$VII" line "" >/dev/null
 "$VII" await "NOT FOUND" 90 || bad "missing pattern never reported"
 snapshot
 assert_row "a missing pattern reports NOT FOUND"     23 "NOT FOUND"
 
-"$VII" oa "L" >/dev/null; sleep 1
+prompt_open L "GO TO LINE:"
 "$VII" text "20" >/dev/null; sleep 2
 "$VII" line "" >/dev/null; sleep 6
 curline "OA-L jumps to a line number (1-based)" 19
@@ -425,14 +434,14 @@ assert_row "Ctrl-B wraps the whole word from mid-word" 0 "# **Notes** from the A
 echo "prompt cancel"
 reboot
 
-"$VII" oa "F" >/dev/null; sleep 2
+prompt_open F "FIND:"
 snapshot
 assert_row "the prompt says how to cancel"           23 "ESC CANCELS"
 "$VII" key esc >/dev/null; sleep 2
 snapshot
 assert_row "Esc hands the status row straight back"  23 "UNTITLED.MD"
 
-"$VII" oa "L" >/dev/null; sleep 1
+prompt_open L "GO TO LINE:"
 "$VII" text "20" >/dev/null; sleep 2
 "$VII" line "" >/dev/null; sleep 5
 snapshot
@@ -1195,20 +1204,17 @@ else
     bad "the word pushed off the end is still on screen" "ProDOS went missing"
 fi
 
-# Wrapping breaks without joining, so the overflow lands on a stub line of its
-# own. Joining as you type costs a walk per keystroke and measured 3 chars/sec,
-# so the paragraph is tidied when the burst ends instead: the first keystroke
-# that is not a plain character pays for it, once.
+# The break reflows what follows it, so the overflow does not sit on a stub
+# line of its own and no further word starts another. Reflowing the WHOLE
+# paragraph per keystroke measured 7 chars/sec; reflowing only forward, from
+# the cursor to the end, is what makes this affordable -- everything behind the
+# cursor is already wrapped correctly.
 snapshot
-assert_row "the overflow sits on a stub line while typing"  3 "ProDOS"
-
-k key "right arrow"
-"$VII" settle 3 >/dev/null
-snapshot
-assert_row     "one command key tidies the paragraph"       3 "ProDOS 8 on an Enhanced"
-assert_maxcols "and every row of it fits the margin"        2 "$WRAPCOL"
-assert_maxcols "including the ones below"                   3 "$WRAPCOL"
+assert_maxcols "every row fits the margin while typing"     2 "$WRAPCOL"
+assert_maxcols "including the one below"                    3 "$WRAPCOL"
 assert_maxcols "and the one after that"                     4 "$WRAPCOL"
+# In the stub version this row was just "ProDOS"; joined, it runs on.
+assert_row     "the pushed word joins the line below"       3 "ProDOS 8 on an Enhanced"
 
 # Nothing follows the cursor in an empty document, which is the case where the
 # look-ahead length comes out zero. Getting that wrong hung the editor on the

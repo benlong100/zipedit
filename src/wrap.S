@@ -130,6 +130,35 @@ DOWRAP       jsr   FINDSPC
 * FASTDRAW has to go -- the whole paragraph has moved, and the one-row path
 * would leave all of it stale.
 *--------------------------------------
+*--------------------------------------
+* RTFWD -- reflow from the cursor to the end of the paragraph, cursor preserved
+*
+* The cheap tidy, used while typing. Everything behind the cursor is already
+* right, so this walks forward once to reflow and back once to return -- over
+* the remainder of the paragraph, not the whole of it.
+*--------------------------------------
+RTFWD        lda   GAPBEG
+             sta   RTPOS
+             lda   GAPBEG+1
+             sta   RTPOS+1
+
+             jsr   REFLOWHERE       ; leaves the cursor at the paragraph end
+
+:back        lda   GAPBEG           ; walk back to where we started
+             cmp   RTPOS
+             bne   :step
+             lda   GAPBEG+1
+             cmp   RTPOS+1
+             beq   :done
+:step        jsr   GAPLEFT
+             jmp   :back
+:done        lda   #$00
+             sta   FASTDRAW
+             rts
+
+*--------------------------------------
+* RTFLOW -- reflow the whole paragraph around the cursor, cursor preserved
+*--------------------------------------
 RTFLOW       lda   GAPBEG
              sta   RTPOS
              lda   GAPBEG+1
@@ -158,7 +187,6 @@ RTFLOW       lda   GAPBEG
              jmp   :fwd
 :done        lda   #$00
              sta   FASTDRAW
-             sta   NEEDTIDY
              rts
 
 *--------------------------------------
@@ -180,7 +208,8 @@ RTFLOW       lda   GAPBEG
 WRAPCHECK    lda   CCOL
              cmp   #WRAPCOL+1
              bcc   :look            ; the cursor is still short of the margin
-             jmp   DOWRAP           ; past it: break behind us, as it always did
+             jsr   DOWRAP           ; past it: break behind us, as it always did
+             jmp   RTFWD            ; and tidy what follows, same as the other path
 :look
 
 *--- room left on this line before the margin
@@ -245,11 +274,13 @@ WRAPCHECK    lda   CCOL
 *    take the one-row path and never repaint the rows underneath: the text is
 *    fine but the screen goes stale. The old wrap always moved the cursor onto
 *    the new line, which changed CURLNO and forced the full redraw for free.
+*--- A break leaves the pushed word on a stub line of its own, and another with
+*    every further word. Tidying it later is no good: the mess is on screen for
+*    the whole time you are typing, which is exactly when you are looking at it.
+*    So reflow now -- but only here, on the keystroke that actually broke a
+*    line, not on every character. Reflowing per character measured 3 chars/sec.
 :brk         jsr   DOWRAP
-             lda   #$00
-             sta   FASTDRAW
-             lda   #$01             ; the overflow is on a stub line now; the
-             sta   NEEDTIDY         ; paragraph wants reflowing once typing stops
+             jsr   RTFWD            ; forward only: what is behind is already right
 :back        lda   WBACK
              beq   :done
              jsr   GAPLEFT
@@ -331,6 +362,11 @@ WRAPALL      jsr   HOMECURSOR
 * nothing and simply goes.
 *--------------------------------------
 REFLOW       jsr   PARASTART
+
+*--- REFLOWHERE: the same loop, entered from wherever the cursor is. Everything
+*    behind the cursor is already wrapped correctly, so tidying after an insert
+*    only has to deal with what lies ahead of it.
+REFLOWHERE
 :loop        jsr   PEEKFWD
              bcs   :done            ; end of buffer
              cmp   #TEXTLO
@@ -373,6 +409,4 @@ WTMP         ds    1                ; bytes left before the end of the buffer
 WSCAN        ds    80               ; the rest of the line, staged in main
 RTPOS        ds    2                ; RTFLOW: cursor offset before the reflow
 RTN          ds    2                ; RTFLOW: how far into the paragraph it was
-NEEDTIDY     ds    1                ; a stub line is waiting to be reflowed
-TIDIED       ds    1                ; a tidy just ran: force the full redraw
              dend

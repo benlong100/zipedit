@@ -595,15 +595,17 @@ Reflowing per keystroke is correct and unusable — slower than the 8 chars/sec
 the editor managed before any of the redraw work. So the look-ahead breaks
 without joining, and the overflow lands on a stub line of its own.
 
-**The stubs are tidied when the burst ends rather than as you type.** The first
-keystroke that is not a plain character — an arrow, a command, Return — reflows
-the paragraph before it is dispatched. Typing therefore stays at 26 chars/sec
-and the reflow is paid once per burst instead of once per character; measured at
-about a quarter of a second, which is under the round trip to the emulator.
+**The break reflows what follows it**, so the pushed word joins the line below
+instead of starting a stub line of its own. What makes that affordable is
+reflowing *forward only*: everything behind the cursor is already wrapped
+correctly, so `RTFWD` walks from the cursor to the end of the paragraph and back
+again, rather than `RTFLOW`'s three passes over the whole of it. Reflowing the
+whole paragraph on each break measured 7 chars/sec; forward-only measures about
+24 for a realistic phrase insertion, which is where the stub version was anyway.
 
-`TIDIED` exists because `RTFLOW` clears `FASTDRAW` and then `DISPATCH` runs a
-handler that calls `FASTOK` and sets it straight back, leaving the reflowed
-paragraph stale on screen. The redraw is forced after the dispatch instead.
+The tidy clears `FASTDRAW`, because the paragraph below the cursor has moved and
+the one-row path would leave all of it stale — the trap that made this look like
+data corruption three separate times while it was being built.
 
 ### Known simplifications
 
