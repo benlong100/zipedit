@@ -1195,6 +1195,21 @@ else
     bad "the word pushed off the end is still on screen" "ProDOS went missing"
 fi
 
+# Wrapping breaks without joining, so the overflow lands on a stub line of its
+# own. Joining as you type costs a walk per keystroke and measured 3 chars/sec,
+# so the paragraph is tidied when the burst ends instead: the first keystroke
+# that is not a plain character pays for it, once.
+snapshot
+assert_row "the overflow sits on a stub line while typing"  3 "ProDOS"
+
+k key "right arrow"
+"$VII" settle 3 >/dev/null
+snapshot
+assert_row     "one command key tidies the paragraph"       3 "ProDOS 8 on an Enhanced"
+assert_maxcols "and every row of it fits the margin"        2 "$WRAPCOL"
+assert_maxcols "including the ones below"                   3 "$WRAPCOL"
+assert_maxcols "and the one after that"                     4 "$WRAPCOL"
+
 # Nothing follows the cursor in an empty document, which is the case where the
 # look-ahead length comes out zero. Getting that wrong hung the editor on the
 # first keystroke.

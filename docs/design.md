@@ -592,10 +592,18 @@ Measured at 1 MHz, typing into the middle of a paragraph:
 | reflow the paragraph per keystroke | 3 chars/sec |
 
 Reflowing per keystroke is correct and unusable — slower than the 8 chars/sec
-the editor managed before any of the redraw work. The look-ahead breaks without
-joining, so repeated mid-paragraph typing leaves short stub lines until `OA-R`
-tidies them. That is the trade: nothing disappears, and tidying stays
-deliberate.
+the editor managed before any of the redraw work. So the look-ahead breaks
+without joining, and the overflow lands on a stub line of its own.
+
+**The stubs are tidied when the burst ends rather than as you type.** The first
+keystroke that is not a plain character — an arrow, a command, Return — reflows
+the paragraph before it is dispatched. Typing therefore stays at 26 chars/sec
+and the reflow is paid once per burst instead of once per character; measured at
+about a quarter of a second, which is under the round trip to the emulator.
+
+`TIDIED` exists because `RTFLOW` clears `FASTDRAW` and then `DISPATCH` runs a
+handler that calls `FASTOK` and sets it straight back, leaving the reflowed
+paragraph stale on screen. The redraw is forced after the dispatch instead.
 
 ### Known simplifications
 

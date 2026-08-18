@@ -117,6 +117,51 @@ DOWRAP       jsr   FINDSPC
              jmp   INSCHR
 
 *--------------------------------------
+* RTFLOW -- reflow the paragraph around the cursor, leaving the cursor put
+*
+* Used to tidy up after a burst of typing, not on every keystroke: reflowing
+* per character measured 3 chars/sec, which is slower than the editor was
+* before any of the redraw work.
+*
+* The cursor is restored by byte offset. Reflow is byte-count preserving: a
+* SOFTCR becomes the space it stood in for, one byte for one byte, and a wrap
+* takes a space back the same way.
+*
+* FASTDRAW has to go -- the whole paragraph has moved, and the one-row path
+* would leave all of it stale.
+*--------------------------------------
+RTFLOW       lda   GAPBEG
+             sta   RTPOS
+             lda   GAPBEG+1
+             sta   RTPOS+1
+
+             jsr   PARASTART
+             lda   RTPOS
+             sec
+             sbc   GAPBEG
+             sta   RTN
+             lda   RTPOS+1
+             sbc   GAPBEG+1
+             sta   RTN+1
+
+             jsr   REFLOW
+             jsr   PARASTART
+
+:fwd         lda   RTN
+             ora   RTN+1
+             beq   :done
+             jsr   GAPRIGHT
+             lda   RTN
+             bne   :dec
+             dec   RTN+1
+:dec         dec   RTN
+             jmp   :fwd
+:done        lda   #$00
+             sta   FASTDRAW
+             sta   NEEDTIDY
+             rts
+
+*--------------------------------------
 * WRAPCHECK -- called after inserting a printable character
 *
 * The cursor's own column is not enough to go on. Insert into the middle of a
@@ -134,7 +179,9 @@ DOWRAP       jsr   FINDSPC
 *--------------------------------------
 WRAPCHECK    lda   CCOL
              cmp   #WRAPCOL+1
-             bcs   :behind          ; the cursor itself is past the margin
+             bcc   :look            ; the cursor is still short of the margin
+             jmp   DOWRAP           ; past it: break behind us, as it always did
+:look
 
 *--- room left on this line before the margin
              lda   #WRAPCOL+1
@@ -201,6 +248,8 @@ WRAPCHECK    lda   CCOL
 :brk         jsr   DOWRAP
              lda   #$00
              sta   FASTDRAW
+             lda   #$01             ; the overflow is on a stub line now; the
+             sta   NEEDTIDY         ; paragraph wants reflowing once typing stops
 :back        lda   WBACK
              beq   :done
              jsr   GAPLEFT
@@ -208,7 +257,6 @@ WRAPCHECK    lda   CCOL
              jmp   :back
 :done        rts
 
-:behind      jmp   DOWRAP
 
 *--------------------------------------
 * PEEK2 -- the byte one past the cursor, without moving it.
@@ -323,4 +371,8 @@ WSTEP        ds    1                ; steps out to the margin
 WBACK        ds    1                ; and the same number back
 WTMP         ds    1                ; bytes left before the end of the buffer
 WSCAN        ds    80               ; the rest of the line, staged in main
+RTPOS        ds    2                ; RTFLOW: cursor offset before the reflow
+RTN          ds    2                ; RTFLOW: how far into the paragraph it was
+NEEDTIDY     ds    1                ; a stub line is waiting to be reflowed
+TIDIED       ds    1                ; a tidy just ran: force the full redraw
              dend

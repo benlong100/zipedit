@@ -89,7 +89,36 @@ MAINLOOP     jsr   SCROLLFIX
              sta   MSGSHOWN
              jsr   DRAWSTATUS
 
-:go          jsr   DISPATCH
+*--- A break inserted mid-paragraph leaves the overflow on a stub line, because
+*    wrapping breaks without joining -- joining costs a walk per keystroke and
+*    measured 3 chars/sec. So the paragraph is tidied when the burst ends
+*    instead: the first keystroke that is not a plain character pays for it,
+*    once, rather than every character paying a share.
+:go          lda   NEEDTIDY
+             beq   :dispatch
+             lda   MODOA            ; a command, so typing has stopped
+             bne   :tidy
+             lda   KEYCHR
+             cmp   #$a0             ; below space: a command too
+             bcc   :tidy
+             cmp   #$ff             ; Delete
+             bcs   :tidy
+             bcc   :dispatch        ; still typing: leave the stubs alone
+:tidy        jsr   RTFLOW
+             lda   #$01
+             sta   TIDIED           ; remember, because DISPATCH is about to
+                                    ; call FASTOK and set FASTDRAW again
+
+:dispatch    jsr   DISPATCH
+
+*--- a tidy moved the whole paragraph, so the one-row path will not do, whatever
+*    the handler just asked for
+             lda   TIDIED
+             beq   :nofull
+             lda   #$00
+             sta   FASTDRAW
+             sta   TIDIED
+:nofull
              jsr   SCROLLFIX
              jsr   STATUPD
 
