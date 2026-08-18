@@ -294,9 +294,10 @@ snapshot
 assert_row "OA-V pastes it back as a new line"        0 "# Notes from the Apple //e"
 assert_row "the pasted copy sits below the original"  1 "# Notes from the Apple //e"
 
-"$VII" oa "X" >/dev/null
-"$VII" await "LINE CUT" 60 || bad "OA-X never reported"
-sleep 2; snapshot
+# Cutting says nothing now -- the line visibly going away is the feedback.
+k oa "X"
+"$VII" settle 2 >/dev/null
+snapshot
 assert_row "OA-X removes the line again"              1 ""
 assert_blank "the duplicate is gone"                  1
 

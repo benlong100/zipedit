@@ -268,11 +268,7 @@ KCUT         jsr   COPYSEL          ; a selection wins over the whole line
              lda   #$00
              sta   CLIPLINE
              jsr   DELSEL
-             lda   #<MSGCUT
-             sta   STRPTR
-             lda   #>MSGCUT
-             sta   STRPTR+1
-             jmp   SHOWMSG
+             rts                       ; no message: the text visibly went away
 
 :line        jsr   GRABLINE
              lda   #$01
@@ -285,15 +281,11 @@ KCUT         jsr   COPYSEL          ; a selection wins over the whole line
              dec   TMPA
              bne   :del
 :nl          jsr   PEEKFWD          ; and take the newline with it
-             bcs   :msg
+             bcs   :done
              cmp   #$8d
-             bne   :msg
+             bne   :done
              jsr   DELFWD
-:msg         lda   #<MSGCUT
-             sta   STRPTR
-             lda   #>MSGCUT
-             sta   STRPTR+1
-             jmp   SHOWMSG
+:done        rts                       ; no message: the line visibly went away
 
 *--------------------------------------
 * KPASTE -- insert the clipboard at the cursor, then a newline (OA-V)
@@ -446,8 +438,6 @@ MSGGOTO      asc   "GO TO LINE: "
 MSGNOTFND    asc   " NOT FOUND"
              dfb   $00
 MSGCOPIED    asc   " LINE COPIED"
-             dfb   $00
-MSGCUT       asc   " LINE CUT"
              dfb   $00
 
              dum   $1400

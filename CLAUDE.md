@@ -119,8 +119,11 @@ so tests assert `\` for `$5C`, `L` for `$4C`, `_` for `$5F` and `A` for `$41`.
   then, so `make pull` ejects first.
 - **The Apple II keyboard has no buffer.** A ProDOS disk operation takes
   seconds of emulated time, and anything typed while it runs is dropped
-  entirely. Tests must `vii.sh await` the completion message rather than
-  sleeping a fixed interval -- this cost two false test failures.
+  entirely. Tests must wait for an observable change rather than sleeping a
+  fixed interval -- this cost two false test failures. Where an operation still
+  prints a message, `vii.sh await` it; where it deliberately says nothing (a
+  successful save or load, a cut), wait for the status row to return or for the
+  text itself to change, and `vii.sh settle` before asserting.
 - ProDOS pathnames are length-prefixed and **low** ASCII, unlike everything
   else on this machine, which is high ASCII.
 - **Virtual ][ cannot send an arrow key with Open-Apple held.** `type open

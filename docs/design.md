@@ -300,6 +300,11 @@ Because the notice is itself the feedback, a successful save or load says
 nothing afterwards — it simply hands the status row back, which shows the
 current line and column. Only failures produce a message.
 
+Cutting follows the same rule for the same reason: the line visibly goes away,
+so `OA-X` says nothing either. Copying still announces itself, because nothing
+visible happens when a line goes to the clipboard — a message is the only sign
+it worked.
+
 **Prompts are different.** A prompt hands the status row back the moment it
 ends, accepted or cancelled, rather than waiting for the next keystroke to
 retire it. Otherwise the prompt text sits there until you press something
