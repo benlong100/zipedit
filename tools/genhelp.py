@@ -58,7 +58,8 @@ P1R = [header("EDITING", "R"),
        entry("Ctrl-D", "delete right",       "R"),
        entry("Ctrl-Y", "delete to line end", "R"),
        entry("Tab",    "indent two spaces",  "R"),
-       entry("@-R",    "reflow paragraph",   "R")]
+       entry("@-R",      "reflow paragraph", "R"),
+       entry("@-Delete", "delete word left", "R")]
 
 P2L = [header("MARKDOWN", "L"),
        entry("Ctrl-B", "**bold** word", "L"),

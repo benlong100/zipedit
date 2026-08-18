@@ -99,6 +99,8 @@ KEYTBL
              da    SELTOGGLE        ; OA-Space latches selection mode
              dfb   $8d,$00
              da    KRETURN          ; Return
+             dfb   $ff,$80
+             da    KDELWORD         ; OA-Delete
              dfb   $ff,$00
              da    KDELETE          ; Delete
              dfb   $84,$00
@@ -192,6 +194,51 @@ KDELFWD      lda   SELACT
              jmp   DELSEL
 :plain       jsr   FASTOK
              jmp   DELFWD
+
+*--------------------------------------
+* KDELWORD -- delete back to the start of the word (OA-Delete)
+*
+* Mid-word it deletes back to that word's start. Sitting after a word it takes
+* the spaces first and then the word, so "one two   " twice leaves "one ".
+*
+* Ctrl-Delete was the ask, and the //e cannot do it: only the two Apple keys
+* are readable as state, and the keyboard encoder folds Ctrl into the character
+* code -- the same folding that makes Tab and Ctrl-I both $89. Delete arrives
+* as $ff either way. OA-Delete is the sibling of OA-left and OA-right, which
+* already move by word.
+*
+* A newline stops it rather than being eaten, so a word delete never silently
+* joins two lines. The one exception is a newline directly behind the cursor,
+* where there is no word to take and it behaves as a plain Delete.
+*--------------------------------------
+KDELWORD     lda   SELACT           ; a selection wins, as it does for Delete
+             beq   :start
+             jmp   DELSEL
+
+:start       jsr   PEEKBACK
+             bcs   :done            ; nothing behind the cursor at all
+             cmp   #$8d
+             bne   :spaces
+             jmp   DELBACK          ; sitting at a line start: just join
+
+*--- the run of spaces first, so sitting after "word   " takes both
+:spaces      jsr   PEEKBACK
+             bcs   :done
+             cmp   #$a0
+             bne   :word
+             jsr   DELBACK
+             jmp   :spaces
+
+*--- then the word, stopping at a space, a newline, or the start of the buffer
+:word        jsr   PEEKBACK
+             bcs   :done
+             cmp   #$a0
+             beq   :done
+             cmp   #$8d
+             beq   :done
+             jsr   DELBACK
+             jmp   :word
+:done        rts
 
 KRETURN      lda   #$8d
              jmp   INSCHR

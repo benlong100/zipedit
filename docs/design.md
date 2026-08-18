@@ -415,6 +415,12 @@ down `$8A`.
 
 ### The Tab / Ctrl-I collision
 
+**Ctrl cannot be a modifier here.** Only the two Apple keys are readable state
+(`$C061`, `$C062`); Ctrl is folded into the character code by the keyboard
+encoder, so Delete arrives as `$ff` whether or not Ctrl is held and the editor
+cannot tell the two apart. Word delete is therefore `OA-Delete`, which sits
+alongside `OA-left` and `OA-right` moving by word.
+
 The //e keyboard encoder maps **Tab and Ctrl-I to the same byte** (`$89`).
 Software cannot distinguish them. Since Ctrl-I is wanted for italic, `$89` is
 dispatched positionally:
@@ -443,6 +449,7 @@ That preserves both behaviours in the contexts where each is actually wanted.
 | OA-F / OA-G | find / find again |
 | OA-L | go to line |
 | OA-R | reflow paragraph |
+| OA-Delete | delete back to the start of the word |
 | OA-W | word count, reported on the status row |
 | OA-N | new document — asks first if there are unsaved changes |
 | OA-O / OA-S | open / save — save reuses the document's own file |

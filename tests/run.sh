@@ -994,6 +994,44 @@ snapshot
 assert_row "two words are plural"                      23 " 2 WORDS"
 
 #--------------------------------------
+# Delete word. Mid-word it goes back to that word's start; after a word it
+# takes the spaces and then the word. Ctrl-Delete cannot be used for this: the
+# //e folds Ctrl into the character code and Delete arrives as $ff either way,
+# so it is OA-Delete, alongside OA-arrows for word movement.
+#--------------------------------------
+echo "delete word"
+reboot
+
+"$VII" caps true >/dev/null; k oa "N"; "$VII" caps false >/dev/null
+ktext "one two three"
+"$VII" oadel >/dev/null; "$VII" settle 2 >/dev/null
+snapshot
+assert_row "deletes the word behind the cursor"         0 "one two "
+
+# Sitting after a space now, so this one takes the spaces AND the word.
+"$VII" oadel >/dev/null; "$VII" settle 2 >/dev/null
+snapshot
+assert_row "and takes the spaces with the next word"    0 "one "
+assert_lc  "the cursor follows it back"                 1 5
+
+# Mid-word it stops at that word's start, leaving the rest of the word alone.
+ktext "hello"
+k key "left arrow"; k key "left arrow"
+"$VII" oadel >/dev/null; "$VII" settle 2 >/dev/null
+snapshot
+assert_row "mid-word it deletes back to the word start" 0 "one lo"
+
+# A newline directly behind the cursor is simply joined, as Delete does.
+# Return splits "one lo" at the cursor, so line 1 is "one " -- four characters,
+# and joining puts the cursor at column 5, not at the end of the unsplit line.
+"$VII" line "" >/dev/null; "$VII" settle 2 >/dev/null
+assert_lc  "Return opens a second line"                 2 1
+"$VII" oadel >/dev/null; "$VII" settle 2 >/dev/null
+assert_lc  "and a word delete there just joins"         1 5
+snapshot
+assert_row "with the two lines back together"           0 "one lo"
+
+#--------------------------------------
 # Prompt cursor. A prompt with no cursor reads as a label rather than a field,
 # so there is a block where the next character will land. It is an inverse
 # space, which the screen text readback renders as a plain space -- these
