@@ -52,6 +52,10 @@ generator probe, `src/hello.S` is the minimal toolchain check.
   column 14, operands at column 20, comments at column 40 — matching the
   Merlin house style in `src/hello.S`.
 - **Local labels** are `:name`, scoped to the enclosing global label.
+- **Never hand-edit the help screen hex.** `src/help.S` holds 42 rows of raw
+  screen codes and they are generated: edit the layout in `tools/genhelp.py`
+  and re-run it. It enforces the column stops, so a description that would
+  overrun the border fails there instead of shipping mangled.
 - **High ASCII.** Anything destined for the screen or for a text file has bit 7
   set. `asc "..."` (double quotes) sets it; single quotes do not.
 
@@ -62,8 +66,9 @@ the start and end of the document. Ctrl-A/Ctrl-E line ends, Ctrl-B bold (`**`),
 Ctrl-I italic (`*`), Ctrl-D delete forward. OA-R reflow, OA-S save, OA-O open,
 OA-C/OA-X/OA-V copy, cut and paste a line. OA-F find, OA-G find again, OA-L go
 to line. OA-Q quits, asking first if the document is
-modified. OA-? (or OA-H) opens the keyboard
-help screen, OA-/ toggles the one-line cheat sheet, OA-Q quits. `$89` is both Tab and Ctrl-I and dispatches on
+modified. OA-? (or OA-H) opens the keyboard help,
+which is two pages -- a key turns to page two, another leaves. OA-/ toggles the
+one-line cheat sheet, OA-Q quits. `$89` is both Tab and Ctrl-I and dispatches on
 position -- see `docs/design.md`.
 
 ## Testing

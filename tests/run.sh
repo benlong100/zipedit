@@ -435,23 +435,41 @@ reboot
 snapshot
 # The border is MouseText. Virtual ][ reads those codes back as the ASCII
 # characters they share a code with: $5C -> backslash, $4C -> L, $5F -> _.
-assert_row "the top border is a MouseText rule"       0 '\\\\\\\\'
-assert_row "the sides are MouseText verticals"        4 "_   arrows"
+assert_row "the top border is a MouseText rule"       0 '\\\\'
+assert_row "the sides are MouseText verticals"        5 "_   arrows"
 assert_row "the bottom border is a MouseText rule"   20 "LLLLLLLL"
 assert_row "help is titled"                           1 "KEYBOARD COMMANDS"
-assert_row "help lists movement keys"                 4 "arrows"
-assert_row "help lists the Markdown keys"            14 "**bold** word"
+
+# Page one is the typing page: moving, editing, selecting.
+assert_row "page one lists movement keys"             5 "char / line"
+assert_row "page one lists editing keys"              5 "delete left"
+assert_row "page one keeps a gap before the border"   7 "delete to line end "
 # The Open Apple is now its own glyph ($41), which Virtual ][ reads back as "A"
 # since they share a code. Verified identical on real hardware.
-assert_row "help lists selecting"                    10 "A-space     start selecting"
-assert_row "help lists the file keys"                15 "A-S       save"
-assert_row "help tells you how to leave"             19 "press any key to return"
-assert_row "help lists the clipboard"                 9 "CLIPBOARD"
+assert_row "page one lists selecting"                12 "A-space      start selecting"
+assert_row "page one says a key turns the page"      19 "press any key for more"
+assert_row "page one numbers itself"                 19 "page 1 of 2"
+assert_row "page one lists the Tab indent"             8 "indent two spaces"
 assert_row "the status line still shows under the box" 23 "UNTITLED.MD"
 
+# A key turns to page two rather than dismissing. CLIPBOARD appears only there.
+"$VII" text " " >/dev/null
+"$VII" await "CLIPBOARD" 60 || bad "a key never turned to page two"
+snapshot
+assert_row "page two lists the Markdown keys"         5 "**bold** word"
+assert_row "page two lists search"                    5 "find / again"
+assert_row "page two lists the clipboard"             8 "CLIPBOARD"
+assert_row "page two lists the file keys"            10 "A-S      save"
+assert_row "page two lists the screen toggles"       14 "cheat sheet"
+assert_row "page two says a key leaves"              19 "press any key to return"
+assert_row "page two numbers itself"                 19 "page 2 of 2"
+assert_row "page two is still the same box"          20 "LLLLLLLL"
+assert_row "the status line still shows on page two" 23 "UNTITLED.MD"
+
+# And a key from page two returns to the document.
 "$VII" text " " >/dev/null; sleep 3
 snapshot
-assert_row "any key dismisses and restores the text"  0 "# Notes from the Apple //e"
+assert_row "a key from page two restores the text"    0 "# Notes from the Apple //e"
 
 # Ctrl-Y clears from the cursor to the end of the line.
 k ctrl Y
