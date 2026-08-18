@@ -375,11 +375,11 @@ assert_lc "status opens at line 1 column 1"            1 1
 for i in 1 2 3 4 5; do "$VII" key "right arrow" >/dev/null; sleep 0.3; done
 assert_lc "column tracks rightward movement"           1 6
 for i in 1 2 3; do "$VII" key "down arrow" >/dev/null; sleep 0.3; done
-assert_lc "line tracks downward movement"              4 1
+assert_lc "line tracks downward movement"              4 6
 "$VII" text "hello" >/dev/null; "$VII" await "hello" 60 >/dev/null; sleep 1
-assert_lc "column tracks typing"                       4 6
+assert_lc "column tracks typing"                       4 11
 "$VII" key "left arrow" >/dev/null; sleep 1
-assert_lc "column tracks backward movement"            4 5
+assert_lc "column tracks backward movement"            4 10
 "$VII" oa ">" >/dev/null; "$VII" await "THE END" 180 >/dev/null; sleep 1
 assert_lc "line tracks a jump to the end"             36 1
 
@@ -394,6 +394,33 @@ assert_row "a message takes over the status row"      23 "LINE COPIED"
 snapshot
 assert_row "the next keystroke restores the status"   23 "UNTITLED.MD"
 assert_lc "and the digits come back correct"          35 8
+
+#--------------------------------------
+# Goal column. Line 0 of the sample is 26 columns, line 1 is empty, line 2 is
+# long -- so passing through line 1 is exactly the case that used to truncate
+# the column and never give it back.
+#--------------------------------------
+echo "goal column"
+reboot
+
+for i in $(seq 1 20); do k key "right arrow"; done
+assert_lc "start part way along a line"                1 21
+k key "down arrow"
+assert_lc "an empty line clamps the column"            2 1
+k key "down arrow"
+assert_lc "the column comes back on the next line"     3 21
+k key "down arrow"
+assert_lc "and holds for the rest of the run"          4 21
+k key "up arrow"
+k key "up arrow"
+assert_lc "the goal survives moving back up"           2 1
+
+# Any horizontal move ends the run and re-anchors the goal.
+k key "left arrow"
+assert_lc "left wraps to the end of the line above"    1 27
+k key "down arrow"
+k key "down arrow"
+assert_lc "and the new column becomes the goal"        3 27
 
 #--------------------------------------
 # Help screen. Bound to OA-H, not Ctrl-H: the //e maps Ctrl-H and the left

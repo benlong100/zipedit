@@ -86,6 +86,7 @@ SELACT       equ   $50              ; non-zero when text is selected
 SELMODE      equ   $51              ; non-zero when arrows extend without shift
 SELANC       equ   $52              ; 2 bytes, logical offset of the anchor
 SELLEN       equ   $54              ; 2 bytes, length of the selection
+GOALCOL      equ   $56              ; column vertical movement aims for
 LPOS         equ   $57              ; 2 bytes, scratch logical position
 INSEL        equ   $59              ; RENDER: inside the selection right now
 SELDIR       equ   $5a              ; 0 = selection before the gap, 1 = after
@@ -95,6 +96,8 @@ RPOS         equ   $5f              ; 2 bytes, RENDER's walking position
 CLIPPTR      equ   $61              ; 2 bytes, paste cursor
 CLIPLINE     equ   $65              ; clipboard holds a whole line, not a range
 OLDSEL       equ   $66              ; selection state before the keystroke
+VERTMOVE     equ   $67              ; this keystroke moved vertically
+WASVERT      equ   $68              ; the previous one did
 CLIPMAX      equ   1024             ; clipboard capacity
 
 *--- runtime home of the aux read stub ---

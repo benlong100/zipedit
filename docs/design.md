@@ -379,13 +379,23 @@ Dispatch is a table of (key, modifier mask, handler address) scanned linearly â€
 the table is short enough that a scan beats any cleverness. Open-Apple letters
 are folded to uppercase on read so `OA-q` and `OA-Q` both dispatch.
 
+### Goal column
+
+`KUP` and `KDOWN` aim for `GOALCOL`, captured the first time a run of vertical
+moves begins and then left alone. Passing through a short line clamps the
+cursor but not the goal, so the column comes back on the next long line. Any
+other command ends the run and the next vertical move re-captures.
+
+Two flags carry the run: `VERTMOVE` covers repeats inside a single keystroke,
+since `KPGUP` calls `KUP` many times, and `WASVERT` carries it across
+keystrokes.
+
+Because `CCOL` is maintained incrementally, neither handler counts columns any
+more â€” `BOL` plus a step over the newline is the whole journey, where the
+original walked backwards through the line to measure it.
+
 ### Known simplifications
 
-- **No goal column.** Moving down through a short line loses the original
-  column, because `KUP`/`KDOWN` recompute the column from wherever they land
-  rather than remembering an intent. Every real editor keeps a sticky goal
-  column; this one should too, and it is a small change once there is a line
-  index to hang it off.
 - **The clipboard is line based, not selection based.** With hard wrap a line
   is a natural unit and it needs no selection UI at all. Mark-and-region
   selection can be added later without changing the clipboard itself.

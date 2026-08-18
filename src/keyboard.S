@@ -299,41 +299,51 @@ EOL          jsr   PEEKFWD
 :done        rts
 
 *--------------------------------------
-* KUP -- previous line, keeping the column where possible
+* VERTSET -- decide what column vertical movement should aim for
 *
-* Counting the column by walking to the start of the line is destructive, but
-* that is fine: we were going to leave this line anyway.
+* The goal column is captured the first time a run of vertical moves begins and
+* then left alone, so passing through a short line does not truncate it. Any
+* other command clears VERTMOVE, which ends the run.
+*
+* VERTMOVE covers repeats inside one keystroke -- KPGUP calls KUP many times --
+* while WASVERT carries the run across keystrokes.
 *--------------------------------------
-KUP          lda   #$00
-             sta   TMPC
-:back        jsr   PEEKBACK
-             bcs   :fin             ; already on the first line
-             cmp   #$8d
-             beq   :atbol
-             jsr   GAPLEFT
-             inc   TMPC
-             jmp   :back
-:atbol       jsr   GAPLEFT          ; step back over the CR
+VERTSET      lda   VERTMOVE
+             ora   WASVERT
+             bne   :mark
+             lda   CCOL             ; fresh run: aim for where we are now
+             sta   GOALCOL
+:mark        lda   #$01
+             sta   VERTMOVE
+             rts
+
+*--------------------------------------
+* KUP -- previous line, at the goal column
+*
+* No column counting: CCOL is already maintained, so BOL and a step back over
+* the newline is the whole journey.
+*--------------------------------------
+KUP          jsr   VERTSET
              jsr   BOL
+             jsr   PEEKBACK
+             bcs   :fin             ; already on the first line
+             jsr   GAPLEFT          ; over the newline, to the end of the line above
+             jsr   BOL
+             lda   GOALCOL
+             sta   TMPC
              jmp   FWDCOL
 :fin         rts
 
 *--------------------------------------
-* KDOWN -- next line, keeping the column where possible
+* KDOWN -- next line, at the goal column
 *--------------------------------------
-KDOWN        lda   #$00
-             sta   TMPC
-:back        jsr   PEEKBACK
-             bcs   :havecol
-             cmp   #$8d
-             beq   :havecol
-             jsr   GAPLEFT
-             inc   TMPC
-             jmp   :back
-:havecol     jsr   EOL
+KDOWN        jsr   VERTSET
+             jsr   EOL
              jsr   PEEKFWD
              bcs   :fin             ; no line below
-             jsr   GAPRIGHT         ; step over the CR
+             jsr   GAPRIGHT         ; over the newline, to the start of the next
+             lda   GOALCOL
+             sta   TMPC
              jmp   FWDCOL
 :fin         rts
 

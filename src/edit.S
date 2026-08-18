@@ -28,6 +28,10 @@ START        lda   #$00             ; cheat sheet hidden by default; OA-/ shows 
              jsr   INSTSTUB         ; aux read stub into the stack page
              jsr   INITFILE         ; ProDOS parameter blocks into RAM
              jsr   SELINIT
+             lda   #$00
+             sta   GOALCOL
+             sta   VERTMOVE
+             sta   WASVERT
              jsr   BUFINIT
 
              lda   #<SAMPLE
@@ -70,6 +74,10 @@ MAINLOOP     jsr   SCROLLFIX
              sta   OLDTOP+1
              lda   SELACT
              sta   OLDSEL
+             lda   VERTMOVE         ; did the last keystroke move vertically?
+             sta   WASVERT
+             lda   #$00
+             sta   VERTMOVE
 
              jsr   GETKEY
 
