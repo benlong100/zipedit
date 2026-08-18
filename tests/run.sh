@@ -87,6 +87,19 @@ assert_row() {
     fi
 }
 
+# new_doc -- OA-N, answering the unsaved-changes guard only if it appears.
+# Without this, a following ktext feeds the guard letters until one of them is
+# read as S = SAVE FIRST, and the test wanders into the save prompt.
+new_doc() {
+    "$VII" caps true >/dev/null
+    k oa "N"
+    if "$VII" screen 2>/dev/null | grep -q "UNSAVED CHANGES"; then
+        "$VII" text "D" >/dev/null
+        sleep 1
+    fi
+    "$VII" caps false >/dev/null
+}
+
 # open_file <name> -- OA-O, answering the unsaved-changes guard only if it
 # actually appears. Sending "D" unconditionally would type a D into the
 # document on the runs where the buffer happens to be clean.
@@ -1125,6 +1138,41 @@ assert_row "and no tail of the placeholder survives"   23 "NAMED.MD    "
 "$VII" settle 2 >/dev/null
 snapshot
 assert_row "a new document goes back to UNTITLED.MD"   23 " UNTITLED.MD"
+
+#--------------------------------------
+# Wrapping mid-line. The cursor's own column is not enough to go on: insert
+# into the middle of a line and the cursor sits far short of the margin while
+# the LINE runs past it. RENDER drops everything past column 80, so the text
+# went off the right edge unseen.
+#--------------------------------------
+echo "mid-line wrap"
+reboot
+
+k key "down arrow"; k key "down arrow"
+for i in $(seq 1 20); do k key "right arrow"; done
+ktext "INSERTEDWORDSHERE "
+"$VII" settle 3 >/dev/null
+snapshot
+assert_row     "the insert lands mid-paragraph"         2 "INSERTEDWORDSHERE"
+assert_maxcols "and no row runs past the margin"        2 "$WRAPCOL"
+assert_maxcols "nor the row below it"                   3 "$WRAPCOL"
+assert_maxcols "nor the one after that"                 4 "$WRAPCOL"
+# The word pushed off the end goes onto a line of its own; it is not dropped.
+if grep -q "ProDOS" "$SCREEN"; then
+    ok "the word pushed off the end is still on screen"
+else
+    bad "the word pushed off the end is still on screen" "ProDOS went missing"
+fi
+
+# Nothing follows the cursor in an empty document, which is the case where the
+# look-ahead length comes out zero. Getting that wrong hung the editor on the
+# first keystroke.
+new_doc
+ktext "fresh"
+"$VII" settle 2 >/dev/null
+snapshot
+assert_row "typing into an empty document still works"  0 "fresh"
+assert_lc  "and the cursor keeps up with it"            1 6
 
 #--------------------------------------
 # Open guards unsaved work. OA-O replaces the document wholesale, so it asks

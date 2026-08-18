@@ -78,7 +78,7 @@ DISPATCH     ldx   #$00
              lda   KEYCHR
              jsr   INSCHR
              jsr   FASTOK           ; plain typing touches one row...
-             jsr   WRAPCHECK        ; ...unless this wraps, which moves CURLNO
+             jsr   WRAPCHECK        ; looks ahead down the line, not just at CCOL
 :ret         rts
 
 *--------------------------------------

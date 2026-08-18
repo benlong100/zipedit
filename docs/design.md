@@ -563,6 +563,35 @@ the Mac as a one-off; pushing the result back gives a document that wraps and
 reflows normally. It refuses to write if the whitespace-normalised text would
 change, since unwrapping should only ever turn a newline into a space.
 
+### Wrapping mid-line
+
+`WRAPCHECK` used to test the cursor's own column, which is only the line's
+length when you are typing at the end of it. Insert into the middle and the
+cursor sits far short of the margin while the line runs past it — and `RENDER`
+drops everything past column 80, so the text went off the right edge unseen.
+
+It now looks ahead down the rest of the line as well. The look-ahead only
+*reads* past the gap and never moves the cursor, which keeps it clear of the
+gap-buffer bookkeeping; the cursor is moved only when the line really is too
+long. `FASTDRAW` has to be cleared when a break goes in below the cursor:
+`CURLNO` does not change, so the one-row path would leave the rows underneath
+stale — which looked exactly like text being corrupted, twice, until the buffer
+was read directly instead of the screen.
+
+Measured at 1 MHz, typing into the middle of a paragraph:
+
+| | |
+|---|---|
+| before | 44 chars/sec, text runs off screen |
+| look-ahead | 26 chars/sec, nothing off screen |
+| reflow the paragraph per keystroke | 3 chars/sec |
+
+Reflowing per keystroke is correct and unusable — slower than the 8 chars/sec
+the editor managed before any of the redraw work. The look-ahead breaks without
+joining, so repeated mid-paragraph typing leaves short stub lines until `OA-R`
+tidies them. That is the trade: nothing disappears, and tidying stays
+deliberate.
+
 ### Known simplifications
 
 - **The clipboard is line based, not selection based.** With hard wrap a line

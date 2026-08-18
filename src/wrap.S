@@ -118,12 +118,97 @@ DOWRAP       jsr   FINDSPC
 
 *--------------------------------------
 * WRAPCHECK -- called after inserting a printable character
+*
+* The cursor's own column is not enough to go on. Insert into the middle of a
+* line and the cursor sits far short of the margin while the LINE runs past it,
+* and RENDER drops everything beyond column 80 -- so text simply disappears off
+* the right edge until something reflows it.
+*
+* So look ahead down the rest of the line as well. The look-ahead only reads
+* past the gap; it never moves the cursor, which is what keeps this cheap and
+* keeps it clear of the gap-buffer bookkeeping. The cursor is only moved when
+* the line really is too long, which is the rare case.
+*
+* Overflow is pushed onto a new line rather than flowed into the line below:
+* that is what makes this affordable, and it is why OA-R exists.
 *--------------------------------------
 WRAPCHECK    lda   CCOL
              cmp   #WRAPCOL+1
-             bcc   :done
-             jmp   DOWRAP
+             bcs   :behind          ; the cursor itself is past the margin
+
+*--- room left on this line before the margin
+             lda   #WRAPCOL+1
+             sec
+             sbc   CCOL
+             sta   WLOOK
+             sta   WBACK            ; the same distance, for the return trip
+
+*--- do not read past the end of the buffer, or the poison beyond it reads as
+*    text and every line near the end looks too long
+             lda   #$00
+             sec
+             sbc   GAPEND
+             sta   WTMP
+             lda   #AUXHI
+             sbc   GAPEND+1
+             bne   :room            ; 256+ bytes left, the cap already fits
+             lda   WTMP             ; fewer than 256 bytes left: cap the look
+             cmp   WLOOK
+             bcs   :room
+             sta   WLOOK
+             lda   WTMP             ; STA leaves the flags alone, so re-test
+             bne   :room
+             rts                    ; nothing ahead at all: the line fits
+
+*--- one block copy rather than a read per byte: about a third of the cost, and
+*    this runs on every keystroke
+:room        lda   GAPEND
+             sta   AUXPTR
+             lda   GAPEND+1
+             sta   AUXPTR+1
+             lda   WLOOK
+             sta   BLKLEN
+             lda   #<WSCAN
+             sta   DSTPTR
+             lda   #>WSCAN
+             sta   DSTPTR+1
+             ldy   #$00
+             jsr   AUXBLK
+
+             ldx   #$00
+:scan        cpx   WLOOK
+             bcs   :toolong         ; ran out of room without a line end
+             lda   WSCAN,x
+             cmp   #TEXTLO
+             bcc   :done            ; met the line end: the line fits
+             inx
+             bne   :scan
+
+*--- too long. Step out to the margin, break there, and step back. DOWRAP puts
+*    the cursor back where it was called from, so the only distance to undo is
+*    the one we walked out.
+:toolong     lda   WBACK
+             sta   WSTEP
+:fwd         lda   WSTEP
+             beq   :brk
+             jsr   GAPRIGHT
+             dec   WSTEP
+             jmp   :fwd
+*--- A break below the cursor leaves CURLNO untouched, so the main loop would
+*    take the one-row path and never repaint the rows underneath: the text is
+*    fine but the screen goes stale. The old wrap always moved the cursor onto
+*    the new line, which changed CURLNO and forced the full redraw for free.
+:brk         jsr   DOWRAP
+             lda   #$00
+             sta   FASTDRAW
+:back        lda   WBACK
+             beq   :done
+             jsr   GAPLEFT
+             dec   WBACK
+             jmp   :back
 :done        rts
+
+:behind      jmp   DOWRAP
 
 *--------------------------------------
 * PEEK2 -- the byte one past the cursor, without moving it.
@@ -231,3 +316,11 @@ REFLOW       jsr   PARASTART
 
 :enddrop     pla
 :done        rts
+
+             dum   $1450            ; $1400-$1441 are taken; see design.md
+WLOOK        ds    1                ; WRAPCHECK: characters still to look at
+WSTEP        ds    1                ; steps out to the margin
+WBACK        ds    1                ; and the same number back
+WTMP         ds    1                ; bytes left before the end of the buffer
+WSCAN        ds    80               ; the rest of the line, staged in main
+             dend
