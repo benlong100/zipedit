@@ -34,20 +34,31 @@ boot)
     img="$(cd "$(dirname "$img")" && pwd)/$(basename "$img")"
     ensure_machine
     "$0" thaw
-    osascript <<EOF >/dev/null
+    # The eject used to be a bare `try`. When it failed, `insert` threw
+    # "the disk drive already contains a disk", and because that aborted the
+    # script before `restart` ever ran, the caller carried on testing the
+    # PREVIOUS session's machine. Retry the eject, and let a genuine failure
+    # here abort with a non-zero exit rather than pretending we booted.
+    osascript >/dev/null <<EOF
 tell application "Virtual ]["
     set m to last machine
     tell m
-        try
-            eject device "S6D1"
-        end try
-        delay 0.3
+        repeat 5 times
+            try
+                eject device "S6D1"
+            end try
+            delay 0.3
+        end repeat
         insert "$img" into device "S6D1"
         delay 0.3
         restart
     end tell
 end tell
 EOF
+    # `restart` resets both of these to the machine's saved defaults, so they
+    # have to be set AFTER it, never before.
+    "$0" speed "${VII_SPEED:-maximum}"
+    "$0" kbdelay "${VII_KEYDELAY:-0.2}"
     echo "booted $img"
     ;;
 
@@ -125,10 +136,16 @@ caps) as "set caps lock of (last machine) to $1" ;;
 thaw) osascript -e 'tell application "Virtual ][" to unfreeze (last machine)' >/dev/null 2>&1 || true ;;
 speed) as "set speed of (last machine) to $1" ;;
 
+# kbdelay <seconds> -- Virtual ][ paces AppleScript keystrokes itself. It
+# defaults to 0.0, which injects keys faster than the program can read them;
+# the surplus queues up, SURVIVES a restart, and dribbles into whatever runs
+# next. Any non-zero value keeps the queue empty and makes bursts exact.
+kbdelay) as "set keyboard delay of (last machine) to $1" ;;
+
 *)
     sed -n '2,10p' "$0"
     echo
-    echo "subcommands: boot screen screen-raw text line ctrl oa ca key dump snap await settle caps speed thaw"
+    echo "subcommands: boot screen screen-raw text line ctrl oa ca key dump snap await settle caps speed kbdelay thaw"
     exit 1
     ;;
 esac

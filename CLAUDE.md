@@ -139,10 +139,25 @@ so tests assert `\` for `$5C`, `L` for `$4C`, `_` for `$5F` and `A` for `$41`.
   and the screen reads back stale. `vii.sh boot` now thaws first; `vii.sh thaw`
   does it on demand. A whole round of measurements was invalid before I spotted
   this.
-- **Check the emulator speed before timing anything.** Virtual ][ may be left
-  on `maximum`, which makes every measurement meaningless. `vii.sh speed
-  regular` first; `vii.sh speed maximum` is fine for everything else and makes
-  the suite much faster.
+- **Pin `keyboard delay`, not the speed.** It is a machine property -- seconds
+  Virtual ][ waits between AppleScript key presses -- and it defaults to `0.0`,
+  which injects keys faster than the editor can read them. The surplus queues
+  up, and that queue **survives `restart`**: reboot, send nothing at all, and
+  the cursor still walks across the screen on its own. One backlog took 33
+  seconds to drain, dribbling into later sections and failing tests that never
+  touched the code under test. `vii.sh boot` pins it to 0.2, which makes a
+  burst of 20 arrows land exactly on target with no shell sleeps at all, even
+  at `maximum`. Override with `VII_KEYDELAY` / `VII_SPEED`.
+- **`restart` resets both `speed` and `keyboard delay`** to the machine's saved
+  defaults, so pin them *after* the restart. Setting either first looks like it
+  worked and silently does nothing. At `maximum` a held key also auto-repeats,
+  so one `type key` can land as two or three keystrokes -- the keyboard delay
+  fixes that; dropping to `regular` does not.
+- **A scattered failure set means the harness, not the code.** Four runs of one
+  unchanged tree gave 1, 29, 10 and 31 failures across unrelated sections. The
+  31-failure run looked exactly like an editor regression and was not: every
+  one was a stale machine or a keystroke backlog. Drain to a known state and
+  re-run before believing any of it.
 - Typing costs a fixed ~100 ms plus ~0.035 ms per buffer byte, so tests must
   never sleep a fixed interval for a multi-character string. Use `ktext`, which
   waits for the text to appear.

@@ -19,7 +19,50 @@ pass=0; fail=0
 ok()  { printf '  \033[32mPASS\033[0m %s\n' "$1"; pass=$((pass+1)); }
 bad() { printf '  \033[31mFAIL\033[0m %s\n' "$1"; shift; [ $# -gt 0 ] && printf '       %s\n' "$@"; fail=$((fail+1)); }
 
-k() { "$VII" "$@" >/dev/null; sleep 0.6; }
+# Virtual ][ now paces keystrokes itself (vii.sh pins a keyboard delay), so
+# this sleep only has to cover the editor's redraw, not the key injection.
+KEYSLEEP="${KEYSLEEP:-0.3}"
+k() { "$VII" "$@" >/dev/null; sleep "$KEYSLEEP"; }
+
+ln_field() { "$VII" screen-raw | sed -n '24p' | cut -c40-43 | tr -d ' '; }
+cl_field() { "$VII" screen-raw | sed -n '24p' | cut -c47-49 | tr -d ' '; }
+
+# drain_ok -- wait for the status row to hold still, then insist it reads
+# line 1 column 1. A status that keeps drifting means keystrokes are still
+# arriving that this section never sent.
+drain_ok() {
+    local prev="" cur stable=0 i
+    for i in $(seq 1 40); do
+        cur="$(ln_field):$(cl_field)"
+        if [ "$cur" = "$prev" ]; then stable=$((stable+1)); else stable=0; fi
+        if [ "$stable" -ge 4 ]; then [ "$cur" = "1:1" ]; return $?; fi
+        prev="$cur"; sleep 0.5
+    done
+    return 1
+}
+
+# reboot [caps] -- boot the image and do not return until the editor is idle
+# at the top of the document. Three failures used to slip through here, and
+# each one silently poisoned every later section:
+#   * `vii.sh boot` could fail to restart at all (a failed eject made the
+#     insert throw), leaving the previous section's machine under test. It
+#     now exits non-zero and we abort.
+#   * `await` returns the instant the text appears, while the editor is still
+#     drawing and still draining keys.
+#   * Surplus AppleScript keystrokes outlive a restart. vii.sh pins a keyboard
+#     delay so the queue cannot build up, but a run that inherits an already
+#     wedged machine still has to wait it out.
+reboot() {
+    local capsval="${1:-false}" tries
+    for tries in 1 2 3; do
+        "$VII" boot "$IMAGE" >/dev/null || { echo "boot failed"; exit 1; }
+        if ! "$VII" await "Notes from the Apple" 120 >/dev/null; then continue; fi
+        "$VII" caps "$capsval" >/dev/null
+        drain_ok && return 0
+        echo "  (machine still restless after boot, retrying)" >&2
+    done
+    echo "editor never reached a quiet L1 C1 after 3 boots"; exit 1
+}
 
 # Typing is slow -- a full buffer rescan and redraw per keystroke, which grows
 # with the document. Never sleep a fixed interval for a multi-character string;
@@ -75,8 +118,7 @@ assert_mem() {
 }
 
 echo "booting $IMAGE"
-"$VII" boot "$IMAGE" >/dev/null
-"$VII" await "Notes from the Apple" 40 || { echo "editor did not start"; exit 1; }
+reboot
 snapshot
 
 echo "toolchain"
@@ -166,9 +208,7 @@ assert_width "status line fills the row"           23
 # boot. Each keystroke triggers a full redraw, hence the settle between them.
 #--------------------------------------
 echo "keyboard"
-"$VII" boot "$IMAGE" >/dev/null
-"$VII" await "Notes from the Apple" 40 || { echo "reboot failed"; exit 1; }
-"$VII" caps false >/dev/null
+reboot
 ktext "draft: "
 snapshot
 assert_row "typing inserts at the cursor"             0 "draft: # Notes from the Apple //e"
@@ -235,9 +275,7 @@ assert_row "text accumulates correctly before delete" 0 "zz  draft:"
 # Editing operations: clipboard, find, go to line, emphasis.
 #--------------------------------------
 echo "editing operations"
-"$VII" boot "$IMAGE" >/dev/null
-"$VII" await "Notes from the Apple" 60 || { echo "reboot failed"; exit 1; }
-"$VII" caps false >/dev/null
+reboot
 
 # curline <name> <expected 0-based line>
 curline() {
@@ -293,9 +331,7 @@ assert_row "Ctrl-B wraps the whole word from mid-word" 0 "# **Notes** from the A
 # happens to retire it, and you never see where a find or go-to landed.
 #--------------------------------------
 echo "prompt cancel"
-"$VII" boot "$IMAGE" >/dev/null
-"$VII" await "Notes from the Apple" 60 || { echo "reboot failed"; exit 1; }
-"$VII" caps false >/dev/null
+reboot
 
 "$VII" oa "F" >/dev/null; sleep 2
 snapshot
@@ -320,16 +356,16 @@ fi
 # repainting the row, which is why they cost nothing measurable per keystroke.
 #--------------------------------------
 echo "status line"
-"$VII" boot "$IMAGE" >/dev/null
-"$VII" await "Notes from the Apple" 60 || { echo "reboot failed"; exit 1; }
-"$VII" caps false >/dev/null
+reboot
 
 # digit fields, 1-based cut columns
-ln_field() { "$VII" screen-raw | sed -n '24p' | cut -c40-43 | tr -d ' '; }
-cl_field() { "$VII" screen-raw | sed -n '24p' | cut -c47-49 | tr -d ' '; }
 assert_lc() {
-    local name="$1" wl="$2" wc="$3" gl gc
-    gl=$(ln_field); gc=$(cl_field)
+    local name="$1" wl="$2" wc="$3" gl gc prev="" i
+    for i in 1 2 3 4 5 6; do
+        gl=$(ln_field); gc=$(cl_field)
+        [ "$gl:$gc" = "$prev" ] && break
+        prev="$gl:$gc"; sleep 0.4
+    done
     if [ "$gl" = "$wl" ] && [ "$gc" = "$wc" ]; then ok "$name"; else
         bad "$name" "status reads L$gl C$gc, expected L$wl C$wc"
     fi
@@ -364,9 +400,7 @@ assert_lc "and the digits come back correct"          35 8
 # arrow to the same $88, which is verified in the keyboard section below.
 #--------------------------------------
 echo "help screen"
-"$VII" boot "$IMAGE" >/dev/null
-"$VII" await "Notes from the Apple" 60 || { echo "reboot failed"; exit 1; }
-"$VII" caps false >/dev/null
+reboot
 
 "$VII" oa "?" >/dev/null
 "$VII" await "KEYBOARD COMMANDS" 60 || bad "OA-? never opened help"
@@ -401,9 +435,7 @@ assert_blank "Ctrl-Y deletes to the end of the line"  0
 # keystroke), so these wait on a sentinel word rather than a fixed delay.
 #--------------------------------------
 echo "hard wrap"
-"$VII" boot "$IMAGE" >/dev/null
-"$VII" await "Notes from the Apple" 40 || { echo "reboot failed"; exit 1; }
-"$VII" caps false >/dev/null
+reboot
 
 "$VII" text "aaa bbb ccc ddd eee fff ggg hhh iii jjj kkk lll mmm nnn ooo ppp qqq rrr sss ttt zebra " >/dev/null
 "$VII" await "zebra" 180 || bad "typed text never arrived"
@@ -422,9 +454,7 @@ fi
 # Reflow. Rejoins a paragraph and re-wraps it, leaving neighbours alone.
 #--------------------------------------
 echo "reflow"
-"$VII" boot "$IMAGE" >/dev/null
-"$VII" await "Notes from the Apple" 40 || { echo "reboot failed"; exit 1; }
-"$VII" caps false >/dev/null
+reboot
 k key "down arrow"; k key "down arrow"
 "$VII" oa "R" >/dev/null
 # Must be a phrase that exists only AFTER reflow. "was inserted into auxiliary"
@@ -453,8 +483,7 @@ fi
 # bindings themselves are only verifiable by hand.
 #--------------------------------------
 echo "scrolling"
-"$VII" boot "$IMAGE" >/dev/null
-"$VII" await "Notes from the Apple" 60 || { echo "reboot failed"; exit 1; }
+reboot
 
 scrolltop() {
     "$VII" dump 0x0000 0x30 0 "$TMP/zp.bin" >/dev/null
@@ -510,9 +539,7 @@ fi
 # //e hardware, so there was nothing to detect.
 #--------------------------------------
 echo "selection"
-"$VII" boot "$IMAGE" >/dev/null
-"$VII" await "Notes from the Apple" 90 || { echo "reboot failed"; exit 1; }
-"$VII" caps false >/dev/null
+reboot
 
 selstate() {
     "$VII" dump 0x0050 0x08 0 "$TMP/sel.bin" >/dev/null
@@ -553,6 +580,10 @@ assert_sel "and returns to ordinary editing"            0 0
 # Esc abandons a selection without changing the text.
 k oa " "
 for i in 1 2 3 4; do "$VII" key "right arrow" >/dev/null; sleep 0.25; done
+# Every arrow while selecting forces a full redraw, and the //e keyboard has no
+# buffer -- an Esc sent into that redraw is dropped rather than queued. Settle
+# first, or this fails intermittently with the selection still latched.
+"$VII" settle 2 >/dev/null
 "$VII" key esc >/dev/null; sleep 2; snapshot
 assert_row "Esc leaves the text alone"                   0 "Qotes from the Apple"
 assert_sel "Esc cancels selecting entirely"             0 0
@@ -563,9 +594,7 @@ assert_sel "Esc cancels selecting entirely"             0 0
 # editor.
 #--------------------------------------
 echo "unsaved changes guard"
-"$VII" boot "$IMAGE" >/dev/null
-"$VII" await "Notes from the Apple" 90 || { echo "reboot failed"; exit 1; }
-"$VII" caps false >/dev/null
+reboot
 
 mod_field() { "$VII" screen-raw | sed -n '24p' | cut -c15-17; }
 assert_mod() {
@@ -601,8 +630,12 @@ k oa "S"; ktext "MODTEST.MD"
 "$VII" await "UNTITLED" 90 || bad "save never completed"
 assert_mod "saving clears MOD"                                  "   "
 
-# With nothing outstanding, OA-Q goes straight out to ProDOS.
-k oa "Q"; sleep 4
+# With nothing outstanding, OA-Q goes straight out to ProDOS. The save above
+# just finished a disk write and the //e keyboard has no buffer, so let the
+# machine come to rest first or OA-Q is dropped rather than queued.
+"$VII" settle 2 >/dev/null
+k oa "Q"
+for _ in $(seq 1 20); do "$VII" screen | grep -qE "SELECT|S6,D1" && break; sleep 1; done
 if "$VII" screen | grep -qE "SELECT|S6,D1"; then
     ok "OA-Q with no unsaved work quits immediately"
 else
@@ -613,9 +646,7 @@ fi
 # File I/O. Round trips through a real ProDOS volume in the mounted image.
 #--------------------------------------
 echo "file i/o"
-"$VII" boot "$IMAGE" >/dev/null
-"$VII" await "Notes from the Apple" 40 || { echo "reboot failed"; exit 1; }
-"$VII" caps true >/dev/null
+reboot true
 
 # Disk operations take seconds of emulated time, and the Apple II keyboard has
 # no buffer -- anything typed while ProDOS is working is simply dropped. So
