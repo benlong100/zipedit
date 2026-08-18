@@ -264,6 +264,7 @@ PROMPT       jsr   CLRBUF
              jsr   BUFSTR
              lda   #$00
              sta   PLEN
+             jsr   PCURSOR
              jsr   PDRAW
 
 :key         jsr   GETKEY
@@ -285,21 +286,24 @@ PROMPT       jsr   CLRBUF
              clc
              adc   TMPB
              tax
-             lda   TMPA             ; echo
+             lda   TMPA             ; echo, over the block that was there
              sta   LINEBUF,x
              inc   PLEN
+             jsr   PCURSOR
              jsr   PDRAW
              jmp   :key
 
 :del         lda   PLEN
              beq   :key
              dec   PLEN
-             lda   PLEN
+             lda   PLEN             ; the block sat one cell to the right
              clc
              adc   TMPB
              tax
+             inx
              lda   #$a0
-             sta   LINEBUF,x
+             sta   LINEBUF,x        ; wipe it, or it is left stranded
+             jsr   PCURSOR          ; and the block covers the deleted letter
              jsr   PDRAW
              jmp   :key
 
@@ -329,6 +333,31 @@ MKFNAME      lda   PLEN
              bne   :loop
 :done        rts
 
+*--------------------------------------
+* PCURSOR -- put the block where the next character will land
+*
+* LINEBUF holds screen codes, so this is the MouseText checkerboard ($56): a
+* filled square that is dotted rather than solid. The document keeps the solid
+* block, so the two cursors never read as the same thing -- one says "the text
+* is here", the other says "type into this field".
+*
+* Without any cursor a prompt looks like a label rather than a field, and it is
+* not obvious that typing is what happens next.
+*
+* It can never reach the escape hint: input stops at PMAXLEN, which is capped
+* short of PHINTCOL.
+*--------------------------------------
+PCURSOR      lda   PLEN
+             clc
+             adc   TMPB
+             tax
+             lda   #$56
+             sta   LINEBUF,x
+             rts
+
+*--------------------------------------
+* PDRAW -- put the prompt row on screen
+*--------------------------------------
 PDRAW        lda   #$01             ; the prompt owns the row too
              sta   MSGSHOWN
              lda   #STATROW

@@ -99,6 +99,11 @@ screen-raw)
 
 # text/line/ctrl/oa/ca -- keyboard input
 text) as "tell (last machine) to type text \"$1\"" ;;
+
+# del -- the Delete key. Virtual ][ has no special key for it (only the four
+# arrows and Esc), but DEL as a character code reaches the //e as $ff, which is
+# what the keyboard encoder produces.
+del)  as 'tell (last machine) to type text (character id 127)' ;;
 line) as "tell (last machine) to type line \"$1\"" ;;
 ctrl) as "tell (last machine) to type ctrl \"$1\"" ;;
 oa)   as "tell (last machine) to type open Apple \"$1\"" ;;
@@ -170,7 +175,7 @@ kbdelay) as "set keyboard delay of (last machine) to $1" ;;
 *)
     sed -n '2,10p' "$0"
     echo
-    echo "subcommands: boot screen screen-raw text line ctrl oa ca key dump snap await settle caps speed kbdelay thaw"
+    echo "subcommands: boot screen screen-raw text line ctrl oa ca key dump snap await settle caps speed kbdelay del thaw"
     exit 1
     ;;
 esac

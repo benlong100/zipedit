@@ -87,6 +87,21 @@ assert_row() {
     fi
 }
 
+# assert_block <name> <0-based column> -- the prompt's cursor is the MouseText
+# checkerboard ($56) on the status row. The screen TEXT readback cannot tell it
+# from a letter, so this reads the cell itself.
+# Row 23 begins at $07D0; even columns live in aux, odd in main.
+assert_block() {
+    local name="$1" col="$2" bank addr byte
+    if [ $((col % 2)) -eq 0 ]; then bank=1; else bank=0; fi
+    addr=$(( 0x07D0 + col / 2 ))
+    "$VII" dump "$addr" 1 "$bank" "$TMP/cell.bin" >/dev/null 2>&1
+    byte="$(od -An -tu1 "$TMP/cell.bin" 2>/dev/null | tr -d ' \n')"
+    if [ "$byte" = "86" ]; then ok "$name"; else
+        bad "$name" "column $col holds $byte, wanted 86 (\$56, the checkerboard)"
+    fi
+}
+
 # assert_centred <name> <0-based row> <text> -- and actually centred, which a
 # substring check cannot tell you.
 assert_centred() {
@@ -977,6 +992,51 @@ ktext " there"
 "$VII" settle 2 >/dev/null
 snapshot
 assert_row "two words are plural"                      23 " 2 WORDS"
+
+#--------------------------------------
+# Prompt cursor. A prompt with no cursor reads as a label rather than a field,
+# so there is a block where the next character will land. It is an inverse
+# space, which the screen text readback renders as a plain space -- these
+# assertions read the screen cell instead.
+#--------------------------------------
+echo "prompt cursor"
+reboot
+
+"$VII" caps true >/dev/null
+k oa "S"
+"$VII" settle 2 >/dev/null
+snapshot
+assert_row   "the save prompt is showing"              23 "SAVE AS:"
+# "SAVE AS: " is nine characters, so input starts at column 9.
+assert_block "an empty prompt shows the block"          9
+
+ktext "REPORT"
+"$VII" settle 2 >/dev/null
+assert_block "and it follows what was typed"           15
+
+"$VII" del >/dev/null; "$VII" settle 2 >/dev/null
+snapshot
+assert_row   "delete removes the last character"       23 "SAVE AS: REPOR"
+assert_block "and the block comes back with it"        14
+# The block that was at 15 must be gone, not stranded there.
+if "$VII" screen-raw | sed -n '24p' | cut -c1-20 | grep -q "REPORT"; then
+    bad "the old block leaves no ghost" "row 23 still reads REPORT"
+else
+    ok "the old block leaves no ghost"
+fi
+
+"$VII" key esc >/dev/null; "$VII" settle 2 >/dev/null
+snapshot
+assert_row "Esc puts the status row back"              23 "UNTITLED.MD"
+
+# Find prompts the same way, through the same routine.
+k oa "F"
+"$VII" settle 2 >/dev/null
+snapshot
+assert_row   "the find prompt is showing"              23 "FIND:"
+assert_block "and it has a block too"                   6
+"$VII" key esc >/dev/null; "$VII" settle 2 >/dev/null
+"$VII" caps false >/dev/null
 
 #--------------------------------------
 # Status filename. The row carried UNTITLED.MD as static text, so it went on

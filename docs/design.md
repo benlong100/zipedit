@@ -359,6 +359,20 @@ name. `OA-N` clears `FNAME`, so a fresh document reads as untitled again. The
 field is 12 columns, blanked past the end of the name so no tail of a longer
 previous name survives.
 
+Prompts carry a block cursor where the next character will land, for the same
+reason the document does: without one a prompt reads as a label rather than a
+field, and it is not obvious that typing is what happens next. It is an inverse
+space in `LINEBUF`, the same solid block the text cursor is, and it can never
+reach the escape hint because input stops at `PMAXLEN`, capped short of
+`PHINTCOL`. Deleting has to wipe the block's old cell as well as the character,
+or it strands a block one column to the right.
+
+Testing it needs the screen cell, not the screen text: Virtual ][ reads an
+inverse space back as a plain space, so `assert_block` dumps the byte. Delete
+needed a new `vii.sh del` — Virtual ][ has no Delete key among its special
+keys, but DEL as a character code arrives as `$ff`, which is what the //e
+keyboard encoder produces. The suite could not press Delete at all before this.
+
 **Prompts are different.** A prompt hands the status row back the moment it
 ends, accepted or cancelled, rather than waiting for the next keystroke to
 retire it. Otherwise the prompt text sits there until you press something
