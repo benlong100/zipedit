@@ -314,7 +314,8 @@ row  24     status: filename, line/col, modified flag, free space
 ```
 
 The status line shows the filename, a `MOD` indicator when the document has
-the current filename, unsaved edits, the cursor's line and column as `L:` and `C:`, free space
+the current filename with a `*` after it when there are unsaved edits, the
+cursor's line and column as `L:` and `C:`, free space
 and the help key. Line and column update live at no measurable cost: `CURLNO`
 and `CCOL` are already maintained incrementally, so only the digit **cells**
 are written -- never the whole row -- and the line digits are skipped when the
@@ -350,6 +351,13 @@ label, and blanks the rest of the field afterwards. Right aligning them put
 `L` four columns from the `1` it belonged to, which read as two unrelated
 things rather than a label and its value. The blanking is not optional: without
 it, 10 dropping to 9 would leave the old units digit stranded.
+
+Unsaved changes show as a `*` immediately after the filename rather than a
+`MOD` field at a fixed column — the modern convention, and it puts the state
+where the eye already is. Because the star's position follows the name's
+length, `SHOWNAME` draws it and `STATUPD` repaints the whole name field when
+`MODFLAG` changes rather than poking three cells. That costs 16 cells instead
+of 3, on a change that happens once per save.
 
 The filename field is painted by `SHOWNAME` rather than baked into the status
 template, which is what it used to be -- so the row went on reading

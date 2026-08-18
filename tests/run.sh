@@ -763,15 +763,27 @@ assert_sel "Esc cancels selecting entirely"             0 0
 echo "unsaved changes guard"
 reboot
 
-mod_field() { "$VII" screen-raw | sed -n '24p' | cut -c15-17; }
+# Unsaved changes show as a star directly after the filename, so the marker
+# moves with the name and cannot be read from a fixed column. The filename is
+# the first token on the status row; the star, if any, is stuck to it.
+mod_star() {
+    local row; row="$("$VII" screen-raw | sed -n '24p')"
+    set -- $row
+    case "$1" in *'*') echo yes ;; *) echo no ;; esac
+}
 assert_mod() {
-    local got; got="$(mod_field)"
-    if [ "$got" = "$2" ]; then ok "$1"; else bad "$1" "MOD field reads [$got], expected [$2]"; fi
+    local got; got="$(mod_star)"
+    if [ "$got" = "$2" ]; then ok "$1"; else
+        bad "$1" "unsaved star: $got, wanted $2" \
+            "row: $("$VII" screen-raw | sed -n '24p' | cut -c1-26)"
+    fi
 }
 
-assert_mod "the sample document does not count as unsaved work" "   "
+assert_mod "the sample document does not count as unsaved work" no
 ktext "x"
-assert_mod "editing raises MOD"                                 "MOD"
+assert_mod "editing raises the unsaved star"                     yes
+snapshot
+assert_row "the star sits against the filename"       23 " UNTITLED.MD*"
 
 "$VII" caps true >/dev/null
 k oa "Q"
@@ -781,7 +793,7 @@ assert_row "OA-Q with unsaved work asks instead of quitting"   23 "UNSAVED CHANG
 "$VII" key esc >/dev/null; sleep 2
 snapshot
 assert_row "Esc returns to editing"                            23 "UNTITLED.MD"
-assert_mod "and the document is still modified"                 "MOD"
+assert_mod "and the document is still modified"                 yes
 
 # Cancelling the filename prompt must not quit either -- that is the path that
 # would silently discard work.
@@ -790,12 +802,12 @@ k oa "Q"; sleep 1
 "$VII" key esc >/dev/null; sleep 3
 snapshot
 assert_row "a cancelled save prompt does not quit"             23 "UNTITLED.MD"
-assert_mod "and still has unsaved changes"                      "MOD"
+assert_mod "and still has unsaved changes"                      yes
 
 k oa "S"; ktext "MODTEST.MD"
 "$VII" line "" >/dev/null
 "$VII" await "MODTEST.MD" 90 || bad "save never completed"
-assert_mod "saving clears MOD"                                  "   "
+assert_mod "saving clears the star"                              no
 
 # With nothing outstanding, OA-Q goes straight out to ProDOS. The save above
 # just finished a disk write and the //e keyboard has no buffer, so let the
@@ -856,7 +868,7 @@ echo "new document"
 reboot
 
 ktext "zz"
-assert_mod "editing before New raises MOD"                      "MOD"
+assert_mod "editing before New raises the star"                  yes
 
 "$VII" caps true >/dev/null
 k oa "N"
@@ -867,7 +879,7 @@ assert_row "OA-N with unsaved work asks first"                 23 "UNSAVED CHANG
 snapshot
 assert_row "Esc returns to editing"                            23 "UNTITLED.MD"
 assert_row "and the document is untouched"                      0 "zz# Notes from the Apple"
-assert_mod "and it is still modified"                           "MOD"
+assert_mod "and it is still modified"                           yes
 
 # D discards. The buffer empties and the cursor goes back to the top.
 k oa "N"; sleep 1
@@ -876,7 +888,7 @@ k oa "N"; sleep 1
 snapshot
 assert_blank "New empties the first row"                        0
 assert_blank "and the rows below it"                           10
-assert_mod "a new document counts as no unsaved work"           "   "
+assert_mod "a new document counts as no unsaved work"           no
 assert_lc "and the cursor sits at the top"                      1 1
 
 # Nothing outstanding now, so OA-N must wipe without asking.
@@ -888,7 +900,7 @@ assert_row "OA-N with no unsaved work does not ask"            23 "UNTITLED.MD"
 ktext "fresh"
 snapshot
 assert_row "typing starts the new document"                     0 "fresh"
-assert_mod "and typing marks the new document modified"         "MOD"
+assert_mod "and typing marks the new document modified"         yes
 
 #--------------------------------------
 # Save and Save As. A named document saves back to its own file without asking;

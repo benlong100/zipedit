@@ -340,31 +340,13 @@ STATUPD      lda   MSGSHOWN
              ldx   #CLDIG
              jsr   PUTNUM
 
-*--- modified indicator
+*--- modified indicator. It is a star straight after the name now, so it moves
+*    with the name and SHOWNAME is what draws it.
 :docol2      lda   MODFLAG
              cmp   LASTMOD
              beq   :out
              sta   LASTMOD
-             ldx   #MODCOL
-             lda   MODFLAG
-             beq   :clean
-             lda   #$0d             ; inverse M
-             jsr   PUTCELL
-             inx
-             lda   #$0f             ; inverse O
-             jsr   PUTCELL
-             inx
-             lda   #$04             ; inverse D
-             jsr   PUTCELL
-             rts
-:clean       lda   #$20             ; inverse space
-             jsr   PUTCELL
-             inx
-             lda   #$20
-             jsr   PUTCELL
-             inx
-             lda   #$20
-             jsr   PUTCELL
+             jmp   SHOWNAME
 :out         rts
 
 *--------------------------------------
@@ -409,12 +391,20 @@ SHOWNAME     lda   #STATROW
              sta   NAMEI
 :loop        ldy   NAMEI
              cpy   NAMELEN
-             bcs   :pad             ; past the name: blank the rest of the field
+             bcs   :past            ; past the name
              lda   (STRPTR),y
              and   #$7f
              cmp   #$60
              bcs   :put             ; lowercase inverts to itself
              and   #$3f
+             jmp   :put
+
+*--- the cell straight after the name carries the star, and only that cell:
+*    CPY left Z set if this is exactly the end of the name
+:past        bne   :pad
+             lda   MODFLAG
+             beq   :pad
+             lda   #$2a             ; inverse star: unsaved changes
              jmp   :put
 :pad         lda   #$20             ; inverse space
 :put         ldx   NAMEI

@@ -132,9 +132,9 @@ TEXTLO       equ   $a0              ; below this is a break, not text
 LNDIG        equ   40               ; status column of the line number digits
 CLDIG        equ   47               ; status column of the column digits
 NAMECOL      equ   1                ; status column of the filename
-NAMEW        equ   12               ; columns for it, before MOD
+NAMEW        equ   16               ; columns for it: 15 for a ProDOS name,
+                                    ; plus one for the unsaved-changes star
 UNTLEN       equ   11               ; length of the UNTITLED.MD placeholder
-MODCOL       equ   14               ; status column of the MOD indicator
 PHINTCOL     equ   66               ; where the prompt shows its escape hint
 PMAXLEN      equ   45               ; input length, capped so it cannot run
                                     ; over the hint at PHINTCOL
