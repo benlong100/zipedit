@@ -31,9 +31,13 @@
 * under the title put two lines there. Every rule in this box is $4C, which
 * sits hard against the row above it so the verticals descend cleanly from it.
 *
-* $5F is a clean vertical, drawn at the LEFT edge of its cell. That is why the
-* bottom rule is 63 cells and not 64 -- a 64th would run a whole cell past the
-* right-hand vertical, which is exactly what it used to do.
+* $5F is a clean vertical, drawn at the LEFT edge of its cell. Both ends of a
+* rule row follow from that. The rule must START at the corner cell, or it
+* begins a whole cell right of the vertical and never reaches it. It must END
+* one cell short, letting the vertical own that cell, or it runs a whole cell
+* past the corner. So a rule row is 63 rules then a vertical, and the closing
+* bottom rule -- with nothing below it to carry a vertical -- is 63 rules and
+* nothing else.
 *
 * MouseText has no corner or T-junction glyphs on this ROM -- $40-$4A are
 * apples, a pointer, an hourglass, check marks and arrows -- so a corner is
@@ -140,7 +144,7 @@ HELPTBL2
              da    H220
 
 H100
-             hex   5F4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C
+             hex   4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C
              hex   4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C5F
              dfb   $00
 H101
@@ -148,7 +152,7 @@ H101
              hex   C5A0AFAFE5A0A0ADADA0A0CBC5D9C2CFC1D2C4A0C3CFCDCDC1CEC4D3A0A0A05F
              dfb   $00
 H102
-             hex   5F4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C
+             hex   4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C
              hex   4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C5F
              dfb   $00
 H103
@@ -224,7 +228,7 @@ H120
              hex   4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C
              dfb   $00
 H200
-             hex   5F4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C
+             hex   4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C
              hex   4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C5F
              dfb   $00
 H201
@@ -232,7 +236,7 @@ H201
              hex   C5A0AFAFE5A0A0ADADA0A0CBC5D9C2CFC1D2C4A0C3CFCDCDC1CEC4D3A0A0A05F
              dfb   $00
 H202
-             hex   5F4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C
+             hex   4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C
              hex   4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C5F
              dfb   $00
 H203

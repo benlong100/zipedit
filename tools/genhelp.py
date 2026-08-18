@@ -99,9 +99,15 @@ def build(content, foot):
     #
     # The bottom rule is 63 cells, not 64: $5F draws its vertical at the LEFT
     # edge of its cell, so a 64-cell rule runs a whole cell past the corner.
-    out  = ["|" + "=" * W + "|"]            # 0  top edge
+    # A rule row starts at the CORNER cell, not one in from it. $5F draws its
+    # vertical at the left edge of its cell, so a rule beginning one cell in
+    # starts a whole cell to the right of the vertical and never reaches it --
+    # the same reason the bottom rule already starts there and reads correctly.
+    # The right-hand end is the mirror case: the vertical occupies the corner
+    # cell and the rule stops against its left edge.
+    out  = ["=" * 63 + "|"]                 # 0  top edge
     out += ["|" + centre(TITLE) + "|"]      # 1  title
-    out += ["|" + "=" * W + "|"]            # 2  rule under the title
+    out += ["=" * 63 + "|"]                 # 2  rule under the title
     body = [""] + content                   # 3  blank, then the content rows
     body += [""] * (16 - len(body))         # pad out to row 18
     out += ["|" + row([(0, b)]) + "|" for b in body]

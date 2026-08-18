@@ -451,6 +451,23 @@ assert_row "a single rule sits under the title"       2 "LLLLLLLL"
 assert_row "the sides are MouseText verticals"        5 "_   arrows"
 assert_row "the bottom border is a MouseText rule"   20 "LLLLLLLL"
 
+# A rule row must START at the corner cell. $5F draws its vertical at the left
+# edge of its cell, so a rule beginning one cell in stops a whole cell short of
+# the vertical and the corner reads as broken. The right-hand end is the mirror
+# case: the vertical owns the corner cell and the rule stops against it.
+corners="$("$VII" screen-raw | sed -n '1p;3p' | cut -c9 | tr -d '\n')"
+if [ "$corners" = "LL" ]; then
+    ok "the top rules reach the left corner"
+else
+    bad "the top rules reach the left corner" "column 8 of rows 0 and 2 reads [$corners], wanted [LL]"
+fi
+right="$("$VII" screen-raw | sed -n '1p;3p' | cut -c72 | tr -d '\n')"
+if [ "$right" = "__" ]; then
+    ok "and stop against the right vertical"
+else
+    bad "and stop against the right vertical" "column 71 of rows 0 and 2 reads [$right], wanted [__]"
+fi
+
 # $5F draws its vertical at the LEFT edge of its cell, so a full 64-cell rule
 # overhangs the corner by a whole cell. 8 leading columns + 63 rule cells = 71.
 bottom="$("$VII" screen-raw | sed -n '21p' | sed 's/[[:space:]]*$//')"
