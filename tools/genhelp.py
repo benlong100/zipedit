@@ -99,13 +99,20 @@ def build(content, foot):
     #
     # The bottom rule is 63 cells, not 64: $5F draws its vertical at the LEFT
     # edge of its cell, so a 64-cell rule runs a whole cell past the corner.
-    # A rule row starts at the CORNER cell, not one in from it. $5F draws its
+    # The top edge keeps a vertical in its corner cell so the left border runs
+    # unbroken from the very top; the rule beside it stops one cell short, and
+    # nothing in MouseText closes that notch -- $58 is a literal bracket whose
+    # strokes are inset, so it joins nothing. The rule UNDER the title does
+    # start at the corner cell, because the title row above already carries the
+    # vertical there and the rule then meets it squarely.
+    #
+    # A rule row otherwise starts at the CORNER cell, not one in from it. $5F draws its
     # vertical at the left edge of its cell, so a rule beginning one cell in
     # starts a whole cell to the right of the vertical and never reaches it --
     # the same reason the bottom rule already starts there and reads correctly.
     # The right-hand end is the mirror case: the vertical occupies the corner
     # cell and the rule stops against its left edge.
-    out  = ["=" * 63 + "|"]                 # 0  top edge
+    out  = ["|" + "=" * 62 + "|"]           # 0  top edge
     out += ["|" + centre(TITLE) + "|"]      # 1  title
     out += ["=" * 63 + "|"]                 # 2  rule under the title
     body = [""] + content                   # 3  blank, then the content rows

@@ -455,11 +455,15 @@ assert_row "the bottom border is a MouseText rule"   20 "LLLLLLLL"
 # edge of its cell, so a rule beginning one cell in stops a whole cell short of
 # the vertical and the corner reads as broken. The right-hand end is the mirror
 # case: the vertical owns the corner cell and the rule stops against it.
+# The top edge keeps a vertical in its corner cell, so the left border runs
+# unbroken from the very top. The rule under the title starts AT the corner
+# cell instead: the title row above already carries the vertical there, so the
+# rule meets it squarely.
 corners="$("$VII" screen-raw | sed -n '1p;3p' | cut -c9 | tr -d '\n')"
-if [ "$corners" = "LL" ]; then
-    ok "the top rules reach the left corner"
+if [ "$corners" = "_L" ]; then
+    ok "the corner cells carry the right glyphs"
 else
-    bad "the top rules reach the left corner" "column 8 of rows 0 and 2 reads [$corners], wanted [LL]"
+    bad "the corner cells carry the right glyphs" "column 8 of rows 0 and 2 reads [$corners], wanted [_L]"
 fi
 right="$("$VII" screen-raw | sed -n '1p;3p' | cut -c72 | tr -d '\n')"
 if [ "$right" = "__" ]; then
