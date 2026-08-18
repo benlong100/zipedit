@@ -119,8 +119,8 @@ STATROW      equ   23
 TEXTROWS     equ   22               ; when the cheat sheet is showing
 TEXTROWSMAX  equ   23               ; when it is hidden
 WRAPCOL      equ   76               ; hard wrap margin
-LNDIG        equ   39               ; status column of the line number digits
-CLDIG        equ   46               ; status column of the column digits
+LNDIG        equ   40               ; status column of the line number digits
+CLDIG        equ   47               ; status column of the column digits
 NAMECOL      equ   1                ; status column of the filename
 NAMEW        equ   12               ; columns for it, before MOD
 UNTLEN       equ   11               ; length of the UNTITLED.MD placeholder

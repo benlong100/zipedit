@@ -302,7 +302,7 @@ row  24     status: filename, line/col, modified flag, free space
 ```
 
 The status line shows the filename, a `MOD` indicator when the document has
-the current filename, unsaved edits, the cursor's line and column, free space
+the current filename, unsaved edits, the cursor's line and column as `L:` and `C:`, free space
 and the help key. Line and column update live at no measurable cost: `CURLNO`
 and `CCOL` are already maintained incrementally, so only the digit **cells**
 are written -- never the whole row -- and the line digits are skipped when the
@@ -332,6 +332,12 @@ Cutting follows the same rule for the same reason: the line visibly goes away,
 so `OA-X` says nothing either. Copying still announces itself, because nothing
 visible happens when a line goes to the clipboard — a message is the only sign
 it worked.
+
+`PUTNUM` writes its digits **left aligned**, starting immediately after the
+label, and blanks the rest of the field afterwards. Right aligning them put
+`L` four columns from the `1` it belonged to, which read as two unrelated
+things rather than a label and its value. The blanking is not optional: without
+it, 10 dropping to 9 would leave the old units digit stranded.
 
 The filename field is painted by `SHOWNAME` rather than baked into the status
 template, which is what it used to be -- so the row went on reading

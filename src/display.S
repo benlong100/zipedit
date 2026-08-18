@@ -229,6 +229,10 @@ PUTCELL      pha
 * ascii AND $3F for anything below $60. Inverse space is $20.
 *--------------------------------------
 PUTNUM       stx   PCOL
+             txa
+             clc
+             adc   PWID
+             sta   PEND             ; one past the last cell of the field
              lda   #$04
              sec
              sbc   PWID             ; skip the powers we do not need
@@ -238,7 +242,7 @@ PUTNUM       stx   PCOL
 
 :digit       ldy   PIDX
              cpy   #$04
-             bcs   :done
+             bcs   :pad
              lda   #$00
              sta   PDIG
 :sub         lda   NUMV             ; count how many times this power fits
@@ -258,21 +262,31 @@ PUTNUM       stx   PCOL
              bne   :show            ; a non-zero digit ends suppression
              lda   PLEAD
              bne   :show
-             ldy   PIDX             ; last cell always shows, even if zero
+             ldy   PIDX             ; the units digit shows even as a zero
              cpy   #$03
              beq   :show
-             lda   #$20             ; inverse space
-             jmp   :put
+             jmp   :next            ; a leading zero takes up no room at all
 :show        lda   #$01
              sta   PLEAD
              lda   PDIG
              clc
              adc   #$30             ; inverse digit
-:put         ldx   PCOL
+             ldx   PCOL
              jsr   PUTCELL
              inc   PCOL
-             inc   PIDX
+:next        inc   PIDX
              jmp   :digit
+
+*--- left aligned, so blank whatever is left of the field: without this, 10
+*    dropping to 9 would leave the old units digit stranded on screen
+:pad         lda   PCOL
+             cmp   PEND
+             bcs   :done
+             lda   #$20             ; inverse space
+             ldx   PCOL
+             jsr   PUTCELL
+             inc   PCOL
+             jmp   :pad
 :done        rts
 
 POWLO        dfb   $e8,$64,$0a,$01
@@ -467,7 +481,7 @@ CHEATTXT     asc   "`code` # H1 ## H2 - list 1. num - [ ] todo - [x] done > quot
 * Placeholder until the buffer and file layers can supply real values.
 STATTXT
              hex   A0D5CED4C9D4CCC5C4AECDC4A0A0A0A0A0A0A0A0A0A0A0A0A0A0A0A0A0A0A0A0
-             hex   A0A0A0A0A0A0CCA0A0A0A0A0A0C3A0A0A0A0A0A0B4B6CBA0C6D2C5C5A0A0A0A0
+             hex   A0A0A0A0A0A0CCBAA0A0A0A0A0C3BAA0A0A0A0A0B4B6CBA0C6D2C5C5A0A0A0A0
              hex   41ADBFA0C8C5CCD0A0A0A0A0A0A0A0A0
              dfb   $00
 
@@ -493,6 +507,7 @@ PIDX         ds    1
 PCOL         ds    1
 PDIG         ds    1
 PLEAD        ds    1                ; non-zero once a digit has been emitted
+PEND         ds    1                ; one past the last cell of the field
 LASTLN       ds    2                ; last values painted, to skip redundant work
 LASTCOL      ds    1
 LASTMOD      ds    1

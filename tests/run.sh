@@ -24,8 +24,10 @@ bad() { printf '  \033[31mFAIL\033[0m %s\n' "$1"; shift; [ $# -gt 0 ] && printf 
 KEYSLEEP="${KEYSLEEP:-0.3}"
 k() { "$VII" "$@" >/dev/null; sleep "$KEYSLEEP"; }
 
-ln_field() { "$VII" screen-raw | sed -n '24p' | cut -c40-43 | tr -d ' '; }
-cl_field() { "$VII" screen-raw | sed -n '24p' | cut -c47-49 | tr -d ' '; }
+# The numbers sit immediately after "L:" and "C:" and are LEFT aligned, so
+# these are the cells the digits occupy, not a right-aligned field.
+ln_field() { "$VII" screen-raw | sed -n '24p' | cut -c41-44 | tr -d ' '; }
+cl_field() { "$VII" screen-raw | sed -n '24p' | cut -c48-50 | tr -d ' '; }
 
 # drain_ok -- wait for the status row to hold still, then insist it reads
 # line 1 column 1. A status that keeps drifting means keystrokes are still
@@ -346,7 +348,7 @@ assert_row "Esc hands the status row straight back"  23 "UNTITLED.MD"
 "$VII" line "" >/dev/null; sleep 5
 snapshot
 assert_row "an accepted prompt restores it too"      23 "UNTITLED.MD"
-if [ "$("$VII" screen-raw | sed -n '24p' | cut -c40-43 | tr -d ' ')" = "20" ]; then
+if [ "$(ln_field)" = "20" ]; then
     ok "and the new position is visible immediately"
 else
     bad "and the new position is visible immediately" "status: $("$VII" screen-raw | sed -n '24p')"
@@ -395,6 +397,18 @@ assert_row "a message takes over the status row"      23 "LINE COPIED"
 snapshot
 assert_row "the next keystroke restores the status"   23 "UNTITLED.MD"
 assert_lc "and the digits come back correct"          35 8
+
+# Left aligned means the label touches its number: "L:35", not "L    35".
+# Last in the section: the jump below moves the cursor, so nothing may depend
+# on where it ends up.
+snapshot
+assert_row "the line label sits against its number"   23 "L:35"
+assert_row "and so does the column label"             23 "C:8"
+
+# Going back to a shorter number must not strand the old digits.
+"$VII" oa "<" >/dev/null; "$VII" settle 2 >/dev/null
+snapshot
+assert_row "a shrinking number blanks the rest of its field" 23 "L:1    C:1"
 
 #--------------------------------------
 # Goal column. Line 0 of the sample is 26 columns, line 1 is empty, line 2 is
