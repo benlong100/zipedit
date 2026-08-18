@@ -379,6 +379,23 @@ SHOWNAME     lda   #STATROW
              sta   STRPTR
              lda   #>FNAME+1
              sta   STRPTR+1
+
+*--- Still too long? Show the TAIL rather than the head. The leading directories
+*    are what you can afford to lose; the filename and the star are what you
+*    are actually looking at. Losing the star to a long path is the worst of
+*    both -- the document looks saved when it is not.
+             lda   NAMELEN
+             cmp   #NAMEW           ; NAMEW-1 characters, plus the star
+             bcc   :draw
+             sec
+             sbc   #NAMEW-1         ; how much to drop off the front
+             clc
+             adc   STRPTR
+             sta   STRPTR
+             bcc   :cap
+             inc   STRPTR+1
+:cap         lda   #NAMEW-1
+             sta   NAMELEN
              jmp   :draw
 :untitled    lda   #UNTLEN
              sta   NAMELEN

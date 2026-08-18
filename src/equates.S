@@ -132,8 +132,11 @@ TEXTLO       equ   $a0              ; below this is a break, not text
 LNDIG        equ   40               ; status column of the line number digits
 CLDIG        equ   47               ; status column of the column digits
 NAMECOL      equ   1                ; status column of the filename
-NAMEW        equ   16               ; columns for it: 15 for a ProDOS name,
-                                    ; plus one for the unsaved-changes star
+NAMEW        equ   32               ; columns for it. FNAME holds a whole
+                                    ; PATHNAME, not a bare filename, so 16 was
+                                    ; too narrow for /VOLUME/FILE.MD and the
+                                    ; star fell off the end. The status row is
+                                    ; free up to column 37, where L: begins.
 UNTLEN       equ   11               ; length of the UNTITLED.MD placeholder
 PHINTCOL     equ   66               ; where the prompt shows its escape hint
 PMAXLEN      equ   45               ; input length, capped so it cannot run

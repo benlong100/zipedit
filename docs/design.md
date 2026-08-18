@@ -359,6 +359,11 @@ length, `SHOWNAME` draws it and `STATUPD` repaints the whole name field when
 `MODFLAG` changes rather than poking three cells. That costs 16 cells instead
 of 3, on a change that happens once per save.
 
+The name field is 32 columns and holds a whole PATHNAME rather than a bare
+filename, which is why 16 was not enough for `/VOLUME/FILE.MD`. A longer path
+has its leading directories dropped and its tail shown — losing the star to a
+long path would make an unsaved document look saved.
+
 The filename field is painted by `SHOWNAME` rather than baked into the status
 template, which is what it used to be -- so the row went on reading
 `UNTITLED.MD` after a save. It shows `FNAME`, whatever the last save or load

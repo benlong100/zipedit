@@ -1115,6 +1115,37 @@ assert_block "and it has a block too"                   6
 "$VII" caps false >/dev/null
 
 #--------------------------------------
+# Long filenames. FNAME holds a whole PATHNAME, not a bare filename, so the
+# field has to fit /VOLUME/FILE.MD. When even that is not enough the head is
+# what goes: losing the star to a long path makes an unsaved document look
+# saved, which is the worst way to lose it.
+#--------------------------------------
+echo "long filenames"
+reboot
+
+ktext "x"
+"$VII" caps true >/dev/null
+k oa "S"; ktext "/EDIT/RICHSCAM.MD"; "$VII" line "" >/dev/null
+"$VII" await "RICHSCAM" 90 || bad "save never completed"
+"$VII" settle 2 >/dev/null
+snapshot
+assert_row "a whole pathname fits in the field"        23 " /EDIT/RICHSCAM.MD"
+
+"$VII" caps false >/dev/null; ktext "y"
+"$VII" settle 2 >/dev/null
+snapshot
+assert_row "and the star shows after it"               23 "/EDIT/RICHSCAM.MD*"
+
+# Longer than the field: the leading directories go, the filename and star stay.
+"$VII" caps true >/dev/null
+k oa "A"; ktext "/EDIT/SUBDIRECTORY/ANOTHERONE/RICHSCAM.MD"; "$VII" line "" >/dev/null
+sleep 3
+"$VII" key esc >/dev/null; "$VII" settle 2 >/dev/null
+"$VII" caps false >/dev/null
+snapshot
+assert_row "an over-long path keeps its tail"          23 "RICHSCAM.MD*"
+
+#--------------------------------------
 # Status filename. The row carried UNTITLED.MD as static text, so it went on
 # claiming that name after a save. It now shows whatever the last save or load
 # used, and reverts when OA-N starts a fresh document.
