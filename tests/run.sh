@@ -690,6 +690,39 @@ else
 fi
 
 #--------------------------------------
+# A final line with no trailing return. RENDER flushes that partial line at
+# CURROW but used to leave CURROW pointing at it, so BLANKTAIL immediately
+# erased the row RENDER had just drawn. Any full redraw lost the line, and only
+# the one-row path put it back -- which is why it looked like a help screen bug
+# and was really a rendering one. Reported on real hardware.
+#--------------------------------------
+echo "unterminated last line"
+reboot
+
+"$VII" caps true >/dev/null; k oa "N"; "$VII" caps false >/dev/null
+ktext "hello world"
+snapshot
+assert_row "typing shows the line"                              0 "hello world"
+
+# Opening and closing help forces a full redraw, RENDER plus BLANKTAIL.
+"$VII" oa "?" >/dev/null; "$VII" settle 2 >/dev/null
+"$VII" text "x" >/dev/null; "$VII" settle 2 >/dev/null
+"$VII" text "x" >/dev/null; "$VII" settle 2 >/dev/null
+snapshot
+assert_row "a full redraw keeps the unterminated line"          0 "hello world"
+assert_lc "and the cursor is still where it was"                1 12
+
+# Same again with an earlier line above it, so the partial line is not row 0.
+"$VII" line "" >/dev/null; "$VII" settle 2 >/dev/null
+ktext "second line"
+"$VII" oa "?" >/dev/null; "$VII" settle 2 >/dev/null
+"$VII" text "x" >/dev/null; "$VII" settle 2 >/dev/null
+"$VII" text "x" >/dev/null; "$VII" settle 2 >/dev/null
+snapshot
+assert_row "the line above survives too"                        0 "hello world"
+assert_row "and so does the partial line below it"              1 "second line"
+
+#--------------------------------------
 # New document. OA-N throws the whole document away, so it is guarded exactly
 # as OA-Q is -- they share ASKUNSAVED, and these assertions are what stop the
 # two from drifting apart.

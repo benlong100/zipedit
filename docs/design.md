@@ -425,6 +425,14 @@ Because `CCOL` is maintained incrementally, neither handler counts columns any
 more — `BOL` plus a step over the newline is the whole journey, where the
 original walked backwards through the line to measure it.
 
+`RENDER` draws a line when it meets a carriage return, so a final line without
+one is flushed separately at `:done`. That flush must advance `CURROW`:
+`BLANKTAIL` clears from `CURROW` down, so leaving it pointing at the row just
+drawn erased the line immediately. The symptom was a document losing its last
+line on every full redraw and getting it back from the one-row path at the next
+keystroke, which made it look like whatever had triggered the redraw was at
+fault. Found on real hardware, reported as a help screen bug.
+
 ### Known simplifications
 
 - **The clipboard is line based, not selection based.** With hard wrap a line

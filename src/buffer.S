@@ -439,4 +439,10 @@ RENDER       lda   #$00
              bcs   :fin
              lda   CURROW
              jsr   DRAWLINE
+
+*--- that row is now spoken for. Without this, BLANKTAIL starts at CURROW and
+*    erases the line RENDER just drew: a document whose last line has no
+*    trailing return would lose it on every full redraw, and only get it back
+*    from the one-row path the next time a key was pressed.
+             inc   CURROW
 :fin         rts
