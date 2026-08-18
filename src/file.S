@@ -496,7 +496,9 @@ SAVENOW      lda   #<MSGSAVING
              jmp   RESTORESTAT      ; the busy notice was the feedback
 :err         jmp   SHOWERR
 
-KLOAD        lda   #<MSGOPEN
+KLOAD        jsr   ASKUNSAVED       ; opening replaces the document wholesale
+             bcc   :quit            ; and used not to ask, which lost work
+             lda   #<MSGOPEN
              sta   STRPTR
              lda   #>MSGOPEN
              sta   STRPTR+1

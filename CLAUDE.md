@@ -75,7 +75,9 @@ Ctrl-I italic (`*`), Ctrl-D delete forward. OA-R reflow, OA-S save, OA-O open,
 OA-C/OA-X/OA-V copy, cut and paste a line. OA-F find, OA-G find again, OA-L go
 to line, OA-W word count, OA-Delete deletes back to the start of the word. OA-N starts a new document and OA-Q quits, both asking first if the document
 is modified. OA-S saves to the document's own file and only prompts when it has
-no name yet; OA-A is save as, which always prompts and adopts the new name. OA-? (or OA-H) opens the keyboard help,
+no name yet; OA-A is save as, which always prompts and adopts the new name.
+Anything that replaces the document -- OA-N, OA-Q, OA-O -- must go through
+ASKUNSAVED first. OA-? (or OA-H) opens the keyboard help,
 which is two pages -- a key turns to page two, another leaves. OA-/ toggles the
 one-line cheat sheet, OA-Q quits. `$89` is both Tab and Ctrl-I and dispatches on
 position -- see `docs/design.md`.

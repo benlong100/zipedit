@@ -466,8 +466,9 @@ That preserves both behaviours in the contexts where each is actually wanted.
 | OA-/ | toggle cheat sheet |
 | OA-Q | quit — asks first if the document has unsaved changes |
 
-`OA-N` and `OA-Q` both discard the document outright, so they share one
-guard, `ASKUNSAVED`. It returns carry set to go ahead and clear to stay put,
+`OA-N`, `OA-Q` and `OA-O` all discard the document outright, so they share one
+guard, `ASKUNSAVED`. `OA-O` went without it at first and silently threw unsaved
+work away — which is how a guard only some callers use gets found out. It returns carry set to go ahead and clear to stay put,
 and the `S` branch only proceeds when the save actually cleared `MODFLAG` --
 so a cancelled filename prompt or a write error keeps the document. Sharing
 it is deliberate: a guard that only one of the two used would be the one you

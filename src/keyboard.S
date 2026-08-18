@@ -244,9 +244,10 @@ KRETURN      lda   #HARDCR          ; the writer asked for this one
 *--------------------------------------
 * ASKUNSAVED -- guard anything that would throw the document away
 *
-* Carry set to go ahead, clear to stay put. Shared by OA-Q and OA-N, because
-* both discard the document completely and a guard that only one of them used
-* would be the one you found out about the hard way.
+* Carry set to go ahead, clear to stay put. Shared by OA-Q, OA-N and OA-O --
+* all three discard the document completely. OA-O went without it for a while
+* and quietly threw away unsaved work, which is exactly the way a guard that
+* only some callers use gets found out.
 *--------------------------------------
 ASKUNSAVED   lda   MODFLAG
              beq   :yes             ; nothing to lose

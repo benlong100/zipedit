@@ -87,6 +87,19 @@ assert_row() {
     fi
 }
 
+# open_file <name> -- OA-O, answering the unsaved-changes guard only if it
+# actually appears. Sending "D" unconditionally would type a D into the
+# document on the runs where the buffer happens to be clean.
+open_file() {
+    k oa "O"
+    if "$VII" screen 2>/dev/null | grep -q "UNSAVED CHANGES"; then
+        "$VII" text "D" >/dev/null
+        sleep 1
+    fi
+    ktext "$1"
+    "$VII" line "" >/dev/null
+}
+
 # assert_block <name> <0-based column> -- the prompt's cursor is the MouseText
 # checkerboard ($56) on the status row. The screen TEXT readback cannot tell it
 # from a letter, so this reads the cell itself.
@@ -1114,6 +1127,34 @@ snapshot
 assert_row "a new document goes back to UNTITLED.MD"   23 " UNTITLED.MD"
 
 #--------------------------------------
+# Open guards unsaved work. OA-O replaces the document wholesale, so it asks
+# first -- it used not to, and silently threw the unsaved document away.
+#--------------------------------------
+echo "open guards unsaved work"
+reboot
+
+ktext "unsaved edit"
+assert_mod "the document is modified"                   yes
+"$VII" caps true >/dev/null
+k oa "O"
+sleep 2; snapshot
+assert_row "OA-O asks before replacing the document"   23 "UNSAVED CHANGES"
+
+"$VII" key esc >/dev/null; "$VII" settle 2 >/dev/null
+snapshot
+assert_row "Esc keeps the document"                     0 "unsaved edit"
+assert_mod "and it is still unsaved"                    yes
+
+# D means "go on without saving", so the open prompt follows it.
+k oa "O"; "$VII" text "D" >/dev/null; "$VII" settle 2 >/dev/null
+snapshot
+assert_row "D goes on to the open prompt"              23 "OPEN:"
+"$VII" key esc >/dev/null; "$VII" settle 2 >/dev/null
+snapshot
+assert_row "and cancelling that keeps the document"     0 "unsaved edit"
+"$VII" caps false >/dev/null
+
+#--------------------------------------
 # Wrapped for the screen, unwrapped in the file. The buffer marks its own wraps
 # separately from the writer's returns, so a saved file carries only the
 # returns that were typed and a loaded file gets our wraps put back.
@@ -1163,7 +1204,7 @@ fi
 # Loading puts our wraps back, so the screen is wrapped again.
 reboot
 "$VII" caps true >/dev/null
-k oa "O"; ktext "UNWRAP.MD"; "$VII" line "" >/dev/null
+open_file "UNWRAP.MD"
 "$VII" await "Notes from the Apple" 120 || bad "load never completed"
 "$VII" settle 3 >/dev/null
 snapshot
@@ -1228,14 +1269,14 @@ assert_row "and the status row now names the saved file" 23 " T1.MD"
 ktext "JUNKJUNK"
 snapshot
 assert_row "buffer modified before reload"            0 "MARKER JUNKJUNK# Notes"
-k oa "O"; ktext "T1.MD"; "$VII" line "" >/dev/null
+open_file "T1.MD"
 "$VII" await "T1.MD" 90 || bad "load never completed"
 snapshot
 assert_row "OA-O returns to the status row when done" 23 "T1.MD"
 assert_row "loaded file replaced the buffer"          0 "MARKER # Notes from the Apple //e"
 
 # $46 is ProDOS "file not found". The buffer must survive a failed open.
-k oa "O"; ktext "NOSUCH.MD"; "$VII" line "" >/dev/null
+open_file "NOSUCH.MD"
 "$VII" await "PRODOS ERROR" 90 || bad "error never reported"
 snapshot
 assert_row "missing file reports a ProDOS error"     23 "PRODOS ERROR \$46"
