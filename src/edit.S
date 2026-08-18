@@ -48,6 +48,7 @@ START        lda   #$00             ; cheat sheet hidden by default; OA-/ shows 
              lda   #$00
              sta   MSGSHOWN
              jsr   DISPINIT
+             jsr   SPLASH           ; dismissed by any key, before the document
              jsr   DRAWSTATUS
              jsr   STATUPD
 
@@ -169,6 +170,7 @@ HOMECURSOR   jsr   GAPLEFT
              put   select
              put   edit_ops
              put   help
+             put   splash
              put   buffer
              put   display
 

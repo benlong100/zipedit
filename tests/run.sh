@@ -12,6 +12,7 @@ VII="$ROOT/tools/vii.sh"
 IMAGE="${IMAGE:-$ROOT/build/EDIT.po}"
 BIN="${BIN:-$ROOT/build/EDIT.SYSTEM}"
 WRAPCOL=76        # must match src/equates.S
+SCRW=80           # 80-column screen, likewise
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 
@@ -58,6 +59,9 @@ reboot() {
     local capsval="${1:-false}" tries
     for tries in 1 2 3; do
         "$VII" boot "$IMAGE" >/dev/null || { echo "boot failed"; exit 1; }
+        # The splash screen comes up first and holds until a key is pressed.
+        if ! "$VII" await "ZipEdit" 120 >/dev/null; then continue; fi
+        "$VII" text " " >/dev/null
         if ! "$VII" await "Notes from the Apple" 120 >/dev/null; then continue; fi
         "$VII" caps "$capsval" >/dev/null
         drain_ok && return 0
@@ -80,6 +84,18 @@ assert_row() {
     local got; got="$(sed -n "$((row+1))p" "$SCREEN")"
     if [[ "$got" == *"$want"* ]]; then ok "$name"; else
         bad "$name" "row $row expected to contain: $want" "row $row actually: ${got}"
+    fi
+}
+
+# assert_centred <name> <0-based row> <text> -- and actually centred, which a
+# substring check cannot tell you.
+assert_centred() {
+    local name="$1" row="$2" want="$3" got col pad
+    got="$(sed -n "$((row+1))p" "$SCREEN" | sed 's/[[:space:]]*$//')"
+    col=$(( (SCRW - ${#want}) / 2 ))
+    pad="$(printf '%*s' "$col" '')"
+    if [ "$got" = "$pad$want" ]; then ok "$name"; else
+        bad "$name" "row $row is [$got]" "wanted [$want] centred at column $col"
     fi
 }
 
@@ -125,6 +141,38 @@ snapshot
 
 echo "toolchain"
 assert_mem "loaded image matches build artifact" 0x2000 "$(stat -f%z "$BIN")" 0 "$BIN"
+
+#--------------------------------------
+# Splash screen. Shown once at startup and held until a key is pressed. This
+# boots directly rather than through reboot(), which dismisses the splash on
+# its way to the document.
+#--------------------------------------
+echo "splash screen"
+"$VII" boot "$IMAGE" >/dev/null || { echo "boot failed"; exit 1; }
+"$VII" await "ZipEdit" 120 >/dev/null || bad "the splash never appeared"
+"$VII" settle 2 >/dev/null
+snapshot
+assert_centred "the name is centred"                  10 "ZipEdit"
+assert_centred "the version is centred below it"      12 "Version 0.5"
+assert_centred "the date is centred below that"       14 "August, 2026."
+assert_blank   "with a blank line between them"       13
+# The Open Apple is a MouseText glyph, which reads back as "A".
+assert_centred "the help hint is centred"             20 "A-? to get help"
+assert_centred "and the prompt sits under it"         21 "press any key to continue"
+assert_row     "the document is not showing yet"       0 ""
+assert_blank   "the screen is otherwise blank"         5
+
+# Any key dismisses it -- and must not reach the document.
+"$VII" text "Z" >/dev/null
+"$VII" await "Notes from the Apple" 120 >/dev/null || bad "the splash never cleared"
+"$VII" settle 2 >/dev/null
+snapshot
+assert_row "the document appears once dismissed"       0 "# Notes from the Apple //e"
+if [ "$(sed -n '1p' "$SCREEN" | cut -c1)" = "Z" ]; then
+    bad "the dismissing key does not reach the document" "row 0 begins with the Z that dismissed it"
+else
+    ok "the dismissing key does not reach the document"
+fi
 
 echo "display layer"
 assert_width "screen is 80 columns wide"            0

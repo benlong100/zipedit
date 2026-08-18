@@ -10,6 +10,10 @@ wrap, and Markdown-aware emphasis shortcuts.
 
 See `docs/design.md` for the memory map, buffer design, and keymap.
 
+A splash screen shows at startup and waits for a key, so anything driving the
+editor has to get past it before the document appears — `reboot` in the suite
+does that.
+
 ## Toolchain
 
 Source lives here on the Mac and is cross-assembled; the //e never sees a

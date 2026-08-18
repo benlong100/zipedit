@@ -293,6 +293,18 @@ text there and the screen codes fall out of it, with the column stops enforced:
 a description that would overrun the border fails the generator rather than
 shipping a mangled row, which is the mistake the one-page version made.
 
+### Splash screen
+
+`SPLASH` paints a cleared screen once at startup and waits for a key, which it
+consumes — pressing a letter to get past it must not type that letter into the
+document. Each line's column is a constant computed at authoring time rather
+than measured at run time, so changing a string means changing its column with
+it: `(80 - length) / 2`. The Open Apple is the MouseText glyph, as on the help
+screen.
+
+Its one cost is to the test harness: `reboot` has to press a key and wait for
+the document, since nothing else appears until the splash is dismissed.
+
 ### Screen layout
 
 ```
