@@ -217,8 +217,8 @@ KDELWORD     lda   SELACT           ; a selection wins, as it does for Delete
 
 :start       jsr   PEEKBACK
              bcs   :done            ; nothing behind the cursor at all
-             cmp   #$8d
-             bne   :spaces
+             cmp   #TEXTLO
+             bcs   :spaces
              jmp   DELBACK          ; sitting at a line start: just join
 
 *--- the run of spaces first, so sitting after "word   " takes both
@@ -232,15 +232,13 @@ KDELWORD     lda   SELACT           ; a selection wins, as it does for Delete
 *--- then the word, stopping at a space, a newline, or the start of the buffer
 :word        jsr   PEEKBACK
              bcs   :done
-             cmp   #$a0
-             beq   :done
-             cmp   #$8d
-             beq   :done
+             cmp   #TEXTLO+1        ; a space or a break ends the word
+             bcc   :done
              jsr   DELBACK
              jmp   :word
 :done        rts
 
-KRETURN      lda   #$8d
+KRETURN      lda   #HARDCR          ; the writer asked for this one
              jmp   INSCHR
 
 *--------------------------------------
@@ -380,16 +378,16 @@ PEEKFWD      jsr   ATEND
 *--------------------------------------
 BOL          jsr   PEEKBACK
              bcs   :done
-             cmp   #$8d
-             beq   :done
+             cmp   #TEXTLO
+             bcc   :done
              jsr   GAPLEFT
              jmp   BOL
 :done        rts
 
 EOL          jsr   PEEKFWD
              bcs   :done
-             cmp   #$8d
-             beq   :done
+             cmp   #TEXTLO
+             bcc   :done
              jsr   GAPRIGHT
              jmp   EOL
 :done        rts
@@ -450,8 +448,8 @@ FWDCOL       lda   TMPC
              beq   :done
              jsr   PEEKFWD
              bcs   :done
-             cmp   #$8d
-             beq   :done
+             cmp   #TEXTLO
+             bcc   :done
              jsr   GAPRIGHT
              dec   TMPC
              jmp   FWDCOL
@@ -478,8 +476,8 @@ INLEAD       lda   GAPBEG
 :d1          dec   AUXPTR
              ldy   #$00
              jsr   AUXRD
-             cmp   #$8d             ; start of line, all spaces behind us
-             beq   :yes
+             cmp   #TEXTLO          ; start of line, all spaces behind us
+             bcc   :yes
              cmp   #$a0             ; space
              beq   :loop
              clc                    ; real text behind the cursor

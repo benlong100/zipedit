@@ -146,8 +146,8 @@ INSCHR       pha
              jsr   PUTAUX
              ldx   #$01             ; mark dirty via X: A still holds the byte
              stx   MODFLAG
-             cmp   #$8d             ; inserting a newline moves us down a line
-             bne   :samel
+             cmp   #TEXTLO          ; inserting any break moves us down a line
+             bcs   :samel
              inc   CURLNO
              bne   :col0
              inc   CURLNO+1
@@ -189,8 +189,8 @@ DELBACK      jsr   ATSTART
 :ok          lda   #$01
              sta   MODFLAG
              jsr   PEEKBACK         ; what are we about to remove?
-             cmp   #$8d
-             bne   :samel
+             cmp   #TEXTLO
+             bcs   :samel
              lda   CURLNO
              bne   :dn
              dec   CURLNO+1
@@ -244,8 +244,8 @@ GAPRIGHT     jsr   ATEND
              sta   AUXPTR+1
              txa
              jsr   PUTAUX
-             cpx   #$8d             ; stepped over a newline: down a line
-             bne   :samel
+             cpx   #TEXTLO          ; stepped over a break: down a line
+             bcs   :samel
              inc   CURLNO
              bne   :col0
              inc   CURLNO+1
@@ -290,8 +290,8 @@ GAPLEFT      jsr   ATSTART
              sta   AUXPTR+1
              txa
              jsr   PUTAUX
-             cpx   #$8d             ; stepped back over a newline: up a line
-             bne   :samel
+             cpx   #TEXTLO          ; stepped back over a break: up a line
+             bcs   :samel
              lda   CURLNO
              bne   :4
              dec   CURLNO+1
@@ -373,8 +373,8 @@ RENDER       lda   #$00
              beq   :notsel
              jsr   SELTEST
 :notsel      lda   TMPA
-             cmp   #$8d             ; carriage return ends the line
-             beq   :eol
+             cmp   #TEXTLO          ; any break ends the line
+             bcc   :eol
 
              ldx   CURCOL
              cpx   #SCRW

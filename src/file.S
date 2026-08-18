@@ -178,16 +178,28 @@ WRITERUN     lda   RUNLEN
 :full        lda   #$ff
 :have        sta   TMPC
 
-             ldy   #$00             ; aux -> main staging
+*--- aux -> main staging, translating our own wraps back out of the text. The
+*    file gets the writer's returns and nothing else, so what lands on the Mac
+*    reads like ordinary prose rather than something wrapped at column 76.
+*
+*    Y counts input, X counts output: a SOFTWD produces no byte at all, so the
+*    two are not the same once one has gone by.
+             ldy   #$00
+             ldx   #$00
 :copy        cpy   TMPC
              beq   :copied
-             jsr   AUXRD
-             sta   DATBUF,y
-             iny
+             jsr   AUXRD            ; leaves X alone
+             cmp   #SOFTWD
+             beq   :skip            ; stood in for nothing
+             cmp   #SOFTCR
+             bne   :put
+             lda   #$a0             ; stood in for a space; give it back
+:put         sta   DATBUF,x
+             inx
+:skip        iny
              jmp   :copy
 
-:copied      lda   TMPC
-             sta   WRITEPARM+4
+:copied      stx   WRITEPARM+4      ; what was actually staged, not what was read
              lda   #$00
              sta   WRITEPARM+5
              jsr   WRITEF
@@ -498,7 +510,7 @@ KLOAD        lda   #<MSGOPEN
              jsr   SHOWBUSY
              jsr   LOADFILE
              bcs   :err
-             jsr   HOMECURSOR
+             jsr   WRAPALL          ; the file carries none of our wraps
              jmp   RESTORESTAT      ; the busy notice was the feedback
 :err         jmp   SHOWERR
 :quit        rts

@@ -515,6 +515,38 @@ change that took sustained typing from 8 to 52 characters a second.
 The formatter consumes the total as it divides, so the singular/plural word is
 chosen before formatting rather than after.
 
+### Wrapped for the screen, unwrapped in the file
+
+The buffer marks its own wraps separately from the returns the writer typed, so
+the file can carry only the latter. Three break bytes, all below `TEXTLO`:
+
+| byte | | written as |
+|---|---|---|
+| `HARDCR` `$8D` | a return that was typed | a carriage return |
+| `SOFTCR` `$8A` | a wrap that replaced a space | a space |
+| `SOFTWD` `$8B` | a wrap inside an over-long word | nothing |
+
+`SOFTWD` exists because `DOWRAP` deletes the space it breaks at, but a word too
+long for the margin is broken with nothing removed. Collapsing both to "insert
+a space" would put a space through the middle of any URL longer than 76
+columns.
+
+Because the buffer only ever holds text (`$A0` and above) and breaks, the
+line-end test is **anything below `TEXTLO`** — one compare and branch, exactly
+what testing for a carriage return cost, so the redraw path is unchanged.
+
+`WRAPALL` runs after a load and walks the cursor forward calling the same
+`DOWRAP` the typing path uses, so a file is wrapped for the screen without the
+file ever having been. That is also what makes `make push` useful: an ordinary
+Markdown file from the Mac arrives properly wrapped rather than as 400-column
+lines.
+
+Reflow gained the ability to preserve a typed return while re-breaking the
+wrapper's own. It used to flatten every break in the paragraph, which was
+harmless when they were all the wrapper's and would be destructive now.
+
+Verified round trip: save, load, save again is byte identical.
+
 ### Known simplifications
 
 - **The clipboard is line based, not selection based.** With hard wrap a line

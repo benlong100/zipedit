@@ -33,8 +33,8 @@ CALCLINE     lda   #$00
              beq   :done
 :rd          ldy   #$00
              jsr   AUXRD
-             cmp   #$8d
-             bne   :next
+             cmp   #TEXTLO
+             bcs   :next
              inc   LINENO
              bne   :next
              inc   LINENO+1
@@ -203,9 +203,9 @@ RENDERROW    jsr   CLRBUF
              ldx   CCOL
 :scan        cpx   #SCRW
              bcs   :draw
-             lda   LINEBUF,x
-             cmp   #$8d
-             beq   :blank
+             lda   LINEBUF,x        ; buffer bytes, so any break ends the row
+             cmp   #TEXTLO
+             bcc   :blank
              inx
              bne   :scan
 :blank       lda   #$a0

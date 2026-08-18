@@ -35,8 +35,8 @@ CALCCOL       lda   #$00
 :d1          dec   AUXPTR
              ldy   #$00
              jsr   AUXRD
-             cmp   #$8d             ; start of line
-             beq   :done
+             cmp   #TEXTLO          ; start of line
+             bcc   :done
              inc   TMPC
              beq   :done            ; saturate rather than wrap round
              jmp   :loop
@@ -66,8 +66,8 @@ FINDSPC      lda   #$00
              inc   TMPB
              ldy   #$00
              jsr   AUXRD
-             cmp   #$8d
-             beq   :none            ; reached line start without a space
+             cmp   #TEXTLO
+             bcc   :none            ; reached line start without a space
              cmp   #$a0
              beq   :found
              lda   TMPB
@@ -98,8 +98,8 @@ DOWRAP       jsr   FINDSPC
              bne   :back
 
 :atspace     jsr   DELBACK          ; drop the space
-             lda   #$8d
-             jsr   INSCHR           ; put a newline in its place
+             lda   #SOFTCR          ; a break that stands in for that space,
+             jsr   INSCHR           ; and becomes one again when saved
 
              ldx   TMPB             ; and return to where we were
              dex
@@ -110,8 +110,10 @@ DOWRAP       jsr   FINDSPC
              bne   :fwd
 :done        rts
 
-*--- a single word longer than the margin: break it where the cursor stands
-:hard        lda   #$8d
+*--- a single word longer than the margin: break it where the cursor stands.
+*    Nothing was removed to make room, so this one saves as nothing at all --
+*    otherwise a long URL would come back with a space through the middle.
+:hard        lda   #SOFTWD
              jmp   INSCHR
 
 *--------------------------------------
@@ -153,41 +155,79 @@ PARASTART    jsr   BOL
 *--- the byte before a line start is the CR ending the line above
              jsr   GAPLEFT
              jsr   PEEKBACK
-             bcs   :after           ; that CR was the first byte in the buffer
-             cmp   #$8d
-             beq   :after           ; blank line above: paragraph starts below
+             bcs   :after           ; that break was the first byte in the buffer
+             cmp   #TEXTLO
+             bcc   :after           ; blank line above: paragraph starts below
              jmp   PARASTART        ; previous line is prose, keep going up
 :after       jsr   GAPRIGHT         ; step forward over the CR
 :done        rts
 
 *--------------------------------------
+* WRAPALL -- wrap the whole buffer to the margin, as if it had been typed
+*
+* A file on disk holds only the writer's returns, so every paragraph arrives as
+* one long line. Walking the cursor forward and calling the same DOWRAP that
+* the typing path calls puts our breaks back, marked as ours -- so a document
+* is wrapped for the screen without the file ever having been.
+*
+* This is also what makes `make push` useful: an ordinary Markdown file written
+* on the Mac now arrives here properly wrapped instead of as 400-column lines.
+*--------------------------------------
+WRAPALL      jsr   HOMECURSOR
+:loop        jsr   PEEKFWD
+             bcs   :done            ; end of buffer
+             jsr   GAPRIGHT
+             lda   CCOL
+             cmp   #WRAPCOL+1
+             bcc   :loop
+             jsr   DOWRAP           ; breaks behind us and returns the cursor
+             jmp   :loop
+:done        jmp   HOMECURSOR
+
+*--------------------------------------
 * REFLOW -- rejoin and re-wrap the paragraph around the cursor (OA-R)
 *
-* Walks forward from the paragraph start. A newline with prose after it is a
-* join, so it becomes a space; the wrap check then breaks the line wherever it
-* now needs breaking. A blank line ends the paragraph.
+* Walks forward from the paragraph start, undoing our own wraps and letting the
+* wrap check put them back where they now belong. A blank line ends it.
+*
+* Returns the writer typed are stepped over untouched. Reflow used to flatten
+* every break in the paragraph, which was fine when they were all ours; now
+* that we can tell them apart, an intentional line break survives a reflow.
+*
+* A SOFTCR stood in for a space and becomes one again. A SOFTWD stood in for
+* nothing and simply goes.
 *--------------------------------------
 REFLOW       jsr   PARASTART
 :loop        jsr   PEEKFWD
              bcs   :done            ; end of buffer
-             cmp   #$8d
-             bne   :char
+             cmp   #TEXTLO
+             bcs   :char            ; ordinary text: walk on
 
-*--- a newline: join unless the paragraph ends here
+*--- a break. Whatever kind it is, a blank line after it ends the paragraph.
+             pha
              jsr   PEEK2
-             bcs   :done            ; newline is the last byte
-             cmp   #$8d
-             beq   :done            ; blank line: paragraph ends
+             bcs   :enddrop         ; the break is the last byte
+             cmp   #TEXTLO
+             bcc   :enddrop         ; blank line: the paragraph ends here
+             pla
+
+             cmp   #HARDCR
+             beq   :char            ; the writer put this one here; keep it
+             cmp   #SOFTCR
+             bne   :bare            ; SOFTWD replaced nothing
              jsr   DELFWD
-             lda   #$a0
+             lda   #$a0             ; SOFTCR replaced a space; give it back
              jsr   INSCHR
+             jmp   :check
+:bare        jsr   DELFWD
              jmp   :check
 
 :char        jsr   GAPRIGHT
-
 :check       lda   CCOL
              cmp   #WRAPCOL+1
              bcc   :loop
              jsr   DOWRAP
              jmp   :loop
+
+:enddrop     pla
 :done        rts

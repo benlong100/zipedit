@@ -180,11 +180,11 @@ HOMECURSOR   jsr   GAPLEFT
 SAMPLE       asc   "# Notes from the Apple //e"
              dfb   $8d,$8d
              asc   "This editor is written in 6502 assembly and runs under ProDOS 8"
-             dfb   $8d
+             dfb   SOFTCR           ; one paragraph across four screen rows, so
              asc   "on an Enhanced Apple //e with 128K. The text you are reading"
-             dfb   $8d
+             dfb   SOFTCR           ; these three breaks are the wrapper's and
              asc   "was inserted into auxiliary memory one byte at a time, then"
-             dfb   $8d
+             dfb   SOFTCR           ; will not be written to the file
              asc   "read back out of it to draw this screen."
              dfb   $8d,$8d
              asc   "## How it writes"

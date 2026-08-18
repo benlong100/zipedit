@@ -119,6 +119,16 @@ STATROW      equ   23
 TEXTROWS     equ   22               ; when the cheat sheet is showing
 TEXTROWSMAX  equ   23               ; when it is hidden
 WRAPCOL      equ   76               ; hard wrap margin
+
+*--- Line breaks come in three kinds, and which kind it is only matters when
+*    the file is written. Everything else in the buffer is text at $a0 or
+*    above, so ANY byte below TEXTLO ends a line -- one compare, the same cost
+*    as testing for a carriage return, which is what the display path used to
+*    do and still needs.
+HARDCR       equ   $8d              ; a return the writer typed; saved as a CR
+SOFTCR       equ   $8a              ; wrap that replaced a space; saved as one
+SOFTWD       equ   $8b              ; wrap inside a word; saved as nothing
+TEXTLO       equ   $a0              ; below this is a break, not text
 LNDIG        equ   40               ; status column of the line number digits
 CLDIG        equ   47               ; status column of the column digits
 NAMECOL      equ   1                ; status column of the filename

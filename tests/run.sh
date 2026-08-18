@@ -1102,6 +1102,99 @@ snapshot
 assert_row "a new document goes back to UNTITLED.MD"   23 " UNTITLED.MD"
 
 #--------------------------------------
+# Wrapped for the screen, unwrapped in the file. The buffer marks its own wraps
+# separately from the writer's returns, so a saved file carries only the
+# returns that were typed and a loaded file gets our wraps put back.
+#--------------------------------------
+echo "unwrapped files"
+reboot
+
+# The sample's opening paragraph is four screen rows joined by our wraps.
+snapshot
+assert_row "the paragraph is wrapped on screen"        2 "This editor is written"
+assert_row "across several rows"                       3 "on an Enhanced Apple"
+
+"$VII" caps true >/dev/null
+k oa "S"; ktext "UNWRAP.MD"; "$VII" line "" >/dev/null
+"$VII" await "UNWRAP.MD" 90 || bad "save never completed"
+"$VII" caps false >/dev/null
+osascript -e 'tell application "Virtual ][" to tell (last machine) to eject device "S6D1"' >/dev/null 2>&1 || true
+
+# In the file that paragraph is one line, and the returns that were typed --
+# after the heading, between paragraphs, between list items -- are all still
+# there.
+"$ROOT/tools/ac" -g "$IMAGE" UNWRAP.MD 2>/dev/null > "$TMP/unwrap.bin" || true
+python3 - "$TMP/unwrap.bin" > "$TMP/unwrap.txt" <<'PY'
+import sys
+raw = open(sys.argv[1], "rb").read()
+sys.stdout.write("".join(chr(b & 0x7F) for b in raw).replace("\r", "\n"))
+PY
+para="$(sed -n '3p' "$TMP/unwrap.txt")"
+if [ "${#para}" -gt 200 ]; then
+    ok "the paragraph is one long line in the file"
+else
+    bad "the paragraph is one long line in the file" "line 3 is ${#para} characters: ${para:0:60}"
+fi
+if [ "$(sed -n '1p' "$TMP/unwrap.txt")" = "# Notes from the Apple //e" ]; then
+    ok "and the typed returns survive around it"
+else
+    bad "and the typed returns survive around it" "line 1: $(sed -n '1p' "$TMP/unwrap.txt")"
+fi
+# A wrap inside an over-long word saves as nothing, not as a space, so no
+# stray space can appear inside a word.
+if grep -q "one screen row" "$TMP/unwrap.txt"; then
+    ok "list items keep their own returns"
+else
+    bad "list items keep their own returns" "list item missing from the file"
+fi
+
+# Loading puts our wraps back, so the screen is wrapped again.
+reboot
+"$VII" caps true >/dev/null
+k oa "O"; ktext "UNWRAP.MD"; "$VII" line "" >/dev/null
+"$VII" await "Notes from the Apple" 120 || bad "load never completed"
+"$VII" settle 3 >/dev/null
+snapshot
+assert_maxcols "the loaded paragraph is re-wrapped"     2 "$WRAPCOL"
+assert_maxcols "on every row of it"                     3 "$WRAPCOL"
+assert_row     "and it continues onto the next row"     3 "Enhanced Apple"
+
+# Save it again: the round trip must not drift.
+k oa "A"; ktext "UNWRAP2.MD"; "$VII" line "" >/dev/null
+"$VII" await "UNWRAP2.MD" 90 || bad "second save never completed"
+"$VII" caps false >/dev/null
+osascript -e 'tell application "Virtual ][" to tell (last machine) to eject device "S6D1"' >/dev/null 2>&1 || true
+"$ROOT/tools/ac" -g "$IMAGE" UNWRAP2.MD 2>/dev/null > "$TMP/unwrap2.bin" || true
+if cmp -s "$TMP/unwrap.bin" "$TMP/unwrap2.bin"; then
+    ok "save, load and save again is byte identical"
+else
+    bad "save, load and save again is byte identical" \
+        "$(wc -c < "$TMP/unwrap.bin") bytes then $(wc -c < "$TMP/unwrap2.bin") bytes"
+fi
+
+#--------------------------------------
+# Reflow keeps the writer's returns. It used to flatten every break in the
+# paragraph, which was harmless when they were all the wrapper's.
+#--------------------------------------
+echo "reflow keeps typed returns"
+reboot
+
+"$VII" caps true >/dev/null; k oa "N"; "$VII" caps false >/dev/null
+ktext "alpha"
+"$VII" line "" >/dev/null; "$VII" settle 2 >/dev/null
+ktext "beta"
+"$VII" settle 2 >/dev/null
+snapshot
+assert_row "two lines, split by a typed return"         0 "alpha"
+assert_row "the second on its own row"                  1 "beta"
+
+"$VII" caps true >/dev/null; k oa "R"; "$VII" caps false >/dev/null
+"$VII" settle 3 >/dev/null
+snapshot
+assert_row "reflow leaves the typed return alone"       0 "alpha"
+assert_row "so the lines stay apart"                    1 "beta"
+
+#--------------------------------------
 # File I/O. Round trips through a real ProDOS volume in the mounted image.
 #--------------------------------------
 echo "file i/o"

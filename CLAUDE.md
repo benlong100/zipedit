@@ -60,6 +60,10 @@ generator probe, `src/hello.S` is the minimal toolchain check.
   screen codes and they are generated: edit the layout in `tools/genhelp.py`
   and re-run it. It enforces the column stops, so a description that would
   overrun the border fails there instead of shipping mangled.
+- **Line breaks come in three kinds.** `HARDCR` is a return the writer typed,
+  `SOFTCR` a wrap that replaced a space, `SOFTWD` a wrap inside a long word.
+  Only `HARDCR` reaches the file. Test for a line end with `cmp #TEXTLO / bcc`,
+  never `cmp #$8d` — a missed one is a break that some subsystem cannot see.
 - **High ASCII.** Anything destined for the screen or for a text file has bit 7
   set. `asc "..."` (double quotes) sets it; single quotes do not.
 

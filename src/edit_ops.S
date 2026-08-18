@@ -247,8 +247,8 @@ GRABLINE     lda   #$00
              bcs   :done
              ldy   #$00
              jsr   AUXRD
-             cmp   #$8d
-             beq   :done
+             cmp   #TEXTLO
+             bcc   :done
              sta   CLIPBUF,x
              inx
              inc   AUXPTR
@@ -280,10 +280,10 @@ KCUT         jsr   COPYSEL          ; a selection wins over the whole line
 :del         jsr   DELFWD
              dec   TMPA
              bne   :del
-:nl          jsr   PEEKFWD          ; and take the newline with it
+:nl          jsr   PEEKFWD          ; and take the break with it
              bcs   :done
-             cmp   #$8d
-             bne   :done
+             cmp   #TEXTLO
+             bcs   :done
              jsr   DELFWD
 :done        rts                       ; no message: the line visibly went away
 
@@ -325,10 +325,8 @@ KWORDS       lda   #$00
              bcs   :count
              ldy   #$00
              jsr   AUXRD
-             cmp   #$a0             ; space
-             beq   :blank
-             cmp   #$8d             ; carriage return
-             beq   :blank
+             cmp   #TEXTLO+1        ; a space, or any kind of break
+             bcc   :blank
 
 *--- non-blank: a word begins here unless we were already inside one
              lda   INWORD
@@ -457,7 +455,7 @@ KPASTE       jsr   DELSEL
              bne   :loop
              lda   CLIPLINE
              beq   :done
-             lda   #$8d
+             lda   #HARDCR          ; a pasted line ends with a real return
              jsr   INSCHR
 :done        rts
 
@@ -482,9 +480,8 @@ WORDBACK     lda   #$00
 :d1          dec   AUXPTR
              ldy   #$00
              jsr   AUXRD
-             cmp   #$8d
-             beq   :stop
-             cmp   #$a0             ; space ends the word
+             cmp   #TEXTLO+1        ; a space or a break ends the word
+             bcc   :stop
              beq   :stop
              inc   TMPB
              lda   TMPB
@@ -514,8 +511,8 @@ EMPHASIS     sta   EMCHR
 *    emphasis takes the whole word rather than the half behind the cursor
 :toend       jsr   PEEKFWD
              bcs   :atend
-             cmp   #$8d
-             beq   :atend
+             cmp   #TEXTLO+1
+             bcc   :atend
              cmp   #$a0
              beq   :atend
              jsr   GAPRIGHT
@@ -604,8 +601,8 @@ WBUF         ds    16               ; " 1234 WORDS" and its terminator
 *--------------------------------------
 KDELEOL      jsr   PEEKFWD
              bcs   :done
-             cmp   #$8d
-             beq   :done
+             cmp   #TEXTLO
+             bcc   :done
              jsr   DELFWD
              jmp   KDELEOL
 :done        rts
@@ -615,8 +612,8 @@ KDELEOL      jsr   PEEKFWD
 *--------------------------------------
 KWORDL       jsr   PEEKBACK
              bcs   :done
-             cmp   #$8d             ; at a line start: step onto the line above
-             bne   :sp
+             cmp   #TEXTLO          ; at a line start: step onto the line above
+             bcs   :sp
              jsr   GAPLEFT
              jmp   KWORDL
 :sp          jsr   PEEKBACK         ; back over any spaces
@@ -627,10 +624,8 @@ KWORDL       jsr   PEEKBACK
              jmp   :sp
 :word        jsr   PEEKBACK         ; then over the word itself
              bcs   :done
-             cmp   #$a0
-             beq   :done
-             cmp   #$8d
-             beq   :done
+             cmp   #TEXTLO+1        ; a space or a break stops us
+             bcc   :done
              jsr   GAPLEFT
              jmp   :word
 :done        rts
@@ -640,18 +635,14 @@ KWORDL       jsr   PEEKBACK
 *--------------------------------------
 KWORDR       jsr   PEEKFWD          ; forward over the current word
              bcs   :done
-             cmp   #$a0
-             beq   :sp
-             cmp   #$8d
-             beq   :sp
+             cmp   #TEXTLO+1
+             bcc   :sp
              jsr   GAPRIGHT
              jmp   KWORDR
 :sp          jsr   PEEKFWD          ; then over the gap between words
              bcs   :done
-             cmp   #$a0
-             beq   :take
-             cmp   #$8d
-             bne   :done
-:take        jsr   GAPRIGHT
+             cmp   #TEXTLO+1
+             bcs   :done
+             jsr   GAPRIGHT
              jmp   :sp
 :done        rts
