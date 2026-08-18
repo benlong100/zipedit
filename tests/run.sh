@@ -434,11 +434,31 @@ reboot
 "$VII" await "KEYBOARD COMMANDS" 60 || bad "OA-? never opened help"
 snapshot
 # The border is MouseText. Virtual ][ reads those codes back as the ASCII
-# characters they share a code with: $5C -> backslash, $4C -> L, $5F -> _.
-assert_row "the top border is a MouseText rule"       0 '\\\\'
+# characters they share a code with: $4C -> L, $5F -> _, $5C -> backslash.
+#
+# Every rule must be $4C. $5C draws TWO strokes, one at the top of its cell and
+# one at the bottom, so a row of it renders as a double line -- that is what put
+# a stray line across the top of the screen and two lines under the title. No
+# backslash may appear anywhere in the box.
+if "$VII" screen-raw | sed -n '1,21p' | grep -q '\\\\'; then
+    bad "no double-stroke rule anywhere in the box" "a $5C row is present"
+else
+    ok "no double-stroke rule anywhere in the box"
+fi
+assert_row "the box has a top edge"                   0 "LLLLLLLL"
+assert_row "help is titled"                           1 "KEYBOARD COMMANDS"
+assert_row "a single rule sits under the title"       2 "LLLLLLLL"
 assert_row "the sides are MouseText verticals"        5 "_   arrows"
 assert_row "the bottom border is a MouseText rule"   20 "LLLLLLLL"
-assert_row "help is titled"                           1 "KEYBOARD COMMANDS"
+
+# $5F draws its vertical at the LEFT edge of its cell, so a full 64-cell rule
+# overhangs the corner by a whole cell. 8 leading columns + 63 rule cells = 71.
+bottom="$("$VII" screen-raw | sed -n '21p' | sed 's/[[:space:]]*$//')"
+if [ "${#bottom}" -eq 71 ]; then
+    ok "the bottom rule stops at the vertical"
+else
+    bad "the bottom rule stops at the vertical" "rule ends at column ${#bottom}, expected 71"
+fi
 
 # Page one is the typing page: moving, editing, selecting.
 assert_row "page one lists movement keys"             5 "char / line"
@@ -449,7 +469,7 @@ assert_row "page one keeps a gap before the border"   7 "delete to line end "
 assert_row "page one lists selecting"                12 "A-space      start selecting"
 assert_row "page one says a key turns the page"      19 "press any key for more"
 assert_row "page one numbers itself"                 19 "page 1 of 2"
-assert_row "page one lists the Tab indent"             8 "indent two spaces"
+assert_row "page one lists the Tab indent"            8 "indent two spaces"
 assert_row "the status line still shows under the box" 23 "UNTITLED.MD"
 
 # A key turns to page two rather than dismissing. CLIPBOARD appears only there.
@@ -459,8 +479,8 @@ snapshot
 assert_row "page two lists the Markdown keys"         5 "**bold** word"
 assert_row "page two lists search"                    5 "find / again"
 assert_row "page two lists the clipboard"             8 "CLIPBOARD"
-assert_row "page two lists the file keys"            11 "A-S      save"
 assert_row "page two lists new"                       9 "A-N      new"
+assert_row "page two lists the file keys"            11 "A-S      save"
 assert_row "page two lists the screen toggles"       15 "cheat sheet"
 assert_row "page two says a key leaves"              19 "press any key to return"
 assert_row "page two numbers itself"                 19 "page 2 of 2"

@@ -266,6 +266,19 @@ codes. Note also that Virtual ][ reads these codes back as the ASCII characters
 sharing their value: `$5C` as backslash, `$4C` as `L`, `$5F` as underscore.
 Tests assert against those.
 
+The two rules are not what the first reading of the probe assumed. `$4C` is a
+single stroke at the top of its cell. `$5C` is not a second rule at a different
+height -- it draws **two** strokes, top and bottom of the same cell, so a row of
+it renders as a double line. Building the box out of `$5C` laid a stray line
+across the top of the screen; removing that row moved the pair under the title
+instead. Every rule is `$4C` now. `$5F` draws its vertical at the left edge of
+its cell, which is why the bottom rule is 63 cells rather than 64 -- a 64th runs
+a whole cell past the right-hand vertical.
+
+None of this was visible to the tests, which asserted that row N contained some
+text. That stays true whether a rule doubles or overhangs. It took looking at
+the screen, and the assertions now check the glyphs and the rule width directly.
+
 **The help screen is two pages**, because one screen held every command and had
 run out of room -- the selecting and clipboard columns had grown into each
 other with no gap left between them. `OA-?` opens page one, a key turns to page

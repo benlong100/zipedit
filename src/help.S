@@ -21,10 +21,19 @@
 * exists.
 *
 * The border is MouseText, available at screen codes $40-$5F once the alternate
-* character set is on. Probed rather than recalled: $5C and $4C are horizontal
-* rules at different heights within the cell, and $5F is a clean vertical. The
-* low rule goes on top and the high rule on the bottom so both meet the
-* verticals and the box closes.
+* character set is on. Probed rather than recalled -- and the first reading of
+* the probe was wrong in a way only a real screen showed.
+*
+* $4C is a single stroke at the TOP of its cell. $5C is NOT a second rule at a
+* different height: it draws TWO strokes, one at the top of its cell and one at
+* the bottom, so a row of it renders as a double line. Using it for the top
+* edge is what laid a stray line across the top of the screen, and using it
+* under the title put two lines there. Every rule in this box is $4C, which
+* sits hard against the row above it so the verticals descend cleanly from it.
+*
+* $5F is a clean vertical, drawn at the LEFT edge of its cell. That is why the
+* bottom rule is 63 cells and not 64 -- a 64th would run a whole cell past the
+* right-hand vertical, which is exactly what it used to do.
 *
 * MouseText has no corner or T-junction glyphs on this ROM -- $40-$4A are
 * apples, a pointer, an hourglass, check marks and arrows -- so a corner is
@@ -131,16 +140,16 @@ HELPTBL2
              da    H220
 
 H100
-             hex   5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C
-             hex   5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C
+             hex   5F4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C
+             hex   4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C5F
              dfb   $00
 H101
              hex   5FA0A0A0CDC1D2CBC4CFD7CEA0C5C4C9D4CFD2A0C6CFD2A0D4C8C5A0C1D0D0CC
              hex   C5A0AFAFE5A0A0ADADA0A0CBC5D9C2CFC1D2C4A0C3CFCDCDC1CEC4D3A0A0A05F
              dfb   $00
 H102
-             hex   5F5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C
-             hex   5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5F
+             hex   5F4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C
+             hex   4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C5F
              dfb   $00
 H103
              hex   5FA0A0A0A0A0A0A0A0A0A0A0A0A0A0A0A0A0A0A0A0A0A0A0A0A0A0A0A0A0A0A0
@@ -212,19 +221,19 @@ H119
              dfb   $00
 H120
              hex   4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C
-             hex   4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C
+             hex   4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C
              dfb   $00
 H200
-             hex   5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C
-             hex   5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C
+             hex   5F4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C
+             hex   4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C5F
              dfb   $00
 H201
              hex   5FA0A0A0CDC1D2CBC4CFD7CEA0C5C4C9D4CFD2A0C6CFD2A0D4C8C5A0C1D0D0CC
              hex   C5A0AFAFE5A0A0ADADA0A0CBC5D9C2CFC1D2C4A0C3CFCDCDC1CEC4D3A0A0A05F
              dfb   $00
 H202
-             hex   5F5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C
-             hex   5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5F
+             hex   5F4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C
+             hex   4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C5F
              dfb   $00
 H203
              hex   5FA0A0A0A0A0A0A0A0A0A0A0A0A0A0A0A0A0A0A0A0A0A0A0A0A0A0A0A0A0A0A0
@@ -296,7 +305,7 @@ H219
              dfb   $00
 H220
              hex   4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C
-             hex   4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C
+             hex   4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C4C
              dfb   $00
              dum   $1420
 HELPI        ds    1

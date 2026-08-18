@@ -90,14 +90,23 @@ def centre(t):
     return row([((W - len(t)) // 2, t)])
 
 def build(content, foot):
-    out  = ["~" * 64]                       # 0  top rule
+    # Every rule is $4C. $5C is NOT a second rule at a different height -- it
+    # draws TWO strokes, one at the top of its cell and one at the bottom, so a
+    # row of it renders as a double line. That is what put a stray line across
+    # the top of the screen and, once that row was removed, two lines under the
+    # title. $4C draws a single stroke at the TOP of its cell, so a rule row
+    # sits hard against the row above it and the verticals descend from it.
+    #
+    # The bottom rule is 63 cells, not 64: $5F draws its vertical at the LEFT
+    # edge of its cell, so a 64-cell rule runs a whole cell past the corner.
+    out  = ["|" + "=" * W + "|"]            # 0  top edge
     out += ["|" + centre(TITLE) + "|"]      # 1  title
-    out += ["|" + "~" * W + "|"]            # 2  rule under the title
-    body = [""] + content                   # 3  blank, then rows 4..14
-    body += [""] * (16 - len(body))         # pad rows out to row 18
+    out += ["|" + "=" * W + "|"]            # 2  rule under the title
+    body = [""] + content                   # 3  blank, then the content rows
+    body += [""] * (16 - len(body))         # pad out to row 18
     out += ["|" + row([(0, b)]) + "|" for b in body]
     out += ["|" + centre(foot) + "|"]       # 19 footer
-    out += ["=" * 64]                       # 20 bottom rule
+    out += ["=" * 63]                       # 20 bottom edge
     assert len(out) == 21, len(out)
     return out
 
@@ -119,7 +128,7 @@ else:
     for pi, p in enumerate(pages, 1):
         for i, line in enumerate(p):
             b = encode(line)
-            assert len(b) == 64, (pi, i, len(b))
+            assert len(b) in (63, 64), (pi, i, len(b))
             print(f"H{pi}{i:02d}")
             print("             hex   " + b[:32].hex().upper())
             print("             hex   " + b[32:].hex().upper())
