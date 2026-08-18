@@ -151,6 +151,8 @@ KEYTBL
              da    KLOAD            ; OA-O
              dfb   $d1,$80
              da    KQUIT            ; OA-Q
+             dfb   $ce,$80
+             da    KNEW             ; OA-N
              dfb   $00              ; end of table
 
 *--------------------------------------
@@ -191,17 +193,17 @@ KRETURN      lda   #$8d
              jmp   INSCHR
 
 *--------------------------------------
-* KQUIT -- hand control back to ProDOS, but not over unsaved work
+* ASKUNSAVED -- guard anything that would throw the document away
 *
-* OA-Q sits next to OA-S and OA-O on the keyboard, so a slip is easy and the
-* cost is the whole document. If anything has been edited since the last save
-* or load, ask first.
+* Carry set to go ahead, clear to stay put. Shared by OA-Q and OA-N, because
+* both discard the document completely and a guard that only one of them used
+* would be the one you found out about the hard way.
 *--------------------------------------
-KQUIT        lda   MODFLAG
-             beq   DOQUIT
-             lda   #<MSGQUIT
+ASKUNSAVED   lda   MODFLAG
+             beq   :yes             ; nothing to lose
+             lda   #<MSGUNSAVED
              sta   STRPTR
-             lda   #>MSGQUIT
+             lda   #>MSGUNSAVED
              sta   STRPTR+1
              jsr   SHOWMSG
 
@@ -210,30 +212,73 @@ KQUIT        lda   MODFLAG
              cmp   #$d3             ; S -- save first
              beq   :save
              cmp   #$c4             ; D -- discard
-             beq   DOQUIT
+             beq   :discard
              cmp   #$9b             ; Esc -- carry on editing
-             beq   :stay
+             beq   :no
              jmp   :ask
 
-:stay        jmp   RESTORESTAT
-
 *--- KSAVE clears MODFLAG only if the save actually succeeded, so this both
-*    handles a cancelled prompt and refuses to quit on a write error
+*    handles a cancelled prompt and refuses to go on after a write error
 :save        jsr   KSAVE
              lda   MODFLAG
-             bne   :stay
+             bne   :no
+:discard     jsr   RESTORESTAT      ; retire the prompt before going ahead
+:yes         sec
+             rts
+:no          jsr   RESTORESTAT
+             clc
+             rts
 
-DOQUIT       jsr   MLI
+MSGUNSAVED   asc   " UNSAVED CHANGES.  S = SAVE FIRST   D = DISCARD   ESC = CANCEL"
+             dfb   $00
+
+*--------------------------------------
+* KQUIT -- hand control back to ProDOS, but not over unsaved work
+*
+* OA-Q sits next to OA-S and OA-O on the keyboard, so a slip is easy and the
+* cost is the whole document. If anything has been edited since the last save
+* or load, ask first.
+*--------------------------------------
+KQUIT        jsr   ASKUNSAVED
+             bcc   :stay
+             jsr   MLI
              dfb   $65
              da    QUITPARM
-             rts                    ; not reached
-MSGQUIT      asc   " UNSAVED CHANGES.  S = SAVE FIRST   D = DISCARD   ESC = CANCEL"
-             dfb   $00
+:stay        rts                    ; the MLI quit does not come back
+
 QUITPARM     dfb   $04
              dfb   $00
              da    $0000
              dfb   $00
              da    $0000
+
+*--------------------------------------
+* KNEW -- start an empty document (OA-N)
+*
+* Guarded exactly as quitting is, since it throws the document away just as
+* thoroughly. This resets everything START sets up, minus the sample text: an
+* empty gap buffer, viewport and cursor at the top, no selection, no goal
+* column, and the filename forgotten so the next save asks for a new one.
+*
+* Nothing clears the screen here. BLANKTAIL already wipes the text rows past
+* the end of the buffer on the next full redraw, and an empty buffer means
+* every one of them.
+*--------------------------------------
+KNEW         jsr   ASKUNSAVED
+             bcc   :stay
+             lda   #$00
+             sta   SCROLLTOP
+             sta   SCROLLTOP+1
+             sta   GOALCOL
+             sta   VERTMOVE
+             sta   WASVERT
+             sta   FNAME            ; length 0, so OA-S asks for a name
+             jsr   SELINIT
+             jsr   BUFINIT          ; empties the buffer; clears MODFLAG too
+             jsr   HOMECURSOR
+             jsr   DRAWSTATUS
+             jmp   STATUPD
+:stay        rts
 
 *--------------------------------------
 * PEEKBACK -- read the byte before the cursor without moving it.

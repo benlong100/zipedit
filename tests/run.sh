@@ -459,8 +459,9 @@ snapshot
 assert_row "page two lists the Markdown keys"         5 "**bold** word"
 assert_row "page two lists search"                    5 "find / again"
 assert_row "page two lists the clipboard"             8 "CLIPBOARD"
-assert_row "page two lists the file keys"            10 "A-S      save"
-assert_row "page two lists the screen toggles"       14 "cheat sheet"
+assert_row "page two lists the file keys"            11 "A-S      save"
+assert_row "page two lists new"                       9 "A-N      new"
+assert_row "page two lists the screen toggles"       15 "cheat sheet"
 assert_row "page two says a key leaves"              19 "press any key to return"
 assert_row "page two numbers itself"                 19 "page 2 of 2"
 assert_row "page two is still the same box"          20 "LLLLLLLL"
@@ -687,6 +688,49 @@ if "$VII" screen | grep -qE "SELECT|S6,D1"; then
 else
     bad "OA-Q with no unsaved work quits immediately" "screen: $("$VII" screen | head -2 | tr '\n' '|')"
 fi
+
+#--------------------------------------
+# New document. OA-N throws the whole document away, so it is guarded exactly
+# as OA-Q is -- they share ASKUNSAVED, and these assertions are what stop the
+# two from drifting apart.
+#--------------------------------------
+echo "new document"
+reboot
+
+ktext "zz"
+assert_mod "editing before New raises MOD"                      "MOD"
+
+"$VII" caps true >/dev/null
+k oa "N"
+sleep 2; snapshot
+assert_row "OA-N with unsaved work asks first"                 23 "UNSAVED CHANGES"
+
+"$VII" key esc >/dev/null; sleep 2
+snapshot
+assert_row "Esc returns to editing"                            23 "UNTITLED.MD"
+assert_row "and the document is untouched"                      0 "zz# Notes from the Apple"
+assert_mod "and it is still modified"                           "MOD"
+
+# D discards. The buffer empties and the cursor goes back to the top.
+k oa "N"; sleep 1
+"$VII" text "D" >/dev/null
+"$VII" settle 2 >/dev/null
+snapshot
+assert_blank "New empties the first row"                        0
+assert_blank "and the rows below it"                           10
+assert_mod "a new document counts as no unsaved work"           "   "
+assert_lc "and the cursor sits at the top"                      1 1
+
+# Nothing outstanding now, so OA-N must wipe without asking.
+k oa "N"
+sleep 2; snapshot
+assert_row "OA-N with no unsaved work does not ask"            23 "UNTITLED.MD"
+
+"$VII" caps false >/dev/null       # caps went on for the OA-N chords above
+ktext "fresh"
+snapshot
+assert_row "typing starts the new document"                     0 "fresh"
+assert_mod "and typing marks the new document modified"         "MOD"
 
 #--------------------------------------
 # File I/O. Round trips through a real ProDOS volume in the mounted image.

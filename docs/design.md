@@ -389,10 +389,22 @@ That preserves both behaviours in the contexts where each is actually wanted.
 | OA-F / OA-G | find / find again |
 | OA-L | go to line |
 | OA-R | reflow paragraph |
+| OA-N | new document — asks first if there are unsaved changes |
 | OA-O / OA-S | open / save |
 | OA-? | keyboard help, two pages -- a key turns, a key leaves |
 | OA-/ | toggle cheat sheet |
 | OA-Q | quit — asks first if the document has unsaved changes |
+
+`OA-N` and `OA-Q` both discard the document outright, so they share one
+guard, `ASKUNSAVED`. It returns carry set to go ahead and clear to stay put,
+and the `S` branch only proceeds when the save actually cleared `MODFLAG` --
+so a cancelled filename prompt or a write error keeps the document. Sharing
+it is deliberate: a guard that only one of the two used would be the one you
+found out about the hard way.
+
+New resets what `START` sets up, minus the sample text. Nothing clears the
+screen: `BLANKTAIL` already wipes text rows past the end of the buffer, and
+an empty buffer means all of them.
 
 Dispatch is a table of (key, modifier mask, handler address) scanned linearly —
 the table is short enough that a scan beats any cleverness. Open-Apple letters
