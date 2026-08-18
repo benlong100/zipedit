@@ -1155,6 +1155,50 @@ assert_row "and cancelling that keeps the document"     0 "unsaved edit"
 "$VII" caps false >/dev/null
 
 #--------------------------------------
+# xfer.sh unwrap, for files saved before the editor could tell its own wrapping
+# from a typed return. Host side only -- no emulator involved.
+#--------------------------------------
+echo "xfer unwrap"
+u="$TMP/legacy"; mkdir -p "$u"
+printf 'A paragraph that the old\neditor wrapped at the margin.\n\n- list item one\n- list item two\n\n```\ncode line\nmore code\n```\n\n# A heading\nfollowed by prose.\n\nEnds with a hard break  \nnext line.\n' > "$u/legacy.md"
+"$ROOT/tools/xfer.sh" unwrap "$u/legacy.md" >/dev/null 2>&1
+
+if [ "$(sed -n '1p' "$u/legacy.md")" = "A paragraph that the old editor wrapped at the margin." ]; then
+    ok "unwrap joins a wrapped paragraph"
+else
+    bad "unwrap joins a wrapped paragraph" "line 1: $(sed -n '1p' "$u/legacy.md")"
+fi
+if [ "$(grep -c '^- list item' "$u/legacy.md")" = "2" ]; then
+    ok "and leaves list items on their own lines"
+else
+    bad "and leaves list items on their own lines" "$(grep -n 'list item' "$u/legacy.md" | tr '\n' '|')"
+fi
+if grep -qx "code line" "$u/legacy.md" && grep -qx "more code" "$u/legacy.md"; then
+    ok "and passes fenced code through untouched"
+else
+    bad "and passes fenced code through untouched" "$(sed -n '/```/,/```/p' "$u/legacy.md" | tr '\n' '|')"
+fi
+if grep -qx "# A heading" "$u/legacy.md"; then
+    ok "and never joins prose onto a heading"
+else
+    bad "and never joins prose onto a heading" "$(grep -n heading "$u/legacy.md")"
+fi
+if grep -q "hard break  $" "$u/legacy.md"; then
+    ok "and respects a Markdown hard break"
+else
+    bad "and respects a Markdown hard break" "trailing double space was eaten"
+fi
+
+# Running it twice must be a no-op, not a slow drift.
+cp "$u/legacy.md" "$u/once.md"
+"$ROOT/tools/xfer.sh" unwrap "$u/legacy.md" >/dev/null 2>&1
+if cmp -s "$u/once.md" "$u/legacy.md"; then
+    ok "and is idempotent"
+else
+    bad "and is idempotent" "a second pass changed the file"
+fi
+
+#--------------------------------------
 # Wrapped for the screen, unwrapped in the file. The buffer marks its own wraps
 # separately from the writer's returns, so a saved file carries only the
 # returns that were typed and a loaded file gets our wraps put back.

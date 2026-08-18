@@ -556,6 +556,13 @@ harmless when they were all the wrapper's and would be destructive now.
 
 Verified round trip: save, load, save again is byte identical.
 
+Files written before this change have a plain return at every wrap, so the
+editor now reads all of them as deliberate — and reflow, which respects them,
+cannot repair such a file. `tools/xfer.sh unwrap` rejoins their paragraphs on
+the Mac as a one-off; pushing the result back gives a document that wraps and
+reflows normally. It refuses to write if the whitespace-normalised text would
+change, since unwrapping should only ever turn a newline into a space.
+
 ### Known simplifications
 
 - **The clipboard is line based, not selection based.** With hard wrap a line

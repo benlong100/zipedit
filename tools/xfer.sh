@@ -3,6 +3,7 @@
 #
 #   xfer.sh pull <image> <dir>   image -> dir, as UTF-8 with LF endings
 #   xfer.sh push <image> <dir>   dir -> image, as ProDOS TXT
+#   xfer.sh unwrap <file>...     rejoin paragraphs in a legacy file, in place
 #
 # Apple II text files are high ASCII with CR ($8D) line endings; the Mac wants
 # low ASCII with LF. That conversion is the whole job.
@@ -10,6 +11,13 @@
 # This also works against real hardware: dd a CFFA CompactFlash card to a .po
 # file and the same commands apply, so the emulator and the real //e share one
 # workflow.
+#
+# `unwrap` is for files saved before the editor learned to tell its own wrapping
+# from a return the writer typed. In those every line ending is the same byte, so
+# nothing can recover the difference -- and reflow in the editor cannot help,
+# because it now treats every return as deliberate. This joins each paragraph
+# back into one line so the file behaves like ordinary Mac text again. Files
+# saved since do not need it: the editor already writes them unwrapped.
 #
 # NOTE: Virtual ][ buffers writes to a mounted image until the disk is ejected.
 # Pull after saving in the emulator will show stale contents unless you eject
@@ -19,9 +27,17 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 AC="$ROOT/tools/ac"
 
-cmd="${1:?usage: xfer.sh pull|push <image> <dir>}"
-IMAGE="${2:?}"
-DIR="${3:?}"
+cmd="${1:?usage: xfer.sh pull|push <image> <dir> | unwrap <file>...}"
+shift
+
+# pull and push work on an image and a directory; unwrap works on plain files,
+# so only the first two demand them.
+case "$cmd" in
+pull|push)
+    IMAGE="${1:?usage: xfer.sh $cmd <image> <dir>}"
+    DIR="${2:?usage: xfer.sh $cmd <image> <dir>}"
+    ;;
+esac
 
 case "$cmd" in
 pull)
@@ -64,8 +80,11 @@ push)
     n=0
     for f in "$DIR"/*.md "$DIR"/*.markdown; do
         [ -e "$f" ] || continue
-        base="$(basename "${f%.*}" | tr 'a-z' 'A-Z' | tr -c 'A-Z0-9.' '.')"
-        name="$(echo "$base" | cut -c1-12).MD"
+        # printf, not echo: basename ends with a newline, and `tr -c` faithfully
+        # turns that newline into a dot -- which is how every pushed file ended
+        # up called NAME..MD instead of NAME.MD.
+        base="$(printf '%s' "$(basename "${f%.*}")" | tr 'a-z' 'A-Z' | tr -c 'A-Z0-9.' '.')"
+        name="$(printf '%s' "$base" | cut -c1-12).MD"
         python3 -c '
 import sys
 text = open(sys.argv[1],encoding="utf-8").read().replace("\n","\r")
@@ -80,8 +99,63 @@ sys.stdout.buffer.write(bytes((ord(c) | 0x80) & 0xFF for c in text if ord(c) < 1
     echo "pushed $n file(s) to $IMAGE"
     ;;
 
+unwrap)
+    [ $# -gt 0 ] || { echo "usage: xfer.sh unwrap <file>..." >&2; exit 1; }
+    for f in "$@"; do
+        [ -f "$f" ] || { echo "  no such file: $f" >&2; continue; }
+        python3 - "$f" <<'PY'
+import re, sys, pathlib
+
+# Lines that must never be joined: blank, headings, list items, ordered items,
+# quotes, tables, horizontal rules, indented code. Joining any of these is how
+# an unwrapper eats a list.
+STRUCT = re.compile(r'^(\s*$|#{1,6} |[-*+] |\d+[.)] |> |\||-{3,}\s*$|={3,}\s*$|    |\t|```|~~~)')
+FENCE  = re.compile(r'^\s*(```|~~~)')
+
+def unwrap(text):
+    out, fenced = [], False
+    for line in text.split("\n"):
+        if FENCE.match(line):
+            fenced = not fenced
+            out.append(line)
+            continue
+        if fenced:                      # code is passed through untouched
+            out.append(line)
+            continue
+        prev = out[-1] if out else ""
+        joinable = (out and prev and not STRUCT.match(prev)
+                    and not STRUCT.match(line)
+                    and not prev.endswith("  "))   # a Markdown hard break
+        if joinable:
+            out[-1] = prev + " " + line
+        else:
+            out.append(line)
+    return "\n".join(out)
+
+path = pathlib.Path(sys.argv[1])
+before = path.read_text(encoding="utf-8")
+after = unwrap(before)
+
+# Unwrapping only ever turns a newline into a space, so the text with runs of
+# whitespace collapsed must come out identical. If it does not, something was
+# lost or moved and the file is left alone.
+sig = lambda t: re.sub(r'\s+', ' ', t).strip()
+if sig(before) != sig(after):
+    print(f"  REFUSED {path}: content would change, left untouched", file=sys.stderr)
+    sys.exit(1)
+
+if after == before:
+    print(f"  {path}: already unwrapped")
+else:
+    path.write_text(after, encoding="utf-8")
+    b, a = len(before.split("\n")), len(after.split("\n"))
+    print(f"  {path}: {b} lines -> {a}")
+PY
+    done
+    ;;
+
 *)
-    sed -n '2,12p' "$0"
+    sed -n '2,14p' "$0"
     exit 1
     ;;
 esac
