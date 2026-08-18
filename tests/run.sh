@@ -381,7 +381,7 @@ assert_row "help lists movement keys"                 4 "arrows"
 assert_row "help lists the Markdown keys"            14 "**bold** word"
 # The Open Apple is now its own glyph ($41), which Virtual ][ reads back as "A"
 # since they share a code. Verified identical on real hardware.
-assert_row "help lists selecting"                    10 "shift-arrows paint"
+assert_row "help lists selecting"                    10 "A-space     start selecting"
 assert_row "help lists the file keys"                15 "A-S       save"
 assert_row "help tells you how to leave"             19 "press any key to return"
 assert_row "help lists the clipboard"                 9 "CLIPBOARD"
@@ -505,9 +505,9 @@ else
 fi
 
 #--------------------------------------
-# Selection. Shift-arrow cannot be driven from here -- Virtual ][ has no way to
-# send an arrow with a modifier held -- so these exercise the OA-Space mode,
-# which shares every code path except the trigger.
+# Selection. OA-Space latches the mode, the arrows paint, Esc cancels.
+# Shift-arrow was tried and dropped: $C063 does not track the shift key on real
+# //e hardware, so there was nothing to detect.
 #--------------------------------------
 echo "selection"
 "$VII" boot "$IMAGE" >/dev/null

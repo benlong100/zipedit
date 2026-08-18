@@ -10,9 +10,13 @@
 * the gap -- because an aux address stops meaning the same byte as soon as the
 * gap moves past it.
 *
-* Two ways in. Shift with an arrow reads the //e's shift key at $C063, and
-* OA-Space latches a selection mode for keyboards or emulators where that is
-* not available.
+* OA-Space latches a selection mode; the arrows then paint and Esc cancels.
+*
+* Shift-arrow was tried and abandoned. $C063 is widely documented as the //e's
+* shift-key input, but on real hardware it does not change with the shift key,
+* so there is nothing to read. Detection was calibrated against a startup
+* sample rather than trusting the documented polarity, which is the only reason
+* the attempt degraded to "never fires" instead of "every arrow selects".
 *--------------------------------------
 
 *--------------------------------------
@@ -20,17 +24,9 @@
 *            SELACT would render garbage inverse and force a full redraw on
 *            every keystroke.
 *--------------------------------------
-* Shift detection is calibrated rather than assumed. $C063 is documented as the
-* //e's shift key, but its polarity is not something to take on trust, and an
-* emulator may not implement it at all -- Virtual ][ reads it as permanently
-* held, which would make every arrow key select. So sample it once at startup,
-* when shift is presumably up, and treat any later difference as pressed. Wrong
-* polarity self-corrects; a dead switch simply never fires, leaving OA-Space.
-SELINIT      lda   SHIFTKEY
-             and   #$80
-             sta   SHIFTIDLE
-             lda   #$00
-             sta   MODSHIFT
+* Zero page holds no guarantees at startup, and a stray non-zero SELACT would
+* render garbage inverse and force a full redraw on every keystroke.
+SELINIT      lda   #$00
              sta   SELACT
              sta   SELMODE
              sta   SELANC
@@ -70,11 +66,10 @@ SELDONE      lda   #$00
              rts
 
 *--------------------------------------
-* SELUPD -- called by the arrow keys before they move.
-*           Starts a selection if a modifier is held, drops it otherwise.
+* SELUPD -- called by the arrow keys before they move. Starts a selection when
+*           selection mode is latched, drops any selection when it is not.
 *--------------------------------------
-SELUPD       lda   MODSHIFT
-             ora   SELMODE
+SELUPD       lda   SELMODE
              beq   SELCLR
              lda   SELACT
              bne   :done            ; already selecting: moving extends it

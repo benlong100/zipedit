@@ -78,12 +78,13 @@ timeout instead of silently reading a stale screen.
 
 ## Selection
 
-Shift-arrow or OA-Space latches selection mode; Esc cancels. Because the gap is
-at the cursor, a selection is always contiguous in aux — before the gap or
-after it, never split. Shift is detected by comparing `$C063` against a reading
-calibrated at startup, since its polarity is not dependable and Virtual ][ reads
-it as permanently held. Shift-arrow itself cannot be tested from the suite; the
-OA-Space path shares every code path except the trigger.
+OA-Space latches selection mode, the arrows paint, Esc cancels. Because the gap
+is at the cursor, a selection is always contiguous in aux — before the gap or
+after it, never split.
+
+**Do not try shift-arrow again.** `$C063` is widely documented as the //e's
+shift-key input but does not track the shift key on real hardware, and Virtual
+][ reads it as permanently held.
 
 ## MouseText
 

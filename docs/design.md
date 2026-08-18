@@ -455,18 +455,18 @@ boundaries are logical positions and `INSEL` has to flip at the right one. A
 selection also forces a full redraw: it spans rows, so the one-row fast path
 cannot be used while one is up.
 
-### Shift detection is calibrated, not assumed
+### Why not shift-arrow
 
-`$C063` is documented as the //e's shift key, but the polarity is not worth
-taking on trust and an emulator may not implement it at all — Virtual ][ reads
-it as permanently held, which made every arrow key select and broke ordinary
-cursor movement.
+Shift-arrow was the obvious gesture and was built first. `$C063` is widely
+documented as the //e's shift-key input, but **on real hardware it does not
+change with the shift key**, so there is nothing to read. Virtual ][ meanwhile
+reads it as permanently held, which made every arrow key select and broke
+ordinary cursor movement.
 
-So `SELINIT` samples the bit once at startup, when shift is presumably up, and
-`GETKEY` reports "held" only when the current reading *differs* from that. A
-reversed polarity self-corrects, and a switch that never changes simply never
-fires, leaving OA-Space as the way in. The one failure mode is holding shift
-while the editor starts, which inverts the sense until the next launch.
+Detection was calibrated against a startup sample rather than trusting the
+documented polarity, and that is the only reason the attempt degraded to "never
+fires" rather than "every arrow selects". The code is gone now; OA-Space is the
+way in, which is one key and needs no modifier at all.
 
 ## 6. File I/O and getting files to the Mac — as built
 

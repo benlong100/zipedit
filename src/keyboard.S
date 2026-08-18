@@ -24,11 +24,6 @@ GETKEY       lda   KBD
              lda   CLSAPPLE
              and   #$80
              sta   MODCA
-*--- shift, measured against the idle reading taken at startup
-             lda   SHIFTKEY
-             and   #$80
-             eor   SHIFTIDLE
-             sta   MODSHIFT
              sta   KBDSTRB          ; value written is irrelevant
 
 *--- fold Open-Apple letters to uppercase so OA-q and OA-Q both dispatch
