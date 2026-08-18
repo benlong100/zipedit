@@ -8,7 +8,32 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
-as() { osascript -e "tell application \"Virtual ][\"" -e "$@" -e "end tell"; }
+# A frozen machine refuses every command with "Cannot perform this command
+# while the machine is frozen". That silently drops the keystroke and leaves
+# every later assertion testing a machine that never received it -- one freeze
+# swallowed 26 keys in a row and failed a test three sections downstream.
+# Virtual ][ freezes on its own during long automated sessions, so thaw and
+# retry once rather than lose the key.
+run_osa() {
+    local tmp rc
+    tmp="$(mktemp)"
+    OSA_OUT="$(osascript -e "tell application \"Virtual ][\"" -e "$@" -e "end tell" 2>"$tmp")" && rc=0 || rc=$?
+    OSA_ERR="$(cat "$tmp")"; rm -f "$tmp"
+    return "$rc"
+}
+
+as() {
+    local rc=0
+    run_osa "$@" || rc=$?
+    if [ "$rc" -ne 0 ] && [[ "$OSA_ERR" == *frozen* ]]; then
+        osascript -e 'tell application "Virtual ][" to unfreeze (last machine)' >/dev/null 2>&1 || true
+        rc=0
+        run_osa "$@" || rc=$?
+    fi
+    [ -n "$OSA_ERR" ] && printf '%s\n' "$OSA_ERR" >&2
+    [ -n "$OSA_OUT" ] && printf '%s\n' "$OSA_OUT"
+    return "$rc"
+}
 
 # Ensure a machine exists, then return a script fragment binding `m`.
 ensure_machine() {
