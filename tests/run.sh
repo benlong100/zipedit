@@ -499,10 +499,12 @@ assert_row "the status line still shows under the box" 23 "UNTITLED.MD"
 snapshot
 assert_row "page two lists the Markdown keys"         5 "**bold** word"
 assert_row "page two lists search"                    5 "find / again"
-assert_row "page two lists the clipboard"             8 "CLIPBOARD"
-assert_row "page two lists new"                       9 "A-N      new"
-assert_row "page two lists the file keys"            11 "A-S      save"
-assert_row "page two lists the screen toggles"       15 "cheat sheet"
+assert_row "page two lists the word count"            7 "A-W      word count"
+assert_row "page two lists the clipboard"             9 "CLIPBOARD"
+assert_row "page two lists new"                      10 "A-N      new"
+assert_row "page two lists the file keys"            12 "A-S      save"
+assert_row "page two lists save as"                  13 "A-A      save as"
+assert_row "page two lists the screen toggles"       17 "cheat sheet"
 assert_row "page two says a key leaves"              19 "press any key to return"
 assert_row "page two numbers itself"                 19 "page 2 of 2"
 assert_row "page two is still the same box"          20 "LLLLLLLL"
@@ -723,11 +725,16 @@ assert_mod "saving clears MOD"                                  "   "
 # machine come to rest first or OA-Q is dropped rather than queued.
 "$VII" settle 2 >/dev/null
 k oa "Q"
-for _ in $(seq 1 20); do "$VII" screen | grep -qE "SELECT|S6,D1" && break; sleep 1; done
-if "$VII" screen | grep -qE "SELECT|S6,D1"; then
+quit_seen=0
+for _ in $(seq 1 30); do
+    quitscr="$("$VII" screen 2>/dev/null || true)"
+    case "$quitscr" in *SELECT*|*"S6,D1"*) quit_seen=1; break ;; esac
+    sleep 1
+done
+if [ "$quit_seen" = 1 ]; then
     ok "OA-Q with no unsaved work quits immediately"
 else
-    bad "OA-Q with no unsaved work quits immediately" "screen: $("$VII" screen | head -2 | tr '\n' '|')"
+    bad "OA-Q with no unsaved work quits immediately" "screen: $(printf '%s' "$quitscr" | head -2 | tr '\n' '|')"
 fi
 
 #--------------------------------------
@@ -805,6 +812,109 @@ ktext "fresh"
 snapshot
 assert_row "typing starts the new document"                     0 "fresh"
 assert_mod "and typing marks the new document modified"         "MOD"
+
+#--------------------------------------
+# Save and Save As. A named document saves back to its own file without asking;
+# only a document that has never been named prompts. OA-A always asks, and the
+# file it names becomes the one a later OA-S writes to.
+#--------------------------------------
+echo "save and save as"
+reboot
+
+ktext "alpha"
+"$VII" caps true >/dev/null
+k oa "S"
+sleep 2; snapshot
+assert_row "the first save asks for a name"            23 "SAVE AS:"
+ktext "AAA.MD"; "$VII" line "" >/dev/null
+"$VII" await "AAA.MD" 90 || bad "first save never completed"
+snapshot
+assert_row "and the status row takes that name"        23 " AAA.MD"
+
+# Saving again must not ask -- the row keeps the name rather than prompting.
+"$VII" caps false >/dev/null; ktext " beta"
+"$VII" caps true >/dev/null
+k oa "S"
+"$VII" settle 3 >/dev/null
+snapshot
+assert_row "saving again does not ask"                 23 " AAA.MD"
+
+# OA-A always asks, and switches the document to the new file.
+k oa "A"
+sleep 2; snapshot
+assert_row "OA-A asks for a new name"                  23 "SAVE AS:"
+ktext "BBB.MD"; "$VII" line "" >/dev/null
+"$VII" await "BBB.MD" 90 || bad "save as never completed"
+snapshot
+assert_row "and the document takes the new name"       23 " BBB.MD"
+
+"$VII" caps false >/dev/null; ktext " gamma"
+"$VII" caps true >/dev/null
+k oa "S"
+"$VII" settle 3 >/dev/null
+snapshot
+assert_row "a later OA-S writes to the new file"       23 " BBB.MD"
+"$VII" caps false >/dev/null
+
+# The proof is on the volume: the first file must NOT have the later edits.
+# Virtual ][ buffers writes to a mounted image until it is ejected, so the
+# volume shows stale contents until this happens.
+osascript -e 'tell application "Virtual ][" to tell (last machine) to eject device "S6D1"' >/dev/null 2>&1 || true
+aaa="$("$ROOT/tools/ac" -g "$IMAGE" AAA.MD 2>/dev/null | python3 -c '
+import sys
+raw = sys.stdin.buffer.read()[:16]
+print("".join(chr(b & 0x7F) for b in raw))')"
+bbb="$("$ROOT/tools/ac" -g "$IMAGE" BBB.MD 2>/dev/null | python3 -c '
+import sys
+raw = sys.stdin.buffer.read()[:16]
+print("".join(chr(b & 0x7F) for b in raw))')"
+# The silent OA-S went to AAA.MD, so it holds "alpha beta" -- and nothing after
+# the Save As touched it again.
+case "$aaa" in "alpha beta#"*) ok "the silent save wrote to the original file" ;;
+    *) bad "the silent save wrote to the original file" "AAA.MD begins [$aaa]" ;; esac
+case "$bbb" in "alpha beta gamma"*) ok "and the new file has every later edit" ;;
+    *) bad "and the new file has every later edit" "BBB.MD begins [$bbb]" ;; esac
+
+#--------------------------------------
+# Word count. A word is a run of non-blank characters, so the count is the
+# number of blank-to-non-blank transitions. The sample document has 302 by the
+# Mac's own reckoning, which is what makes this assertion worth anything.
+#--------------------------------------
+echo "word count"
+reboot
+
+"$VII" caps true >/dev/null; k oa "W"; "$VII" caps false >/dev/null
+"$VII" settle 2 >/dev/null
+snapshot
+assert_row "OA-W counts the sample document"           23 " 302 WORDS"
+
+# The gap sits at the cursor, so counting from the middle of the document is
+# the case that proves the walk steps over it rather than counting through it.
+"$VII" text "x" >/dev/null; "$VII" await "x" 60 >/dev/null
+k key "down arrow"; k key "down arrow"; k key "right arrow"
+"$VII" caps true >/dev/null; k oa "W"; "$VII" caps false >/dev/null
+"$VII" settle 2 >/dev/null
+snapshot
+assert_row "and counts the same with the gap moved"    23 " 302 WORDS"
+
+# An empty document, and the singular. The "x" above raised MOD, so OA-N asks
+# before discarding -- answer it, or the guard swallows everything after it.
+"$VII" caps true >/dev/null; k oa "N"; k text "D"; k oa "W"; "$VII" caps false >/dev/null
+"$VII" settle 2 >/dev/null
+snapshot
+assert_row "an empty document has no words"            23 " 0 WORDS"
+
+ktext "hello"
+"$VII" caps true >/dev/null; k oa "W"; "$VII" caps false >/dev/null
+"$VII" settle 2 >/dev/null
+snapshot
+assert_row "one word is singular"                      23 " 1 WORD "
+
+ktext " there"
+"$VII" caps true >/dev/null; k oa "W"; "$VII" caps false >/dev/null
+"$VII" settle 2 >/dev/null
+snapshot
+assert_row "two words are plural"                      23 " 2 WORDS"
 
 #--------------------------------------
 # Status filename. The row carried UNTITLED.MD as static text, so it went on

@@ -411,14 +411,41 @@ HEXDIG       cmp   #$0a
 *--------------------------------------
 * Key handlers
 *--------------------------------------
-KSAVE        lda   #<MSGSAVE
+*--------------------------------------
+* KSAVE -- write the document back to the file it already has (OA-S)
+*
+* Once a document has a name, saving reuses it: no prompt, just the busy notice
+* and the write. Only a document that has never been named falls through to
+* KSAVEAS, since that is the one case where there is nothing to write to.
+*
+* Loading sets the name too, so open, edit, OA-S writes back where it came
+* from -- and OA-N clears it, so a fresh document asks once.
+*--------------------------------------
+KSAVE        lda   FNAME            ; length byte; zero means never named
+             beq   KSAVEAS
+             jmp   SAVENOW
+
+*--------------------------------------
+* KSAVEAS -- ask for a name, write there, and keep it (OA-A)
+*
+* MKFNAME stores what the prompt collected into FNAME, so the file just named
+* becomes the one a later OA-S writes to. Cancelling leaves the old name alone,
+* which matters: a cancelled Save As must not detach the document from its file.
+*--------------------------------------
+KSAVEAS      lda   #<MSGSAVE
              sta   STRPTR
              lda   #>MSGSAVE
              sta   STRPTR+1
              jsr   PROMPT
              bcs   :quit
              jsr   MKFNAME
-             lda   #<MSGSAVING
+             jmp   SAVENOW
+:quit        rts
+
+*--------------------------------------
+* SAVENOW -- the part both of them share: notice, write, outcome
+*--------------------------------------
+SAVENOW      lda   #<MSGSAVING
              sta   STRPTR
              lda   #>MSGSAVING
              sta   STRPTR+1
@@ -427,7 +454,6 @@ KSAVE        lda   #<MSGSAVE
              bcs   :err
              jmp   RESTORESTAT      ; the busy notice was the feedback
 :err         jmp   SHOWERR
-:quit        rts
 
 KLOAD        lda   #<MSGOPEN
              sta   STRPTR

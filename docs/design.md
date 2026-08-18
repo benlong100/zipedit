@@ -411,8 +411,10 @@ That preserves both behaviours in the contexts where each is actually wanted.
 | OA-F / OA-G | find / find again |
 | OA-L | go to line |
 | OA-R | reflow paragraph |
+| OA-W | word count, reported on the status row |
 | OA-N | new document — asks first if there are unsaved changes |
-| OA-O / OA-S | open / save |
+| OA-O / OA-S | open / save — save reuses the document's own file |
+| OA-A | save as — asks for a name, and the document takes it |
 | OA-? | keyboard help, two pages -- a key turns, a key leaves |
 | OA-/ | toggle cheat sheet |
 | OA-Q | quit — asks first if the document has unsaved changes |
@@ -454,6 +456,25 @@ drawn erased the line immediately. The symptom was a document losing its last
 line on every full redraw and getting it back from the one-row path at the next
 keystroke, which made it look like whatever had triggered the redraw was at
 fault. Found on real hardware, reported as a help screen bug.
+
+`OA-S` only prompts for a document that has never been named. Once a name
+exists it writes straight back to that file, with the busy notice as the whole
+of the feedback. `OA-A` always prompts and, on success, the document takes the
+new name -- so a later `OA-S` follows it to the new file and the original is
+left as it was. Cancelling `OA-A` leaves the old name in place, which matters:
+a cancelled Save As must not detach a document from its file.
+
+Loading sets the name too, so open, edit, `OA-S` writes back where it came
+from. `OA-N` clears it, so a fresh document asks once.
+
+`OA-W` walks the buffer and counts blank-to-non-blank transitions, stepping
+over the gap the way `RENDER` does. It is deliberately not live in the status
+row: typing costs 19 ms because the editor stopped walking the whole buffer on
+every keystroke, and a live count would put that walk straight back — the one
+change that took sustained typing from 8 to 52 characters a second.
+
+The formatter consumes the total as it divides, so the singular/plural word is
+chosen before formatting rather than after.
 
 ### Known simplifications
 
