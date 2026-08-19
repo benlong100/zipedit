@@ -8,7 +8,7 @@ Note the distinction: this is a text editor *implemented in* assembly, not an
 editor *for* assembly source. It is aimed at prose — hard wrap on entry, no
 soft wrap, and Markdown-aware emphasis shortcuts.
 
-The editor is 9,010 bytes and leaves about 46K free for your writing, which is
+The editor is 9,004 bytes and leaves about 46K free for your writing, which is
 roughly seven thousand words.
 
 ## Getting it running
