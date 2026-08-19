@@ -13,9 +13,9 @@ roughly seven thousand words.
 
 ## Getting it running
 
-Grab [`web/downloads/ZipEdit-1.0.zip`](web/downloads/ZipEdit-1.0.zip) — a
-bootable ProDOS 8 disk image, the transfer script, and a manual — or build it
-yourself:
+Grab [the latest release](https://github.com/benlong100/zipedit/releases/latest)
+— a bootable ProDOS 8 disk image, the transfer script, and a manual — or build
+it yourself:
 
 ```sh
 tools/bootstrap.sh     # fetches Merlin32 and AppleCommander
@@ -76,7 +76,6 @@ src/        the editor, Merlin syntax, assembled from src/edit.S
 tools/      build and emulator scripts; bootstrap.sh reconstructs the toolchain
 tests/      the regression suite and its fixtures
 docs/       design.md -- memory map, buffer design, keymap
-web/        the ZipEdit web page, ready to upload as-is
 ```
 
 `vendor/` holds the ProDOS and Merlin 8 disk images the build and the dialect

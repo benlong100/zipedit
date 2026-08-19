@@ -11,6 +11,9 @@ tests/snapshots/*.actual.png
 .DS_Store
 notes/
 
-# Source images for the web page; the optimised copies the site uses are
-# committed under web/assets.
+# The web page lives with the rest of the trompingmarmots.com sites, not here.
+# This repository is the editor. The built disk image is published as a release
+# asset instead, so the download still has a permanent URL.
 web assets/
+web/
+tools/mksite.py
