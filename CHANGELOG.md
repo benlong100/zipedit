@@ -1,5 +1,39 @@
 # Changelog
 
+## 1.0.2 — 19 August 2026
+
+**Fixed: quitting and relaunching left the editor with a garbage filename and
+unable to save.**
+
+Every buffer and flag the editor keeps lives in a `dum` block or on zero page,
+neither of which puts bytes in the loaded file — so none of it starts at a
+known value. A cold boot leaves that memory zero and the launch path looked
+correct by luck. Quit to the ProDOS selector and relaunch, and it holds
+whatever the selector left behind.
+
+`FNAME`'s first byte is the filename length, where zero means *never named*.
+After a relaunch it read as some other number, so the editor believed the
+document was already named, printed the garbage where the filename goes, and
+`OA-S` saved to it and returned `PRODOS ERROR $40`. Rebooting cleared it,
+which is what made it look like a memory problem rather than a missing
+initialisation.
+
+`OA-N` had cleared `FNAME` all along, with the comment "length 0, so OA-S asks
+for a name". Only the launch path never did the same.
+
+The same reasoning applies to everything else assumed empty at startup, so
+`CLIPLEN`, `CLIPLINE`, `FINDLEN` and `PLEN` are cleared too. Nobody had hit
+those yet, but after a relaunch `OA-V` would have pasted from an untouched
+clipboard buffer and `OA-G` would have searched for a garbage pattern.
+
+Costs 16 bytes. The editor is 9,020 bytes.
+
+Also here:
+
+- A `relaunch after quit` section in the suite, which quits to the selector,
+  relaunches, and checks both halves. It fails 0 of 3 against 1.0.1 and passes
+  against this one. 241 assertions across 34 sections.
+
 ## 1.0.1 — 19 August 2026
 
 **Fixed: a last line that fitted was wrapped anyway.**

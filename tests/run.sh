@@ -319,7 +319,7 @@ if section "splash screen"; then
 "$VII" settle 2 >/dev/null
 snapshot
 assert_centred "the name is centred"                  10 "ZipEdit"
-assert_centred "the version is centred below it"      12 "Version 1.0.1"
+assert_centred "the version is centred below it"      12 "Version 1.0.2"
 assert_centred "the date is centred below that"       14 "August, 2026."
 assert_blank   "with a blank line between them"       13
 # The Open Apple is a MouseText glyph, which reads back as "A".
@@ -341,6 +341,48 @@ if [ "$(sed -n '1p' "$SCREEN" | cut -c1)" = "Z" ]; then
 else
     ok "the dismissing key does not reach the document"
 fi
+
+fi
+
+#--------------------------------------
+# Quit, then relaunch from the ProDOS selector. Nothing in a dum block or on
+# zero page is part of the loaded file, so none of it starts at a known value.
+# A cold boot leaves that memory zero and the launch path looked correct by
+# luck. Coming back from the selector it holds whatever that left behind, and
+# FNAME's length byte read non-zero: the editor believed the document was
+# already named, printed the garbage as its filename, and OA-S saved to it and
+# threw a ProDOS error. KNEW cleared FNAME for a new document all along; only
+# the launch path never did.
+#--------------------------------------
+if section "relaunch after quit"; then
+"$VII" boot "$IMAGE" >/dev/null || { echo "boot failed"; exit 1; }
+"$VII" await "ZipEdit" 120 >/dev/null || bad "the splash never appeared"
+"$VII" text " " >/dev/null
+"$VII" await "UNTITLED.MD" 60 >/dev/null || bad "the editor never opened"
+
+"$VII" caps true >/dev/null
+"$VII" oa "Q" >/dev/null
+"$VII" await "RETURN:SELECT" 60 >/dev/null || bad "OA-Q never reached the selector"
+"$VII" line "" >/dev/null            # our SYS file is the first entry
+"$VII" await "ZipEdit" 120 >/dev/null || bad "the editor never relaunched"
+"$VII" text " " >/dev/null
+"$VII" await "UNTITLED.MD" 60 >/dev/null || bad "the relaunched editor never opened"
+"$VII" caps false >/dev/null
+"$VII" settle 2 >/dev/null
+snapshot
+assert_row "a relaunch still shows UNTITLED.MD"          23 "UNTITLED.MD"
+
+# The other half of the same bug: believing it had a name, OA-S wrote to the
+# garbage instead of asking for one, and reported a ProDOS error.
+ktext "relaunched"
+"$VII" caps true >/dev/null
+k oa "S"
+"$VII" settle 3 >/dev/null
+snapshot
+assert_row "and OA-S asks for a name instead of failing" 23 "SAVE AS:"
+"$VII" key esc >/dev/null
+"$VII" caps false >/dev/null
+"$VII" settle 2 >/dev/null
 fi
 
 if section "display layer"; then

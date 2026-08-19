@@ -8,7 +8,7 @@ Note the distinction: this is a text editor *implemented in* assembly, not an
 editor *for* assembly source. It is aimed at prose — hard wrap on entry, no
 soft wrap, and Markdown-aware emphasis shortcuts.
 
-The editor is 9,004 bytes and leaves about 46K free for your writing, which is
+The editor is 9,020 bytes and leaves about 46K free for your writing, which is
 roughly seven thousand words.
 
 ## Getting it running
@@ -121,8 +121,8 @@ things that turned out to be harder than they looked.
 ## Changes
 
 See [CHANGELOG.md](CHANGELOG.md). If you copied this repository at 1.0, note
-that 1.0.1 fixes a wrapping bug that affects the last line of nearly every
-saved file.
+that 1.0.1 fixes a wrapping bug affecting the last line of nearly every saved
+file, and 1.0.2 fixes uninitialised state that breaks saving after a relaunch.
 
 ## Licence
 

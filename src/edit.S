@@ -42,6 +42,22 @@ START        lda   #$00             ; cheat sheet hidden by default; OA-/ shows 
              lda   #$00             ; an empty document is not unsaved work
              sta   MODFLAG
 
+*--- Everything here lives in a dum block or on zero page, so none of it is
+*    part of the loaded file and none of it starts at a known value. A cold
+*    boot leaves this memory zero and the editor looked correct by luck. Quit
+*    to the ProDOS selector and relaunch, and it is whatever that left behind:
+*    FNAME's length byte comes back non-zero, so the editor believes the
+*    document is already named, prints the garbage as its filename, and OA-S
+*    saves to it and fails. KNEW does this for a new document already -- the
+*    launch path simply never did the same.
+             lda   #$00
+             sta   FNAME            ; length 0: no name yet, so OA-S asks
+             sta   PLEN             ; nothing collected by a prompt yet
+             sta   FINDLEN          ; no search pattern, so OA-G has nothing
+             sta   CLIPLEN          ; and nothing on the clipboard to paste
+             sta   CLIPLEN+1
+             sta   CLIPLINE
+
              jsr   SETMAXROW
              lda   #$00
              sta   MSGSHOWN
