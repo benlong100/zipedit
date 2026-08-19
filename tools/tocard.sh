@@ -41,6 +41,31 @@ done
 
 find "$DEST" -name '._*' -delete 2>/dev/null || true
 sync
+
+# Every image on the card, not just the ones we wrote. Copying leaves earlier
+# images in place -- they are somebody's data as far as this script knows -- so
+# a renamed build quietly leaves its predecessor behind, and the Floppy Emu
+# lists both. That is confusing enough to be worth naming out loud rather than
+# deleting on a guess.
+echo
+echo "images now on $DEST:"
+stray=0
+while IFS= read -r f; do
+    name="$(basename "$f")"
+    mark="   "
+    for img in "${IMAGES[@]}"; do
+        [ "$name" = "$(basename "$img")" ] && mark="** "
+    done
+    [ "$mark" = "   " ] && stray=$((stray + 1))
+    printf "  %s%-28s %6s KB\n" "$mark" "$name" "$(( $(stat -f%z "$f") / 1024 ))"
+done < <(find "$DEST" -maxdepth 1 \( -iname '*.po' -o -iname '*.dsk' -o -iname '*.2mg' \) | sort)
+echo "  ** = written by this run"
+if [ "$stray" -gt 0 ]; then
+    echo
+    echo "note: $stray other image(s) are on the card. If one is an older build"
+    echo "      under a previous name, delete it -- otherwise it still boots."
+fi
+
 echo
 echo "done. Eject the card in Finder before removing it."
 df -h "$DEST" | tail -1 | awk '{print "free on card: "$4}'
