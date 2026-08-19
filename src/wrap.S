@@ -219,22 +219,26 @@ WRAPCHECK    lda   CCOL
              sta   WLOOK
              sta   WBACK            ; the same distance, for the return trip
 
-*--- do not read past the end of the buffer, or the poison beyond it reads as
-*    text and every line near the end looks too long
+*--- how much text is left in the buffer at all. The scan below reads ahead
+*    looking for a line end, and must not read past the end of the buffer: the
+*    poison beyond it reads as text and every line near the end looks too long.
              lda   #$00
              sec
              sbc   GAPEND
              sta   WTMP
              lda   #AUXHI
              sbc   GAPEND+1
-             bne   :room            ; 256+ bytes left, the cap already fits
-             lda   WTMP             ; fewer than 256 bytes left: cap the look
+             bne   :room            ; 256+ bytes left, more than any look needs
+             lda   WTMP             ; fewer than 256 bytes left
              cmp   WLOOK
-             bcs   :room
-             sta   WLOOK
-             lda   WTMP             ; STA leaves the flags alone, so re-test
-             bne   :room
-             rts                    ; nothing ahead at all: the line fits
+             bcs   :room            ; still enough to scan the whole look
+*--- Fewer bytes remain than there is room on the line, so the document runs
+*    out before the margin does and this line CANNOT be too long. It used to
+*    cap the look here and scan anyway -- but then a last line with no trailing
+*    break reached the end of the look without meeting a line end, which is the
+*    same condition as running out of margin, and it wrapped a line that fit.
+*    A one-line document is the case you notice: every keystroke wrapped it.
+             rts
 
 *--- one block copy rather than a read per byte: about a third of the cost, and
 *    this runs on every keystroke

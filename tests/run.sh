@@ -981,6 +981,45 @@ assert_row "and so does the partial line below it"              1 "second line"
 fi
 
 #--------------------------------------
+# A last line that fits, with no trailing break. WRAPCHECK reads ahead for a
+# line end and caps that read at the end of the buffer -- and used to treat
+# "ran out of buffer" as if it were "ran out of margin", so it wrapped a line
+# that fitted perfectly well. Then it reflowed and walked the cursor back to
+# the wrong place, and the next characters scattered.
+#
+# A one-line document is where anyone notices, because the condition is true
+# from the first keystroke. But it is not really about one-line documents: it
+# is the LAST line of any document that does not end in a break, which is every
+# document ZipEdit saves.
+#--------------------------------------
+if section "short last line"; then
+reboot_empty
+
+ktext "the quick brown fox jumps over the lazy dog"
+"$VII" caps true >/dev/null
+k oa "A"; ktext "SHORT.MD"; "$VII" line "" >/dev/null
+"$VII" await "SHORT.MD" 90 || bad "save never completed"
+open_file "SHORT.MD"
+"$VII" await "quick brown fox" 90 || bad "load never completed"
+"$VII" caps false >/dev/null
+"$VII" settle 2 >/dev/null
+snapshot
+assert_row   "the reloaded line is still one line"    0 "the quick brown fox jumps over the lazy dog"
+assert_blank "nothing was wrapped below it"           1
+
+# Walk into the line. This is the move that used to go nowhere.
+for _i in 1 2 3 4 5 6 7 8 9 10; do k key "right arrow"; done
+assert_lc    "the cursor walks along it"              1 11
+
+ktext "ZZZ"
+"$VII" settle 2 >/dev/null
+snapshot
+assert_row   "an insert lands under the cursor"       0 "the quick ZZZbrown fox"
+assert_blank "and still nothing is wrapped"           1
+assert_lc    "and the cursor followed the insert"     1 14
+fi
+
+#--------------------------------------
 # New document. OA-N throws the whole document away, so it is guarded exactly
 # as OA-Q is -- they share ASKUNSAVED, and these assertions are what stop the
 # two from drifting apart.
