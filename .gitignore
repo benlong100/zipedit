@@ -10,3 +10,7 @@ tools/merlin32
 tests/snapshots/*.actual.png
 .DS_Store
 notes/
+
+# Source images for the web page; the optimised copies the site uses are
+# committed under web/assets.
+web assets/
