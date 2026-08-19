@@ -53,11 +53,11 @@ SPLPTR       da    SPLNAME
 
 *--- row and column for each line, in the same order
 SPLROW       dfb   10,12,14,20,21
-SPLCOL       dfb   36,34,33,32,27
+SPLCOL       dfb   36,33,33,32,27
 
 SPLNAME      asc   "ZipEdit"
              dfb   $00
-SPLVER       asc   "Version 1.0"
+SPLVER       asc   "Version 1.0.1"
              dfb   $00
 SPLDATE      asc   "August, 2026."
              dfb   $00

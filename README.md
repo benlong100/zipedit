@@ -118,6 +118,12 @@ a file. That distinction is what makes the exported text clean.
 `docs/design.md` has the memory map, the banking rules, and a long list of
 things that turned out to be harder than they looked.
 
+## Changes
+
+See [CHANGELOG.md](CHANGELOG.md). If you copied this repository at 1.0, note
+that 1.0.1 fixes a wrapping bug that affects the last line of nearly every
+saved file.
+
 ## Licence
 
 MIT. See [LICENSE](LICENSE).
