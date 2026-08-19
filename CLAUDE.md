@@ -10,8 +10,10 @@ wrap, and Markdown-aware emphasis shortcuts.
 
 See `docs/design.md` for the memory map, buffer design, and keymap.
 
-A splash screen shows at startup and waits for a key, so anything driving the
-editor has to get past it before the document appears — `reboot` in the suite
+A splash screen shows at startup and waits for a key, and the editor then opens
+on an EMPTY document — the sample lives on the disk as `SAMPLE.MD`, which is
+where the suite gets its text. Anything driving the editor has to get past the
+splash first — `reboot` in the suite
 does that.
 
 ## Toolchain
@@ -33,7 +35,7 @@ source file we didn't generate.
 
 ```
 make            assemble $(SRC) with Merlin32
-make disk       build a bootable ProDOS 8 image at build/EDIT.po
+make disk       build a bootable ProDOS 8 image at build/ZIPEDIT.po
 make run        build, boot in Virtual ][, print the screen
 make test       run the regression suite
 make pull       eject, then extract Markdown from the image into notes/
@@ -121,7 +123,7 @@ so tests assert `\` for `$5C`, `L` for `$4C`, `_` for `$5F` and `A` for `$41`.
   `restart` for a cold boot.
 - `tools/mkdisk.sh` clones the verified ProDOS image rather than formatting a
   fresh volume, so the boot blocks are known-good. It strips the disk to just
-  `PRODOS` plus our `EDIT.SYSTEM`, and ProDOS auto-launches the only `.SYSTEM`
+  `PRODOS` plus our `ZIPEDIT.SYSTEM`, and ProDOS auto-launches the only `.SYSTEM`
   file present.
 - Never use `close every machine` in AppleScript — it would kill a Merlin
   session the user has open. `vii.sh` only ever touches `last machine`.

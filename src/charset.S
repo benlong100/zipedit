@@ -12,7 +12,7 @@
 *--------------------------------------
              org   $2000
              typ   $ff
-             dsk   EDIT.SYSTEM
+             dsk   ZIPEDIT.SYSTEM
 
 *--- soft switches ---
 STORE80ON    equ   $c001            ; 80STORE on: PAGE2 picks screen half

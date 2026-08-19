@@ -513,7 +513,9 @@ KLOAD        jsr   ASKUNSAVED       ; opening replaces the document wholesale
              jsr   LOADFILE
              bcs   :err
              jsr   WRAPALL          ; the file carries none of our wraps
-             jmp   RESTORESTAT      ; the busy notice was the feedback
+             lda   #$00             ; wrapping it edited the buffer, which set
+             sta   MODFLAG          ; MODFLAG -- but a file just opened is not
+             jmp   RESTORESTAT      ; unsaved work. The busy notice was enough.
 :err         jmp   SHOWERR
 :quit        rts
 

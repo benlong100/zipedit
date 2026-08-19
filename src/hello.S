@@ -6,7 +6,7 @@
 *--------------------------------------
              org   $2000
              typ   $ff
-             dsk   EDIT.SYSTEM
+             dsk   ZIPEDIT.SYSTEM
 
 COUT         equ   $fded
 HOME         equ   $fc58

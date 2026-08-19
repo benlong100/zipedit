@@ -8,7 +8,7 @@
 #   make clean
 
 SRC     ?= src/edit.S
-NAME    ?= EDIT.SYSTEM
+NAME    ?= ZIPEDIT.SYSTEM
 BUILD   := build
 DOCS    ?= notes
 TOOLS   := tools
@@ -19,7 +19,7 @@ AC      := $(TOOLS)/ac
 VII     := $(TOOLS)/vii.sh
 
 BIN     := $(BUILD)/$(NAME)
-IMAGE   := $(BUILD)/EDIT.po
+IMAGE   := $(BUILD)/ZIPEDIT.po
 
 .PHONY: all disk run screen test clean tools pull push eject release probe card
 
@@ -43,8 +43,13 @@ $(BUILD):
 
 disk: $(IMAGE)
 
-$(IMAGE): $(BIN)
+$(IMAGE): $(BIN) tests/sample.md
 	@$(TOOLS)/mkdisk.sh $(IMAGE) $(BIN)
+	@$(TOOLS)/xfer.sh push $(IMAGE) tests >/dev/null
+	@echo "  SAMPLE.MD on the image"
+
+# The editor opens empty, so the demo document lives on the disk. The suite
+# opens it too -- that is where all of its text comes from.
 
 run: $(IMAGE)
 	@$(VII) boot $(IMAGE)
@@ -55,8 +60,11 @@ run: $(IMAGE)
 screen:
 	@$(VII) screen
 
+# SAMPLE.MD is the suite's fixture and lives on the image, so a test that saves
+# can overwrite it. Put a fresh copy back before every run.
 test: $(IMAGE)
-	@tests/run.sh
+	@$(TOOLS)/xfer.sh push $(IMAGE) tests >/dev/null
+	@tests/run.sh $(SECTION)
 
 # Virtual ][ buffers image writes until eject, so pull needs a flush first.
 eject:
@@ -82,13 +90,13 @@ probe: | $(BUILD)
 
 # A disk to hand to real hardware: editor + ProDOS + BASIC.SYSTEM, no test files.
 release: $(BIN)
-	@RELEASE=1 VOL=EDITOR $(TOOLS)/mkdisk.sh $(BUILD)/EDITOR.po $(BIN)
+	@RELEASE=1 VOL=ZIPEDIT $(TOOLS)/mkdisk.sh $(BUILD)/ZIPEDIT-REL.po $(BIN)
 	@echo
-	@echo "release image: $(BUILD)/EDITOR.po"
+	@echo "release image: $(BUILD)/ZIPEDIT-REL.po"
 
 # Copy the release image to a card, cleanly. VOL is the mounted volume name.
 card: release
-	@$(TOOLS)/tocard.sh "$(VOL)" $(BUILD)/EDITOR.po
+	@$(TOOLS)/tocard.sh "$(VOL)" $(BUILD)/ZIPEDIT-REL.po
 
 clean:
 	@rm -rf $(BUILD) src/_FileInformation.txt src/$(NAME)

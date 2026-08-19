@@ -293,6 +293,17 @@ text there and the screen codes fall out of it, with the column stops enforced:
 a description that would overrun the border fails the generator rather than
 shipping a mangled row, which is the mistake the one-page version made.
 
+### Opening on an empty document
+
+The editor comes up empty. It used to plant a sample document in the buffer,
+which was useful while the buffer was being built and is just something to
+delete once the editor is real. The sample lives on the disk as `SAMPLE.MD`
+instead, where it can be opened deliberately — and where the test suite gets
+all of its text from, via `reboot`.
+
+That also means the suite exercises `WRAPALL` on every single section, since
+the file arrives unwrapped and is wrapped on load.
+
 ### Splash screen
 
 `SPLASH` paints a cleared screen once at startup and waits for a key, which it
@@ -733,7 +744,7 @@ Virtual ][ exposes enough through AppleScript to test this properly, which is
 unusual for 6502 work. `tools/vii.sh` wraps it:
 
 ```
-tools/vii.sh boot build/EDIT.po
+tools/vii.sh boot build/ZIPEDIT.po
 tools/vii.sh await "READY"
 tools/vii.sh ctrl B                             # Ctrl-B
 tools/vii.sh dump 0x0800 0x400 1 /tmp/buf.bin   # read the aux text buffer

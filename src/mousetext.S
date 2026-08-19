@@ -8,7 +8,7 @@
 *--------------------------------------
              org   $2000
              typ   $ff
-             dsk   EDIT.SYSTEM
+             dsk   ZIPEDIT.SYSTEM
 
 STORE80ON    equ   $c001
 COL80ON      equ   $c00d

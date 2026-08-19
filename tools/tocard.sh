@@ -19,7 +19,7 @@ DEST="/Volumes/$VOL"
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 IMAGES=("$@")
-[ ${#IMAGES[@]} -eq 0 ] && IMAGES=("$ROOT/build/EDITOR.po")
+[ ${#IMAGES[@]} -eq 0 ] && IMAGES=("$ROOT/build/ZIPEDIT-REL.po")
 
 # Stop Spotlight re-creating its index here; that is what keeps scattering
 # directories among the disk images.

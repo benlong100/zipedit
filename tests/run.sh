@@ -9,12 +9,35 @@ set -uo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 VII="$ROOT/tools/vii.sh"
-IMAGE="${IMAGE:-$ROOT/build/EDIT.po}"
-BIN="${BIN:-$ROOT/build/EDIT.SYSTEM}"
+IMAGE="${IMAGE:-$ROOT/build/ZIPEDIT.po}"
+BIN="${BIN:-$ROOT/build/ZIPEDIT.SYSTEM}"
 WRAPCOL=76        # must match src/equates.S
 SCRW=80           # 80-column screen, likewise
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
+
+# Every section must set up its own document. Three rules, learned the hard way
+# when the editor stopped planting a sample at startup:
+#
+#   * needs the sample text          -> reboot        (opens SAMPLE.MD)
+#   * types its own text and saves   -> reboot_empty  (unnamed, so OA-S prompts)
+#   * needs the sample AND saves     -> reboot, then OA-A
+#
+# The third rule matters: with SAMPLE.MD open, the document CARRIES that name,
+# so OA-S writes silently back over the suite's own fixture and poisons every
+# later section -- and every later run, since the image outlives one.
+# `make test` pushes a fresh SAMPLE.MD before each run for the same reason.
+#
+# One section can be run on its own:  tests/run.sh "help screen"
+# The whole suite takes several minutes, nearly all of it booting the machine
+# 25 times, so a targeted change should not have to pay for all of it.
+ONLY="${1:-}"
+section() {
+    case "$1" in
+        *"$ONLY"*) echo "$1"; return 0 ;;
+        *)         return 1 ;;
+    esac
+}
 
 pass=0; fail=0
 ok()  { printf '  \033[32mPASS\033[0m %s\n' "$1"; pass=$((pass+1)); }
@@ -55,6 +78,23 @@ drain_ok() {
 #   * Surplus AppleScript keystrokes outlive a restart. vii.sh pins a keyboard
 #     delay so the queue cannot build up, but a run that inherits an already
 #     wedged machine still has to wait it out.
+# reboot_empty -- boot to the empty document the editor now opens on. Sections
+# that type their own text do not need SAMPLE.MD, and opening it costs a prompt
+# and a disk read on every one of them.
+reboot_empty() {
+    local capsval="${1:-false}" tries
+    for tries in 1 2 3; do
+        "$VII" boot "$IMAGE" >/dev/null || { echo "boot failed"; exit 1; }
+        if ! "$VII" await "ZipEdit" 120 >/dev/null; then continue; fi
+        "$VII" text " " >/dev/null
+        if ! "$VII" await "UNTITLED.MD" 60 >/dev/null; then continue; fi
+        "$VII" caps "$capsval" >/dev/null
+        if drain_ok; then snapshot; return 0; fi
+        echo "  (machine still restless after boot, retrying)" >&2
+    done
+    echo "editor never reached a quiet L1 C1 after 3 boots"; exit 1
+}
+
 reboot() {
     local capsval="${1:-false}" tries
     for tries in 1 2 3; do
@@ -62,9 +102,24 @@ reboot() {
         # The splash screen comes up first and holds until a key is pressed.
         if ! "$VII" await "ZipEdit" 120 >/dev/null; then continue; fi
         "$VII" text " " >/dev/null
+        # The editor opens on an empty document now, so the suite's text comes
+        # off the disk: SAMPLE.MD is put there by the disk build.
+        if ! "$VII" await "UNTITLED.MD" 60 >/dev/null; then continue; fi
+        "$VII" caps true >/dev/null
+        "$VII" oa "O" >/dev/null
+        # Answer the unsaved-changes guard if it shows. It should not after a
+        # fresh boot, but if it ever does, the S of SAMPLE.MD is read as
+        # "S = SAVE FIRST" and the rest of the name lands in a save prompt.
+        if "$VII" screen 2>/dev/null | grep -q "UNSAVED CHANGES"; then
+            "$VII" text "D" >/dev/null
+            sleep 1
+        fi
+        if ! "$VII" await "OPEN:" 30 >/dev/null; then continue; fi
+        "$VII" text "SAMPLE.MD" >/dev/null
+        "$VII" line "" >/dev/null
         if ! "$VII" await "Notes from the Apple" 120 >/dev/null; then continue; fi
         "$VII" caps "$capsval" >/dev/null
-        drain_ok && return 0
+        if drain_ok; then snapshot; return 0; fi
         echo "  (machine still restless after boot, retrying)" >&2
     done
     echo "editor never reached a quiet L1 C1 after 3 boots"; exit 1
@@ -189,21 +244,82 @@ echo "booting $IMAGE"
 reboot
 snapshot
 
-echo "toolchain"
+
+#--- helpers that individual sections used to define for themselves. They live
+#    here so that running one section alone still has them: bash reports a
+#    missing function as 'command not found' WITHOUT failing, so a filtered run
+#    would otherwise look green while skipping the assertions entirely.
+
+check_text() {
+    python3 -c '
+import sys
+d=open(sys.argv[1],"rb").read()
+t="".join(chr(b & 0x7F) for b in d)
+assert sys.argv[2] in t, f"not found in aux: {sys.argv[2]!r}"
+' "$TMP/auxtop.bin" "$2" 2>"$TMP/err" && ok "$1" || bad "$1" "$(cat "$TMP/err")"
+}
+# curline <name> <expected 0-based line>
+curline() {
+    "$VII" dump 0x0000 0x40 0 "$TMP/zp.bin" >/dev/null
+    local got; got=$(python3 -c "d=open('$TMP/zp.bin','rb').read(); print(d[0x29]|(d[0x2a]<<8))")
+    if [ "$got" = "$2" ]; then ok "$1"; else bad "$1" "cursor on line $got, expected $2"; fi
+}
+# digit fields, 1-based cut columns
+assert_lc() {
+    local name="$1" wl="$2" wc="$3" gl gc prev="" i
+    for i in 1 2 3 4 5 6; do
+        gl=$(ln_field); gc=$(cl_field)
+        [ "$gl:$gc" = "$prev" ] && break
+        prev="$gl:$gc"; sleep 0.4
+    done
+    if [ "$gl" = "$wl" ] && [ "$gc" = "$wc" ]; then ok "$name"; else
+        bad "$name" "status reads L$gl C$gc, expected L$wl C$wc"
+    fi
+}
+scrolltop() {
+    "$VII" dump 0x0000 0x30 0 "$TMP/zp.bin" >/dev/null
+    python3 -c "d=open('$TMP/zp.bin','rb').read(); print(d[0x23]|(d[0x24]<<8))"
+}
+selstate() {
+    "$VII" dump 0x0050 0x08 0 "$TMP/sel.bin" >/dev/null
+    python3 -c "d=open('$TMP/sel.bin','rb').read(); print(d[0], d[1])"
+}
+assert_sel() {
+    local got; got="$(selstate)"
+    if [ "$got" = "$2 $3" ]; then ok "$1"; else bad "$1" "SELACT/SELMODE are [$got], expected [$2 $3]"; fi
+}
+# Unsaved changes show as a star directly after the filename, so the marker
+# moves with the name and cannot be read from a fixed column. The filename is
+# the first token on the status row; the star, if any, is stuck to it.
+mod_star() {
+    local row; row="$("$VII" screen-raw | sed -n '24p')"
+    set -- $row
+    case "$1" in *'*') echo yes ;; *) echo no ;; esac
+}
+assert_mod() {
+    local got; got="$(mod_star)"
+    if [ "$got" = "$2" ]; then ok "$1"; else
+        bad "$1" "unsaved star: $got, wanted $2" \
+            "row: $("$VII" screen-raw | sed -n '24p' | cut -c1-26)"
+    fi
+}
+
+if section "toolchain"; then
 assert_mem "loaded image matches build artifact" 0x2000 "$(stat -f%z "$BIN")" 0 "$BIN"
+fi
 
 #--------------------------------------
 # Splash screen. Shown once at startup and held until a key is pressed. This
 # boots directly rather than through reboot(), which dismisses the splash on
 # its way to the document.
 #--------------------------------------
-echo "splash screen"
+if section "splash screen"; then
 "$VII" boot "$IMAGE" >/dev/null || { echo "boot failed"; exit 1; }
 "$VII" await "ZipEdit" 120 >/dev/null || bad "the splash never appeared"
 "$VII" settle 2 >/dev/null
 snapshot
 assert_centred "the name is centred"                  10 "ZipEdit"
-assert_centred "the version is centred below it"      12 "Version 0.5"
+assert_centred "the version is centred below it"      12 "Version 1.0"
 assert_centred "the date is centred below that"       14 "August, 2026."
 assert_blank   "with a blank line between them"       13
 # The Open Apple is a MouseText glyph, which reads back as "A".
@@ -212,27 +328,33 @@ assert_centred "and the prompt sits under it"         21 "press any key to conti
 assert_row     "the document is not showing yet"       0 ""
 assert_blank   "the screen is otherwise blank"         5
 
-# Any key dismisses it -- and must not reach the document.
+# Any key dismisses it -- and must not reach the document. The editor opens on
+# an empty document now, so what appears is the status row, not any text.
 "$VII" text "Z" >/dev/null
-"$VII" await "Notes from the Apple" 120 >/dev/null || bad "the splash never cleared"
+"$VII" await "UNTITLED.MD" 60 >/dev/null || bad "the splash never cleared"
 "$VII" settle 2 >/dev/null
 snapshot
-assert_row "the document appears once dismissed"       0 "# Notes from the Apple //e"
+assert_row   "the status row appears once dismissed"  23 "UNTITLED.MD"
+assert_blank "and the document is empty"               0
 if [ "$(sed -n '1p' "$SCREEN" | cut -c1)" = "Z" ]; then
     bad "the dismissing key does not reach the document" "row 0 begins with the Z that dismissed it"
 else
     ok "the dismissing key does not reach the document"
 fi
+fi
 
-echo "display layer"
+if section "display layer"; then
+reboot
 assert_width "screen is 80 columns wide"            0
 assert_row   "heading rendered from the aux buffer" 0 "# Notes from the Apple //e"
 assert_row   "prose rendered from the aux buffer"    2 "runs under ProDOS 8"
 assert_row   "Markdown punctuation survives"       10 '**bold** with Ctrl-B, *italic* with Ctrl-I'
 assert_row   "backtick code span renders"          11 '`code` spans and [links](url)'
 assert_row   "blank lines stay blank"               1 ""
+fi
 
-echo "auxiliary memory"
+if section "auxiliary memory"; then
+reboot
 "$VII" dump 0xBF00 0x100 0 "$TMP/globals.bin" >/dev/null
 if python3 -c '
 import sys
@@ -262,20 +384,14 @@ assert not bad, f"{len(bad)} bytes not $E5, first at ${0x2000+bad[0]:04X}"
 else
     bad "32K of untouched aux still reads back as poison" "$(cat "$TMP/err")"
 fi
+fi
 
-echo "gap buffer"
+if section "gap buffer"; then
+reboot
 # HOMECURSOR walks the gap to the buffer start one byte at a time, so the text
 # ends up at the TOP of aux. Getting there exercised one aux read and one aux
 # write per byte through the stack-page stub.
 "$VII" dump 0xB800 0x800 1 "$TMP/auxtop.bin" >/dev/null
-check_text() {
-    python3 -c '
-import sys
-d=open(sys.argv[1],"rb").read()
-t="".join(chr(b & 0x7F) for b in d)
-assert sys.argv[2] in t, f"not found in aux: {sys.argv[2]!r}"
-' "$TMP/auxtop.bin" "$2" 2>"$TMP/err" && ok "$1" || bad "$1" "$(cat "$TMP/err")"
-}
 check_text "text is stored in auxiliary memory"        "# Notes from the Apple //e"
 check_text "gap shuffle preserved bytes across 500+ moves" "**bold** with Ctrl-B, *italic* with Ctrl-I"
 check_text "backtick survives the round trip"          '`code` spans and [links](url)'
@@ -295,19 +411,22 @@ assert 1200 < n < 2200, f"text length {n} outside expected range"
 else
     bad "gap is at the buffer start with the full text past it" "$(cat "$TMP/err")"
 fi
+fi
 
-echo "chrome"
+if section "chrome"; then
+reboot
 # The cheat sheet is hidden by default, so row 22 belongs to the document.
 assert_row   "row 22 carries text when the sheet is hidden" 22 "Paragraph"
 
-assert_row   "status line on row 23"               23 "UNTITLED.MD"
+assert_row   "status line on row 23"               23 "A-? HELP"
 assert_width "status line fills the row"           23
+fi
 
 #--------------------------------------
 # Keyboard tests mutate the buffer, so they run last and start from a fresh
 # boot. Each keystroke triggers a full redraw, hence the settle between them.
 #--------------------------------------
-echo "keyboard"
+if section "keyboard"; then
 reboot
 ktext "draft: "
 snapshot
@@ -370,19 +489,14 @@ ktext "zz"
 k key "left arrow"
 snapshot
 assert_row "text accumulates correctly before delete" 0 "zz  draft:"
+fi
 
 #--------------------------------------
 # Editing operations: clipboard, find, go to line, emphasis.
 #--------------------------------------
-echo "editing operations"
+if section "editing operations"; then
 reboot
 
-# curline <name> <expected 0-based line>
-curline() {
-    "$VII" dump 0x0000 0x40 0 "$TMP/zp.bin" >/dev/null
-    local got; got=$(python3 -c "d=open('$TMP/zp.bin','rb').read(); print(d[0x29]|(d[0x2a]<<8))")
-    if [ "$got" = "$2" ]; then ok "$1"; else bad "$1" "cursor on line $got, expected $2"; fi
-}
 
 "$VII" oa "C" >/dev/null
 "$VII" await "LINE COPIED" 60 || bad "OA-C never reported"
@@ -425,13 +539,14 @@ for i in 1 2 3 4; do "$VII" key "right arrow" >/dev/null; sleep 0.3; done
 "$VII" ctrl B >/dev/null; sleep 3
 snapshot
 assert_row "Ctrl-B wraps the whole word from mid-word" 0 "# **Notes** from the Apple"
+fi
 
 #--------------------------------------
 # Prompts must hand the status row straight back, whether accepted or
 # cancelled -- otherwise the prompt text sits there until some unrelated key
 # happens to retire it, and you never see where a find or go-to landed.
 #--------------------------------------
-echo "prompt cancel"
+if section "prompt cancel"; then
 reboot
 
 prompt_open F "FIND:"
@@ -439,38 +554,27 @@ snapshot
 assert_row "the prompt says how to cancel"           23 "ESC CANCELS"
 "$VII" key esc >/dev/null; sleep 2
 snapshot
-assert_row "Esc hands the status row straight back"  23 "UNTITLED.MD"
+assert_row "Esc hands the status row straight back"  23 "A-? HELP"
 
 prompt_open L "GO TO LINE:"
 "$VII" text "20" >/dev/null; sleep 2
 "$VII" line "" >/dev/null; sleep 5
 snapshot
-assert_row "an accepted prompt restores it too"      23 "UNTITLED.MD"
+assert_row "an accepted prompt restores it too"      23 "A-? HELP"
 if [ "$(ln_field)" = "20" ]; then
     ok "and the new position is visible immediately"
 else
     bad "and the new position is visible immediately" "status: $("$VII" screen-raw | sed -n '24p')"
+fi
 fi
 
 #--------------------------------------
 # Status line. Line and column are painted as individual digit cells, not by
 # repainting the row, which is why they cost nothing measurable per keystroke.
 #--------------------------------------
-echo "status line"
+if section "status line"; then
 reboot
 
-# digit fields, 1-based cut columns
-assert_lc() {
-    local name="$1" wl="$2" wc="$3" gl gc prev="" i
-    for i in 1 2 3 4 5 6; do
-        gl=$(ln_field); gc=$(cl_field)
-        [ "$gl:$gc" = "$prev" ] && break
-        prev="$gl:$gc"; sleep 0.4
-    done
-    if [ "$gl" = "$wl" ] && [ "$gc" = "$wc" ]; then ok "$name"; else
-        bad "$name" "status reads L$gl C$gc, expected L$wl C$wc"
-    fi
-}
 
 assert_lc "status opens at line 1 column 1"            1 1
 for i in 1 2 3 4 5; do "$VII" key "right arrow" >/dev/null; sleep 0.3; done
@@ -493,7 +597,7 @@ assert_row "a message takes over the status row"      23 "LINE COPIED"
 # back over the newline to the end of "THE END", i.e. line 35 column 8.
 "$VII" key "left arrow" >/dev/null; sleep 2
 snapshot
-assert_row "the next keystroke restores the status"   23 "UNTITLED.MD"
+assert_row "the next keystroke restores the status"   23 "A-? HELP"
 assert_lc "and the digits come back correct"          35 8
 
 # Left aligned means the label touches its number: "L:35", not "L    35".
@@ -507,13 +611,14 @@ assert_row "and so does the column label"             23 "C:8"
 "$VII" oa "<" >/dev/null; "$VII" settle 2 >/dev/null
 snapshot
 assert_row "a shrinking number blanks the rest of its field" 23 "L:1    C:1"
+fi
 
 #--------------------------------------
 # Goal column. Line 0 of the sample is 26 columns, line 1 is empty, line 2 is
 # long -- so passing through line 1 is exactly the case that used to truncate
 # the column and never give it back.
 #--------------------------------------
-echo "goal column"
+if section "goal column"; then
 reboot
 
 for i in $(seq 1 20); do k key "right arrow"; done
@@ -534,12 +639,13 @@ assert_lc "left wraps to the end of the line above"    1 27
 k key "down arrow"
 k key "down arrow"
 assert_lc "and the new column becomes the goal"        3 27
+fi
 
 #--------------------------------------
 # Help screen. Bound to OA-H, not Ctrl-H: the //e maps Ctrl-H and the left
 # arrow to the same $88, which is verified in the keyboard section below.
 #--------------------------------------
-echo "help screen"
+if section "help screen"; then
 reboot
 
 "$VII" oa "?" >/dev/null
@@ -603,7 +709,7 @@ assert_row "page one lists selecting"                12 "A-space      start sele
 assert_row "page one says a key turns the page"      19 "press any key for more"
 assert_row "page one numbers itself"                 19 "page 1 of 2"
 assert_row "page one lists the Tab indent"            8 "indent two spaces"
-assert_row "the status line still shows under the box" 23 "UNTITLED.MD"
+assert_row "the status line still shows under the box" 23 "A-? HELP"
 
 # A key turns to page two rather than dismissing. CLIPBOARD appears only there.
 "$VII" text " " >/dev/null
@@ -620,7 +726,7 @@ assert_row "page two lists the screen toggles"       17 "cheat sheet"
 assert_row "page two says a key leaves"              19 "press any key to return"
 assert_row "page two numbers itself"                 19 "page 2 of 2"
 assert_row "page two is still the same box"          20 "LLLLLLLL"
-assert_row "the status line still shows on page two" 23 "UNTITLED.MD"
+assert_row "the status line still shows on page two" 23 "A-? HELP"
 
 # And a key from page two returns to the document.
 "$VII" text " " >/dev/null; sleep 3
@@ -631,12 +737,13 @@ assert_row "a key from page two restores the text"    0 "# Notes from the Apple 
 k ctrl Y
 sleep 2; snapshot
 assert_blank "Ctrl-Y deletes to the end of the line"  0
+fi
 
 #--------------------------------------
 # Hard wrap. Typing is slow (~8 chars/sec: full buffer rescan and redraw per
 # keystroke), so these wait on a sentinel word rather than a fixed delay.
 #--------------------------------------
-echo "hard wrap"
+if section "hard wrap"; then
 reboot
 
 "$VII" text "aaa bbb ccc ddd eee fff ggg hhh iii jjj kkk lll mmm nnn ooo ppp qqq rrr sss ttt zebra " >/dev/null
@@ -651,11 +758,12 @@ if sed -n '1p' "$SCREEN" | sed 's/ *$//' | grep -qE '[a-z]$'; then
 else
     bad "line breaks at a word boundary" "row 0 ends: $(sed -n '1p' "$SCREEN" | sed 's/ *$//' | tail -c 12)"
 fi
+fi
 
 #--------------------------------------
 # Reflow. Rejoins a paragraph and re-wraps it, leaving neighbours alone.
 #--------------------------------------
-echo "reflow"
+if section "reflow"; then
 reboot
 k key "down arrow"; k key "down arrow"
 "$VII" oa "R" >/dev/null
@@ -675,6 +783,7 @@ if grep -q "## How it writes" "$SCREEN"; then
 else
     bad "reflow stopped at the paragraph boundary" "the following heading was consumed"
 fi
+fi
 
 #--------------------------------------
 # Scrolling. The sample document is ~35 lines against a 22-row viewport.
@@ -684,13 +793,9 @@ fi
 # just KUP/KDOWN repeated, which the arrow tests below do cover, but the
 # bindings themselves are only verifiable by hand.
 #--------------------------------------
-echo "scrolling"
+if section "scrolling"; then
 reboot
 
-scrolltop() {
-    "$VII" dump 0x0000 0x30 0 "$TMP/zp.bin" >/dev/null
-    python3 -c "d=open('$TMP/zp.bin','rb').read(); print(d[0x23]|(d[0x24]<<8))"
-}
 
 snapshot
 assert_row "document opens at the top"                0 "# Notes from the Apple //e"
@@ -734,23 +839,16 @@ if [ "$(scrolltop)" -gt 0 ]; then
 else
     bad "cursor walking past the last row scrolls the viewport" "SCROLLTOP=$(scrolltop)"
 fi
+fi
 
 #--------------------------------------
 # Selection. OA-Space latches the mode, the arrows paint, Esc cancels.
 # Shift-arrow was tried and dropped: $C063 does not track the shift key on real
 # //e hardware, so there was nothing to detect.
 #--------------------------------------
-echo "selection"
+if section "selection"; then
 reboot
 
-selstate() {
-    "$VII" dump 0x0050 0x08 0 "$TMP/sel.bin" >/dev/null
-    python3 -c "d=open('$TMP/sel.bin','rb').read(); print(d[0], d[1])"
-}
-assert_sel() {
-    local got; got="$(selstate)"
-    if [ "$got" = "$2 $3" ]; then ok "$1"; else bad "$1" "SELACT/SELMODE are [$got], expected [$2 $3]"; fi
-}
 
 assert_sel "selection state is clean at startup"        0 0
 k oa " "
@@ -789,32 +887,18 @@ for i in 1 2 3 4; do "$VII" key "right arrow" >/dev/null; sleep 0.25; done
 "$VII" key esc >/dev/null; sleep 2; snapshot
 assert_row "Esc leaves the text alone"                   0 "Qotes from the Apple"
 assert_sel "Esc cancels selecting entirely"             0 0
+fi
 
 #--------------------------------------
 # Unsaved-changes guard. OA-Q sits beside OA-S and OA-O, so a slip must not
 # cost the document. Runs before the file section because quitting ends the
 # editor.
 #--------------------------------------
-echo "unsaved changes guard"
-reboot
+if section "unsaved changes guard"; then
+reboot_empty
 
-# Unsaved changes show as a star directly after the filename, so the marker
-# moves with the name and cannot be read from a fixed column. The filename is
-# the first token on the status row; the star, if any, is stuck to it.
-mod_star() {
-    local row; row="$("$VII" screen-raw | sed -n '24p')"
-    set -- $row
-    case "$1" in *'*') echo yes ;; *) echo no ;; esac
-}
-assert_mod() {
-    local got; got="$(mod_star)"
-    if [ "$got" = "$2" ]; then ok "$1"; else
-        bad "$1" "unsaved star: $got, wanted $2" \
-            "row: $("$VII" screen-raw | sed -n '24p' | cut -c1-26)"
-    fi
-}
 
-assert_mod "the sample document does not count as unsaved work" no
+assert_mod "a fresh document does not count as unsaved work"    no
 ktext "x"
 assert_mod "editing raises the unsaved star"                     yes
 snapshot
@@ -827,7 +911,7 @@ assert_row "OA-Q with unsaved work asks instead of quitting"   23 "UNSAVED CHANG
 
 "$VII" key esc >/dev/null; sleep 2
 snapshot
-assert_row "Esc returns to editing"                            23 "UNTITLED.MD"
+assert_row "Esc returns to editing"                            23 "A-? HELP"
 assert_mod "and the document is still modified"                 yes
 
 # Cancelling the filename prompt must not quit either -- that is the path that
@@ -836,7 +920,7 @@ k oa "Q"; sleep 1
 "$VII" text "S" >/dev/null; sleep 2
 "$VII" key esc >/dev/null; sleep 3
 snapshot
-assert_row "a cancelled save prompt does not quit"             23 "UNTITLED.MD"
+assert_row "a cancelled save prompt does not quit"             23 "A-? HELP"
 assert_mod "and still has unsaved changes"                      yes
 
 k oa "S"; ktext "MODTEST.MD"
@@ -860,6 +944,7 @@ if [ "$quit_seen" = 1 ]; then
 else
     bad "OA-Q with no unsaved work quits immediately" "screen: $(printf '%s' "$quitscr" | head -2 | tr '\n' '|')"
 fi
+fi
 
 #--------------------------------------
 # A final line with no trailing return. RENDER flushes that partial line at
@@ -868,7 +953,7 @@ fi
 # the one-row path put it back -- which is why it looked like a help screen bug
 # and was really a rendering one. Reported on real hardware.
 #--------------------------------------
-echo "unterminated last line"
+if section "unterminated last line"; then
 reboot
 
 "$VII" caps true >/dev/null; k oa "N"; "$VII" caps false >/dev/null
@@ -893,13 +978,14 @@ ktext "second line"
 snapshot
 assert_row "the line above survives too"                        0 "hello world"
 assert_row "and so does the partial line below it"              1 "second line"
+fi
 
 #--------------------------------------
 # New document. OA-N throws the whole document away, so it is guarded exactly
 # as OA-Q is -- they share ASKUNSAVED, and these assertions are what stop the
 # two from drifting apart.
 #--------------------------------------
-echo "new document"
+if section "new document"; then
 reboot
 
 ktext "zz"
@@ -912,7 +998,7 @@ assert_row "OA-N with unsaved work asks first"                 23 "UNSAVED CHANG
 
 "$VII" key esc >/dev/null; sleep 2
 snapshot
-assert_row "Esc returns to editing"                            23 "UNTITLED.MD"
+assert_row "Esc returns to editing"                            23 "A-? HELP"
 assert_row "and the document is untouched"                      0 "zz# Notes from the Apple"
 assert_mod "and it is still modified"                           yes
 
@@ -936,14 +1022,15 @@ ktext "fresh"
 snapshot
 assert_row "typing starts the new document"                     0 "fresh"
 assert_mod "and typing marks the new document modified"         yes
+fi
 
 #--------------------------------------
 # Save and Save As. A named document saves back to its own file without asking;
 # only a document that has never been named prompts. OA-A always asks, and the
 # file it names becomes the one a later OA-S writes to.
 #--------------------------------------
-echo "save and save as"
-reboot
+if section "save and save as"; then
+reboot_empty
 
 ktext "alpha"
 "$VII" caps true >/dev/null
@@ -994,17 +1081,21 @@ raw = sys.stdin.buffer.read()[:16]
 print("".join(chr(b & 0x7F) for b in raw))')"
 # The silent OA-S went to AAA.MD, so it holds "alpha beta" -- and nothing after
 # the Save As touched it again.
-case "$aaa" in "alpha beta#"*) ok "the silent save wrote to the original file" ;;
-    *) bad "the silent save wrote to the original file" "AAA.MD begins [$aaa]" ;; esac
+if [[ "$aaa" == "alpha beta"* && "$aaa" != *gamma* ]]; then
+    ok "the silent save wrote to the original file"
+else
+    bad "the silent save wrote to the original file" "AAA.MD begins [$aaa]"
+fi
 case "$bbb" in "alpha beta gamma"*) ok "and the new file has every later edit" ;;
     *) bad "and the new file has every later edit" "BBB.MD begins [$bbb]" ;; esac
+fi
 
 #--------------------------------------
 # Word count. A word is a run of non-blank characters, so the count is the
 # number of blank-to-non-blank transitions. The sample document has 302 by the
 # Mac's own reckoning, which is what makes this assertion worth anything.
 #--------------------------------------
-echo "word count"
+if section "word count"; then
 reboot
 
 "$VII" caps true >/dev/null; k oa "W"; "$VII" caps false >/dev/null
@@ -1039,6 +1130,7 @@ ktext " there"
 "$VII" settle 2 >/dev/null
 snapshot
 assert_row "two words are plural"                      23 " 2 WORDS"
+fi
 
 #--------------------------------------
 # Delete word. Mid-word it goes back to that word's start; after a word it
@@ -1046,8 +1138,8 @@ assert_row "two words are plural"                      23 " 2 WORDS"
 # //e folds Ctrl into the character code and Delete arrives as $ff either way,
 # so it is OA-Delete, alongside OA-arrows for word movement.
 #--------------------------------------
-echo "delete word"
-reboot
+if section "delete word"; then
+reboot_empty
 
 "$VII" caps true >/dev/null; k oa "N"; "$VII" caps false >/dev/null
 ktext "one two three"
@@ -1077,6 +1169,7 @@ assert_lc  "Return opens a second line"                 2 1
 assert_lc  "and a word delete there just joins"         1 5
 snapshot
 assert_row "with the two lines back together"           0 "one lo"
+fi
 
 #--------------------------------------
 # Prompt cursor. A prompt with no cursor reads as a label rather than a field,
@@ -1084,8 +1177,8 @@ assert_row "with the two lines back together"           0 "one lo"
 # space, which the screen text readback renders as a plain space -- these
 # assertions read the screen cell instead.
 #--------------------------------------
-echo "prompt cursor"
-reboot
+if section "prompt cursor"; then
+reboot_empty
 
 "$VII" caps true >/dev/null
 k oa "S"
@@ -1112,7 +1205,7 @@ fi
 
 "$VII" key esc >/dev/null; "$VII" settle 2 >/dev/null
 snapshot
-assert_row "Esc puts the status row back"              23 "UNTITLED.MD"
+assert_row "Esc puts the status row back"              23 "A-? HELP"
 
 # Find prompts the same way, through the same routine.
 k oa "F"
@@ -1122,6 +1215,7 @@ assert_row   "the find prompt is showing"              23 "FIND:"
 assert_block "and it has a block too"                   6
 "$VII" key esc >/dev/null; "$VII" settle 2 >/dev/null
 "$VII" caps false >/dev/null
+fi
 
 #--------------------------------------
 # Long filenames. FNAME holds a whole PATHNAME, not a bare filename, so the
@@ -1129,38 +1223,39 @@ assert_block "and it has a block too"                   6
 # what goes: losing the star to a long path makes an unsaved document look
 # saved, which is the worst way to lose it.
 #--------------------------------------
-echo "long filenames"
-reboot
+if section "long filenames"; then
+reboot_empty
 
 ktext "x"
 "$VII" caps true >/dev/null
-k oa "S"; ktext "/EDIT/RICHSCAM.MD"; "$VII" line "" >/dev/null
+k oa "S"; ktext "/ZIPEDIT/RICHSCAM.MD"; "$VII" line "" >/dev/null
 "$VII" await "RICHSCAM" 90 || bad "save never completed"
 "$VII" settle 2 >/dev/null
 snapshot
-assert_row "a whole pathname fits in the field"        23 " /EDIT/RICHSCAM.MD"
+assert_row "a whole pathname fits in the field"        23 " /ZIPEDIT/RICHSCAM.MD"
 
 "$VII" caps false >/dev/null; ktext "y"
 "$VII" settle 2 >/dev/null
 snapshot
-assert_row "and the star shows after it"               23 "/EDIT/RICHSCAM.MD*"
+assert_row "and the star shows after it"               23 "/ZIPEDIT/RICHSCAM.MD*"
 
 # Longer than the field: the leading directories go, the filename and star stay.
 "$VII" caps true >/dev/null
-k oa "A"; ktext "/EDIT/SUBDIRECTORY/ANOTHERONE/RICHSCAM.MD"; "$VII" line "" >/dev/null
+k oa "A"; ktext "/ZIPEDIT/SUBDIRECTORY/ANOTHERONE/RICHSCAM.MD"; "$VII" line "" >/dev/null
 sleep 3
 "$VII" key esc >/dev/null; "$VII" settle 2 >/dev/null
 "$VII" caps false >/dev/null
 snapshot
 assert_row "an over-long path keeps its tail"          23 "RICHSCAM.MD*"
+fi
 
 #--------------------------------------
 # Status filename. The row carried UNTITLED.MD as static text, so it went on
 # claiming that name after a save. It now shows whatever the last save or load
 # used, and reverts when OA-N starts a fresh document.
 #--------------------------------------
-echo "status filename"
-reboot
+if section "status filename"; then
+reboot_empty
 
 snapshot
 assert_row "an unnamed document reads UNTITLED.MD"     23 " UNTITLED.MD"
@@ -1178,6 +1273,7 @@ assert_row "and no tail of the placeholder survives"   23 "NAMED.MD    "
 "$VII" settle 2 >/dev/null
 snapshot
 assert_row "a new document goes back to UNTITLED.MD"   23 " UNTITLED.MD"
+fi
 
 #--------------------------------------
 # Wrapping mid-line. The cursor's own column is not enough to go on: insert
@@ -1185,7 +1281,7 @@ assert_row "a new document goes back to UNTITLED.MD"   23 " UNTITLED.MD"
 # the LINE runs past it. RENDER drops everything past column 80, so the text
 # went off the right edge unseen.
 #--------------------------------------
-echo "mid-line wrap"
+if section "mid-line wrap"; then
 reboot
 
 k key "down arrow"; k key "down arrow"
@@ -1225,13 +1321,14 @@ ktext "fresh"
 snapshot
 assert_row "typing into an empty document still works"  0 "fresh"
 assert_lc  "and the cursor keeps up with it"            1 6
+fi
 
 #--------------------------------------
 # Open guards unsaved work. OA-O replaces the document wholesale, so it asks
 # first -- it used not to, and silently threw the unsaved document away.
 #--------------------------------------
-echo "open guards unsaved work"
-reboot
+if section "open guards unsaved work"; then
+reboot_empty
 
 ktext "unsaved edit"
 assert_mod "the document is modified"                   yes
@@ -1253,12 +1350,13 @@ assert_row "D goes on to the open prompt"              23 "OPEN:"
 snapshot
 assert_row "and cancelling that keeps the document"     0 "unsaved edit"
 "$VII" caps false >/dev/null
+fi
 
 #--------------------------------------
 # xfer.sh unwrap, for files saved before the editor could tell its own wrapping
 # from a typed return. Host side only -- no emulator involved.
 #--------------------------------------
-echo "xfer unwrap"
+if section "xfer unwrap"; then
 u="$TMP/legacy"; mkdir -p "$u"
 printf 'A paragraph that the old\neditor wrapped at the margin.\n\n- list item one\n- list item two\n\n```\ncode line\nmore code\n```\n\n# A heading\nfollowed by prose.\n\nEnds with a hard break  \nnext line.\n' > "$u/legacy.md"
 "$ROOT/tools/xfer.sh" unwrap "$u/legacy.md" >/dev/null 2>&1
@@ -1297,22 +1395,23 @@ if cmp -s "$u/once.md" "$u/legacy.md"; then
 else
     bad "and is idempotent" "a second pass changed the file"
 fi
+fi
 
 #--------------------------------------
 # Wrapped for the screen, unwrapped in the file. The buffer marks its own wraps
 # separately from the writer's returns, so a saved file carries only the
 # returns that were typed and a loaded file gets our wraps put back.
 #--------------------------------------
-echo "unwrapped files"
+if section "unwrapped files"; then
 reboot
 
 # The sample's opening paragraph is four screen rows joined by our wraps.
 snapshot
 assert_row "the paragraph is wrapped on screen"        2 "This editor is written"
-assert_row "across several rows"                       3 "on an Enhanced Apple"
+assert_row "across several rows"                       3 "Enhanced Apple //e with 128K"
 
 "$VII" caps true >/dev/null
-k oa "S"; ktext "UNWRAP.MD"; "$VII" line "" >/dev/null
+k oa "A"; ktext "UNWRAP.MD"; "$VII" line "" >/dev/null
 "$VII" await "UNWRAP.MD" 90 || bad "save never completed"
 "$VII" caps false >/dev/null
 osascript -e 'tell application "Virtual ][" to tell (last machine) to eject device "S6D1"' >/dev/null 2>&1 || true
@@ -1368,13 +1467,14 @@ else
     bad "save, load and save again is byte identical" \
         "$(wc -c < "$TMP/unwrap.bin") bytes then $(wc -c < "$TMP/unwrap2.bin") bytes"
 fi
+fi
 
 #--------------------------------------
 # Reflow keeps the writer's returns. It used to flatten every break in the
 # paragraph, which was harmless when they were all the wrapper's.
 #--------------------------------------
-echo "reflow keeps typed returns"
-reboot
+if section "reflow keeps typed returns"; then
+reboot_empty
 
 "$VII" caps true >/dev/null; k oa "N"; "$VII" caps false >/dev/null
 ktext "alpha"
@@ -1390,18 +1490,19 @@ assert_row "the second on its own row"                  1 "beta"
 snapshot
 assert_row "reflow leaves the typed return alone"       0 "alpha"
 assert_row "so the lines stay apart"                    1 "beta"
+fi
 
 #--------------------------------------
 # File I/O. Round trips through a real ProDOS volume in the mounted image.
 #--------------------------------------
-echo "file i/o"
+if section "file i/o"; then
 reboot true
 
 # Disk operations take seconds of emulated time, and the Apple II keyboard has
 # no buffer -- anything typed while ProDOS is working is simply dropped. So
 # every file operation waits for its completion message before going on.
 ktext "MARKER "
-k oa "S"; ktext "T1.MD"; "$VII" line "" >/dev/null
+k oa "A"; ktext "T1.MD"; "$VII" line "" >/dev/null
 # The busy notice is the feedback; completion is the status row coming back,
 # and it comes back carrying the name that was just saved to.
 "$VII" await "T1.MD" 90 || bad "save never completed"
@@ -1450,6 +1551,7 @@ assert "`code` spans" in text, "content lost"
     ok "file converts to clean UTF-8 Markdown for the Mac"
 else
     bad "file converts to clean UTF-8 Markdown for the Mac" "$(cat "$TMP/err")"
+fi
 fi
 
 echo

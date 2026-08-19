@@ -11,7 +11,7 @@
 *--------------------------------------
              org   $2000
              typ   $ff
-             dsk   EDIT.SYSTEM
+             dsk   ZIPEDIT.SYSTEM
 
              put   equates
 
@@ -34,14 +34,12 @@ START        lda   #$00             ; cheat sheet hidden by default; OA-/ shows 
              sta   WASVERT
              jsr   BUFINIT
 
-             lda   #<SAMPLE
-             sta   STRPTR
-             lda   #>SAMPLE
-             sta   STRPTR+1
-             jsr   INSSTR           ; text now lives in auxiliary memory
-
-             jsr   HOMECURSOR       ; rewind so RENDER starts from the top
-             lda   #$00             ; the sample is not the user's unsaved work
+*--- The editor opens on an empty document. It used to plant a sample here,
+*    which was useful while the buffer was being built and is just something to
+*    delete now. The sample lives on the disk as SAMPLE.MD instead, where it can
+*    be opened deliberately -- and where the test suite gets it from.
+             jsr   HOMECURSOR
+             lda   #$00             ; an empty document is not unsaved work
              sta   MODFLAG
 
              jsr   SETMAXROW
@@ -179,64 +177,3 @@ HOMECURSOR   jsr   GAPLEFT
 *--------------------------------------
 * Sample content. CR ($8D) separates lines, $00 terminates.
 *--------------------------------------
-SAMPLE       asc   "# Notes from the Apple //e"
-             dfb   $8d,$8d
-             asc   "This editor is written in 6502 assembly and runs under ProDOS 8"
-             dfb   SOFTCR           ; one paragraph across four screen rows, so
-             asc   "on an Enhanced Apple //e with 128K. The text you are reading"
-             dfb   SOFTCR           ; these three breaks are the wrapper's and
-             asc   "was inserted into auxiliary memory one byte at a time, then"
-             dfb   SOFTCR           ; will not be written to the file
-             asc   "read back out of it to draw this screen."
-             dfb   $8d,$8d
-             asc   "## How it writes"
-             dfb   $8d,$8d
-             asc   "- lines hard wrap near column 76, so one line is one screen row"
-             dfb   $8d
-             asc   "- **bold** with Ctrl-B, *italic* with Ctrl-I"
-             dfb   $8d
-             asc   "- `code` spans and [links](url) are typed literally"
-             dfb   $8d
-             asc   "- Open-Apple-? toggles the cheat sheet below"
-             dfb   $8d,$8d
-             asc   "> Drafted here, then carried back to the Mac as plain UTF-8."
-             dfb   $8d,$8d
-             asc   "Paragraph 01 of the draft, kept short for the scroll test."
-             dfb   $8d
-             asc   "Paragraph 02 of the draft, kept short for the scroll test."
-             dfb   $8d
-             asc   "Paragraph 03 of the draft, kept short for the scroll test."
-             dfb   $8d
-             asc   "Paragraph 04 of the draft, kept short for the scroll test."
-             dfb   $8d
-             asc   "Paragraph 05 of the draft, kept short for the scroll test."
-             dfb   $8d
-             asc   "Paragraph 06 of the draft, kept short for the scroll test."
-             dfb   $8d
-             asc   "Paragraph 07 of the draft, kept short for the scroll test."
-             dfb   $8d
-             asc   "Paragraph 08 of the draft, kept short for the scroll test."
-             dfb   $8d
-             asc   "Paragraph 09 of the draft, kept short for the scroll test."
-             dfb   $8d
-             asc   "Paragraph 10 of the draft, kept short for the scroll test."
-             dfb   $8d
-             asc   "Paragraph 11 of the draft, kept short for the scroll test."
-             dfb   $8d
-             asc   "Paragraph 12 of the draft, kept short for the scroll test."
-             dfb   $8d
-             asc   "Paragraph 13 of the draft, kept short for the scroll test."
-             dfb   $8d
-             asc   "Paragraph 14 of the draft, kept short for the scroll test."
-             dfb   $8d
-             asc   "Paragraph 15 of the draft, kept short for the scroll test."
-             dfb   $8d
-             asc   "Paragraph 16 of the draft, kept short for the scroll test."
-             dfb   $8d
-             asc   "Paragraph 17 of the draft, kept short for the scroll test."
-             dfb   $8d
-             asc   "Paragraph 18 of the draft, kept short for the scroll test."
-             dfb   $8d
-             asc   "THE END"
-             dfb   $8d
-             dfb   $00
