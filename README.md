@@ -50,6 +50,31 @@ tools/xfer.sh unwrap old-file.md                  # repair a pre-1.0 file
 Emulators buffer writes to a mounted image, so eject before pulling. `make
 pull` does that for you.
 
+## If saving fails
+
+If a save reports an error, or the disk behaves as though it were
+write-protected, and you are booting from a Floppy Emu:
+
+- **Check the Emu's display for a padlock.** A padlock means the image is
+  read-only — either the file is marked read-only on the SD card, or the
+  firmware predates `Apple-II-0.1D-F3`, which is where 5.25-inch write support
+  arrived. Nothing on the disk itself causes this: ZipEdit's files are saved
+  unlocked (ProDOS access `$E3`), and `.po` is a writable image format, unlike
+  `.nib` and `.woz`.
+- **No padlock, but writes still fail.** The original 1978 Disk II controller,
+  and some early //e controllers, need a pull-up resistor on the `/WRREQ` line
+  before a Floppy Emu can write — but only when the Emu is the *sole* drive on
+  the chain. Reads work perfectly and writes are silently dropped, which is
+  indistinguishable from a write-protected disk. Daisy-chaining a real drive as
+  drive 2 changes that condition, and costs nothing to try before buying a
+  different controller.
+
+Either way, saving to a different device works: `Open-Apple-A` and give a full
+pathname, such as `/CFFA3/DRAFT.MD`. ProDOS does not mind that the write lands
+somewhere other than the boot device. Note that `/RAM` is *not* available —
+ZipEdit disconnects it at startup, because on a 128K machine ProDOS puts it in
+the same auxiliary memory the text buffer uses.
+
 ## Building and testing
 
 ```
