@@ -66,9 +66,11 @@ BLKEND
 *--------------------------------------
 * PUTAUX -- store the byte in A at aux address AUXPTR,Y
 *--------------------------------------
-PUTAUX       tax
-             sta   RAMWRTON         ; value in A is irrelevant to the switch
-             txa
+*    No need to save the byte across the switch: STA does not touch the
+*    accumulator, and a soft switch cares only that its address was written,
+*    not what was written to it. This used to stash A in X and take it back,
+*    which cost two bytes, four cycles a write, and X.
+PUTAUX       sta   RAMWRTON         ; value in A is irrelevant to the switch
              sta   (AUXPTR),y
              sta   RAMWRTOFF
              rts

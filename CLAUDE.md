@@ -161,7 +161,10 @@ detection itself still needs real hardware.
   page handlers are `KUP`/`KDOWN` repeated, which the arrow tests do cover, but
   the bindings themselves need checking by hand.
 - **`X` cannot hold a loop counter across `INSCHR`, `GAPLEFT` or `GAPRIGHT`.**
-  All of them reach a `TAX`. Count in memory.
+  `GAPLEFT` and `GAPRIGHT` `TAX` the byte they read out of aux; `INSCHR` sets
+  `MODFLAG` through `X`. Count in memory. (`PUTAUX` used to belong on this list
+  and no longer does: it saved `A` across a soft-switch write, which `STA` never
+  disturbs in the first place.)
 - **The Makefile must depend on all of `src/*.S`, not just `$(SRC)`.** The rest
   are pulled in with `put`, and depending on `$(SRC)` alone meant edits to them
   silently did not rebuild — which produced a stale binary that looked like a
