@@ -753,6 +753,11 @@ fi
 assert_row "page one lists movement keys"             5 "char / line"
 assert_row "page one lists editing keys"              5 "delete left"
 assert_row "page one keeps a gap before the border"   7 "delete to line end "
+
+# This row was blank in every build up to 1.0.2: the command went into the
+# layout in genhelp.py and src/help.S was never regenerated. Nothing asserted
+# the row, so nothing noticed.
+assert_row "page one documents OA-Delete"           10 "A-Delete delete word left"
 # The Open Apple is now its own glyph ($41), which Virtual ][ reads back as "A"
 # since they share a code. Verified identical on real hardware.
 assert_row "page one lists selecting"                12 "A-space      start selecting"

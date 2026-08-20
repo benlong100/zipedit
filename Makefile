@@ -21,7 +21,7 @@ VII     := $(TOOLS)/vii.sh
 BIN     := $(BUILD)/$(NAME)
 IMAGE   := $(BUILD)/ZIPEDIT.po
 
-.PHONY: all disk run screen test clean tools pull push eject release probe card plaindisk
+.PHONY: all disk run screen test clean tools pull push eject release probe card plaindisk checkhelp
 
 all: $(BIN)
 
@@ -62,9 +62,15 @@ screen:
 
 # SAMPLE.MD is the suite's fixture and lives on the image, so a test that saves
 # can overwrite it. Put a fresh copy back before every run.
-test: $(IMAGE) plaindisk
+test: $(IMAGE) plaindisk checkhelp
 	@$(TOOLS)/xfer.sh push $(IMAGE) tests >/dev/null
 	@tests/run.sh $(SECTION)
+
+# src/help.S is generated but committed, so it can fall behind tools/genhelp.py
+# without anything noticing -- which is how the OA-Delete row went missing from
+# the shipped help screen. This makes that a build failure.
+checkhelp:
+	@python3 $(TOOLS)/genhelp.py --check src/help.S
 
 # A second image whose editor is patched to draw the original //e's glyphs.
 # Virtual ][ has no unenhanced //e, so this is how that path gets tested.

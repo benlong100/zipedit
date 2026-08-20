@@ -17,11 +17,37 @@ LH, LK, LD = 1, 3, 16     # left header / key / description columns
 RH, RK, RD = 32, 34, 43   # right header / key / description columns
 
 def row(cells):
-    """cells: list of (col, text) placed into a blank interior line."""
+    """cells: list of (col, text) placed into a blank interior line.
+
+    Two things can go wrong with a cell and only one of them used to be
+    caught. Running past the border was an assertion; running into the NEXT
+    COLUMN was not -- the slice simply overwrote whatever was there, and since
+    page() lays the left column down before the right, an over-long left
+    description was silently truncated by the right column landing on top of
+    it. Nothing failed, and the mangled row only showed up on the machine.
+
+    English descriptions never grew long enough to reach column 32. Italian
+    ones do, which is how this surfaced -- reported from a translation, not
+    from the layout it was written for.
+
+    So check what actually matters: no two cells may overlap. That covers a
+    description reaching the next column, a key reaching its own description,
+    and any column stop added later.
+    """
     buf = [" "] * W
+    placed = []                       # (start, end, text) already laid down
     for col, text in cells:
-        assert col + len(text) <= W, f"overflows interior: {text!r} at {col}"
-        buf[col:col + len(text)] = list(text)
+        end = col + len(text)
+        assert end <= W, (
+            f"overflows the border: {text!r} at column {col} would reach {end}, "
+            f"and the interior is {W} wide")
+        for start, stop, other in placed:
+            if col < stop and start < end:
+                raise AssertionError(
+                    f"columns collide: {text!r} at {col}-{end} runs into "
+                    f"{other!r} at {start}-{stop}")
+        placed.append((col, end, text))
+        buf[col:end] = list(text)
     return "".join(buf)
 
 def entry(key, desc, side):
@@ -132,21 +158,48 @@ def encode(line):
     return bytes(m.get(c, ord(c) + 0x80) for c in line)
 
 pages = [build(page(P1L, P1R), FOOT1), build(page(P2L, P2R), FOOT2)]
-import sys
+
+def tables():
+    out = []
+    for pi, p in enumerate(pages, 1):
+        out.append(f"HELPTBL{pi}")
+        out += [f"             da    H{pi}{i:02d}" for i in range(21)]
+        out.append("")
+    for pi, p in enumerate(pages, 1):
+        for i, line in enumerate(p):
+            b = encode(line)
+            assert len(b) in (63, 64), (pi, i, len(b))
+            out.append(f"H{pi}{i:02d}")
+            out.append("             hex   " + b[:32].hex().upper())
+            out.append("             hex   " + b[32:].hex().upper())
+            out.append("             dfb   $00")
+    return "\n".join(out) + "\n"
+
+import sys, pathlib
+
+# --check <file>: is the generated table in that file the one this layout
+# produces? src/help.S is generated but committed, so it can fall behind the
+# layout silently -- which is exactly what happened to the OA-Delete row: it
+# was added here, help.S was never regenerated, and every build after that
+# shipped a help screen with a blank line where the command should have been.
+if "--check" in sys.argv:
+    target = pathlib.Path(sys.argv[sys.argv.index("--check") + 1])
+    have = target.read_text().splitlines()
+    try:
+        first = next(i for i, l in enumerate(have) if l.startswith("HELPTBL1"))
+        last  = next(i for i, l in enumerate(have) if l.strip().startswith("dum "))
+    except StopIteration:
+        sys.exit(f"{target}: cannot find the generated region")
+    want = tables().splitlines()
+    if [l.rstrip() for l in have[first:last]] == [l.rstrip() for l in want]:
+        print(f"{target} matches the layout")
+        sys.exit(0)
+    sys.exit(f"{target} is out of date -- regenerate it:\n"
+             f"    python3 tools/genhelp.py   (and paste over the HELPTBL region)")
+
 if "--preview" in sys.argv:
     for n, p in enumerate(pages, 1):
         print(f"--- page {n} ---")
         for r in p: print(r)
 else:
-    for pi, p in enumerate(pages, 1):
-        print(f"HELPTBL{pi}")
-        for i in range(21): print(f"             da    H{pi}{i:02d}")
-        print()
-    for pi, p in enumerate(pages, 1):
-        for i, line in enumerate(p):
-            b = encode(line)
-            assert len(b) in (63, 64), (pi, i, len(b))
-            print(f"H{pi}{i:02d}")
-            print("             hex   " + b[:32].hex().upper())
-            print("             hex   " + b[32:].hex().upper())
-            print("             dfb   $00")
+    print(tables(), end="")
