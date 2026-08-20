@@ -21,7 +21,7 @@ VII     := $(TOOLS)/vii.sh
 BIN     := $(BUILD)/$(NAME)
 IMAGE   := $(BUILD)/ZIPEDIT.po
 
-.PHONY: all disk run screen test clean tools pull push eject release probe card
+.PHONY: all disk run screen test clean tools pull push eject release probe card plaindisk
 
 all: $(BIN)
 
@@ -62,9 +62,21 @@ screen:
 
 # SAMPLE.MD is the suite's fixture and lives on the image, so a test that saves
 # can overwrite it. Put a fresh copy back before every run.
-test: $(IMAGE)
+test: $(IMAGE) plaindisk
 	@$(TOOLS)/xfer.sh push $(IMAGE) tests >/dev/null
 	@tests/run.sh $(SECTION)
+
+# A second image whose editor is patched to draw the original //e's glyphs.
+# Virtual ][ has no unenhanced //e, so this is how that path gets tested.
+PLAINBIN  := $(BUILD)/ZIPEDIT-PLAIN.SYSTEM
+PLAINIMG  := $(BUILD)/ZIPEDIT-PLAIN.po
+
+plaindisk: $(PLAINIMG)
+
+$(PLAINIMG): $(BIN)
+	@python3 $(TOOLS)/forceplain.py $(BIN) $(PLAINBIN)
+	@VOL=ZIPEDIT SYS=ZIPEDIT.SYSTEM $(TOOLS)/mkdisk.sh $(PLAINIMG) $(PLAINBIN) >/dev/null
+	@echo "plain-glyph image: $(PLAINIMG)"
 
 # Virtual ][ buffers image writes until eject, so pull needs a flush first.
 eject:

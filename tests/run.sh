@@ -11,6 +11,7 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 VII="$ROOT/tools/vii.sh"
 IMAGE="${IMAGE:-$ROOT/build/ZIPEDIT.po}"
 BIN="${BIN:-$ROOT/build/ZIPEDIT.SYSTEM}"
+PLAINIMAGE="${PLAINIMAGE:-$ROOT/build/ZIPEDIT-PLAIN.po}"
 WRAPCOL=76        # must match src/equates.S
 SCRW=80           # 80-column screen, likewise
 TMP="$(mktemp -d)"
@@ -181,16 +182,23 @@ open_file() {
 # checkerboard ($56) on the status row. The screen TEXT readback cannot tell it
 # from a letter, so this reads the cell itself.
 # Row 23 begins at $07D0; even columns live in aux, odd in main.
-assert_block() {
-    local name="$1" col="$2" bank addr byte
+ROWBASE=(0x400 0x480 0x500 0x580 0x600 0x680 0x700 0x780
+         0x428 0x4A8 0x528 0x5A8 0x628 0x6A8 0x728 0x7A8
+         0x450 0x4D0 0x550 0x5D0 0x650 0x6D0 0x750 0x7D0)
+
+# assert_cell <name> <0-based row> <0-based column> <expected byte>
+assert_cell() {
+    local name="$1" row="$2" col="$3" want="$4" bank addr byte
     if [ $((col % 2)) -eq 0 ]; then bank=1; else bank=0; fi
-    addr=$(( 0x07D0 + col / 2 ))
+    addr=$(( ${ROWBASE[$row]} + col / 2 ))
     "$VII" dump "$addr" 1 "$bank" "$TMP/cell.bin" >/dev/null 2>&1
     byte="$(od -An -tu1 "$TMP/cell.bin" 2>/dev/null | tr -d ' \n')"
-    if [ "$byte" = "86" ]; then ok "$name"; else
-        bad "$name" "column $col holds $byte, wanted 86 (\$56, the checkerboard)"
+    if [ "$byte" = "$want" ]; then ok "$name"; else
+        bad "$name" "row $row column $col holds $byte, wanted $want"
     fi
 }
+
+assert_block() { assert_cell "$1" 23 "$2" 86; }
 
 # assert_centred <name> <0-based row> <text> -- and actually centred, which a
 # substring check cannot tell you.
@@ -1296,6 +1304,65 @@ assert_row   "the find prompt is showing"              23 "FIND:"
 assert_block "and it has a block too"                   6
 "$VII" key esc >/dev/null; "$VII" settle 2 >/dev/null
 "$VII" caps false >/dev/null
+fi
+
+#--------------------------------------
+# The original //e. MouseText only exists on an Enhanced machine; the original
+# keeps a second copy of inverse uppercase at $40-$5F, so every rule we draw
+# comes out as a letter and the help screen is a fence of L's. The editor asks
+# the CPU -- 65C02 means the enhancement, which came as a set -- and falls back
+# to $20, an inverse space, which is a solid block on either machine.
+#
+# Virtual ][ offers no unenhanced //e, so this runs against a second image
+# whose override byte is patched on (tools/forceplain.py). That exercises the
+# drawing, which is all of it bar the detection itself; the one thing left for
+# real hardware is whether a genuine original //e takes the 6502 branch.
+#--------------------------------------
+if section "original //e glyphs"; then
+if [ ! -f "$PLAINIMAGE" ]; then
+    bad "the plain-glyph image exists" "no $PLAINIMAGE -- run: make plaindisk"
+else
+"$VII" boot "$PLAINIMAGE" >/dev/null || { echo "boot failed"; exit 1; }
+"$VII" await "ZipEdit" 120 >/dev/null || bad "the splash never appeared"
+"$VII" text " " >/dev/null
+"$VII" await "UNTITLED.MD" 60 >/dev/null || bad "the editor never opened"
+"$VII" caps true >/dev/null
+"$VII" oa "?" >/dev/null
+"$VII" settle 3 >/dev/null
+snapshot
+
+# $4C is the thin rule on an Enhanced machine and an inverse L on an original.
+# $20 is an inverse space on both.
+assert_cell "the bottom border is a solid block, not a rule"  20 20 32
+assert_cell "and so is the left edge"                          10  8 32
+assert_row  "the help text itself is unchanged"                 4 "MOVING"
+
+# The point of the substitution: a border with no letters in it. Row 20 was a
+# run of inverse L's before this, which is what an original //e would show.
+if "$VII" screen-raw | sed -n '21p' | grep -qE "[A-Za-z]"; then
+    bad "the border carries no stray letters" "row 20: $("$VII" screen-raw | sed -n '21p' | cut -c1-40)"
+else
+    ok "the border carries no stray letters"
+fi
+
+"$VII" text " " >/dev/null
+"$VII" await "CLIPBOARD" 60 >/dev/null || bad "a key never turned to page two"
+"$VII" settle 2 >/dev/null
+snapshot
+assert_row  "page two turns and reads normally"                 9 "CLIPBOARD"
+assert_cell "with a block border of its own"                   20 20 32
+"$VII" text " " >/dev/null; "$VII" settle 2 >/dev/null
+
+# The prompt cursor is the checkerboard on an Enhanced machine; here a block.
+k oa "S"
+"$VII" settle 3 >/dev/null
+snapshot
+assert_row  "the save prompt still opens"                      23 "SAVE AS:"
+assert_cell "and its cursor is a block, not a checkerboard"    23  9 32
+"$VII" key esc >/dev/null
+"$VII" caps false >/dev/null
+"$VII" settle 2 >/dev/null
+fi
 fi
 
 #--------------------------------------

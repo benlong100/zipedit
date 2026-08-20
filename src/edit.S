@@ -58,6 +58,9 @@ START        lda   #$00             ; cheat sheet hidden by default; OA-/ shows 
              sta   CLIPLEN+1
              sta   CLIPLINE
 
+             jsr   DETECTMT         ; MouseText, or solid blocks instead
+             jsr   PLAINIFY         ; which the help screen has to know before
+                                    ; it is ever drawn
              jsr   SETMAXROW
              lda   #$00
              sta   MSGSHOWN
@@ -189,6 +192,7 @@ HOMECURSOR   jsr   GAPLEFT
              put   splash
              put   buffer
              put   display
+             put   machine
 
 *--------------------------------------
 * Sample content. CR ($8D) separates lines, $00 terminates.

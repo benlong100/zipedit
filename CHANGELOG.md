@@ -1,5 +1,28 @@
 # Changelog
 
+## Unreleased
+
+**The original (unenhanced) //e draws correctly.**
+
+MouseText exists only on an Enhanced //e; the original keeps a redundant copy
+of inverse uppercase at `$40-$5F`, so the help screen's border came out as a
+fence of `L`s and backslashes and the prompt cursor as a `V`. The editor now
+asks the CPU at startup -- decimal `$99 + $01` is `$00` on a 65C02 and `$9A` on
+a 6502, and the enhancement was a set of CPU, ROMs and character generator --
+and substitutes `$20`, an inverse space, for the four affected codes. `$41` is
+deliberately left alone: it lands on inverse `A`, which reads perfectly well as
+the Apple key, so the status row, the splash and every `OA-` label are already
+right.
+
+Still needs 128K, and the Enhanced path is byte-for-byte unchanged.
+
+**Not verified on real hardware yet** -- Virtual ][ offers no unenhanced //e,
+so `make plaindisk` patches an override byte into a second image and the suite
+exercises the drawing there (`tools/forceplain.py`). What remains untested is
+whether a genuine original //e takes the 6502 branch.
+
+Costs 126 bytes. The editor is 9,146 bytes.
+
 ## 1.0.2 — 19 August 2026
 
 **Fixed: quitting and relaunching left the editor with a garbage filename and

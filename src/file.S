@@ -363,8 +363,11 @@ PCURSOR      lda   PLEN
              clc
              adc   TMPB
              tax
-             lda   #$56
-             sta   LINEBUF,x
+             lda   #$56             ; MouseText checkerboard, and on a machine
+             bit   HASMTEXT         ; without it a solid block instead. BIT
+             bmi   :put             ; leaves A and X alone; X is the column.
+             lda   #$20
+:put         sta   LINEBUF,x
              rts
 
 *--------------------------------------

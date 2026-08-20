@@ -117,6 +117,17 @@ apple. There are **no** corner or T-junction glyphs.
 Virtual ][ reads these codes back as the ASCII characters sharing their value,
 so tests assert `\` for `$5C`, `L` for `$4C`, `_` for `$5F` and `A` for `$41`.
 
+**MouseText only exists on an Enhanced //e.** The original keeps a second copy
+of inverse uppercase at `$40-$5F`, so those same codes draw as letters there.
+`src/machine.S` asks the CPU at startup -- decimal-mode `$99 + $01` is `$00` on
+a 65C02 and `$9A` on a 6502, and the enhancement came as a set -- and rewrites
+the help rows to `$20`, an inverse space, when MouseText is absent. `$41` is
+left alone: it lands on inverse `A`, which reads fine as the Apple key.
+
+Virtual ][ has no unenhanced //e, so `make plaindisk` patches an override byte
+into a second image (`tools/forceplain.py`) and the suite drives that. Only the
+detection itself still needs real hardware.
+
 ## Gotchas discovered the hard way
 
 - `reset` in AppleScript is a *warm* reset and will not reboot from disk. Use
