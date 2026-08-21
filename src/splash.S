@@ -57,7 +57,7 @@ SPLCOL       dfb   36,33,33,32,27
 
 SPLNAME      asc   "ZipEdit"
              dfb   $00
-SPLVER       asc   "Version 1.0.2"
+SPLVER       asc   "Version 1.0.3"
              dfb   $00
 SPLDATE      asc   "August, 2026."
              dfb   $00

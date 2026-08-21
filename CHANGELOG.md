@@ -1,27 +1,57 @@
 # Changelog
 
-## Unreleased
+## 1.0.3 — 20 August 2026
 
-**The original (unenhanced) //e draws correctly.**
+**Fixed: a text file the editor did not write came up as a blank screen.**
 
-MouseText exists only on an Enhanced //e; the original keeps a redundant copy
-of inverse uppercase at `$40-$5F`, so the help screen's border came out as a
-fence of `L`s and backslashes and the prompt cursor as a `V`. The editor now
-asks the CPU at startup -- decimal `$99 + $01` is `$00` on a 65C02 and `$9A` on
-a 6502, and the enhancement was a set of CPU, ROMs and character generator --
-and substitutes `$20`, an inverse space, for the four affected codes. `$41` is
-deliberately left alone: it lands on inverse `A`, which reads perfectly well as
-the Apple key, so the status row, the splash and every `OA-` label are already
-right.
+The buffer holds high ASCII, and the line-end test is a single compare against
+`$A0` — so anything below that ends a line. Fine for a file ZipEdit wrote; a
+disaster for one it did not. A `.txt` from a Mac or a PC is low ASCII
+throughout, so **every byte** read as a line break and the document came up as
+thousands of empty lines, which on screen looks exactly like nothing at all.
 
-Still needs 128K, and the Enhanced path is byte-for-byte unchanged.
+Reported from a //c under MAME: a 6.5K text file, a blank screen. It only ever
+worked because every file tested had come through `xfer.sh push`, which sets
+bit 7 on the way in — so the editor whose whole point is carrying drafts to and
+from a Mac could not open what the Mac wrote.
 
-**Not verified on real hardware yet** -- Virtual ][ offers no unenhanced //e,
-so `make plaindisk` patches an override byte into a second image and the suite
-exercises the drawing there (`tools/forceplain.py`). What remains untested is
-whether a genuine original //e takes the 6502 branch.
+The loader normalises now instead of trusting the file:
 
-Costs 126 bytes. The editor is 9,146 bytes.
+| in the file | what happens |
+|---|---|
+| CR, LF or CRLF | one line break, however the file spells its endings |
+| tab | two spaces, matching what the Tab key inserts |
+| `$20`–`$7E` | the same character with bit 7 set |
+| high ASCII | untouched, so existing files load exactly as before |
+| other control bytes | dropped, before they can punch phantom breaks |
+
+**Fixed: the help screen was missing a command.**
+
+`OA-Delete` — delete the previous word — went into the help layout when the
+feature was added, but `src/help.S` was never regenerated. Every build since
+has shipped a help screen with a blank line where that command belongs. It is
+documented at last, and `genhelp.py --check` now runs in `make test` so the
+generated file cannot fall behind its layout again.
+
+**Also here:**
+
+- `genhelp.py` rejects help rows whose columns collide, not merely ones that
+  overrun the border. Reported from an Italian translation: English
+  descriptions never grew long enough to reach the next column and Italian
+  ones do, and an over-long one was silently overwritten rather than failing.
+- `PUTAUX` no longer saves the accumulator across a soft-switch write. `STA`
+  never disturbs it, so the round trip did nothing — two bytes, and four
+  cycles off every write into the text buffer. Asked by someone reading the
+  source on GitHub.
+- The manual's `xfer.sh push` example was wrong: `push` takes a folder, not a
+  file, and moves every `.md` in it.
+- **Preliminary, unverified:** the editor now detects an original (unenhanced)
+  //e and draws solid blocks where MouseText would be, instead of the rows of
+  letters those codes produce there. Every emulator available offers only an
+  Enhanced //e, so the detection has not yet run on the machine it is for.
+  Enhanced machines are unaffected and byte-for-byte identical.
+
+261 assertions across 36 sections. The editor is 9,218 bytes.
 
 ## 1.0.2 — 19 August 2026
 

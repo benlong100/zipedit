@@ -43,7 +43,7 @@ content. What lands on your Mac needs no cleaning up.
 
 ```sh
 tools/xfer.sh pull build/ZIPEDIT.po ~/Documents   # files off the image
-tools/xfer.sh push build/ZIPEDIT.po draft.md      # a file onto it
+tools/xfer.sh push build/ZIPEDIT.po ~/drafts      # every .md in a folder
 tools/xfer.sh unwrap old-file.md                  # repair a pre-1.0 file
 ```
 
