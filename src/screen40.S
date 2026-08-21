@@ -151,3 +151,26 @@ SHOWCURSOR   lda   CURSROW
              and   #$3f
 :put         sta   (SCRPTR),y
 :skip        rts
+
+*--------------------------------------
+* INVCHR -- the inverse of the character in A
+*
+* There is no inverse lowercase on this machine, so the //e's rule -- leave
+* $60-$7F alone, it is already inverse -- puts a selected lowercase letter in
+* the FLASHING range, where FOLDCASE lifts it straight back to a plain
+* capital. Selected text then looked exactly like unselected text: the
+* selection was real, and cutting proved it, but nothing was highlighted.
+*
+* So fold a lowercase letter up to its capital first, and invert that. A
+* selected capital and a selected lowercase letter therefore look the same,
+* which is what one alphabet and one highlight between them can manage.
+*--------------------------------------
+INVCHR       and   #$7f
+             cmp   #$61             ; 'a'
+             bcc   :inv
+             cmp   #$7b             ; past 'z'
+             bcs   :inv
+             sec
+             sbc   #$20             ; lowercase -> its capital
+:inv         and   #$3f             ; and into the inverse range
+             rts

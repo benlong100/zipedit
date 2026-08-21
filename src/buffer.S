@@ -325,11 +325,8 @@ RENDER       lda   #$00
              beq   :bump            ; above the viewport: count, do not draw
              lda   INSEL
              beq   :plain
-             lda   TMPA             ; selected: draw it inverse
-             and   #$7f
-             cmp   #$60
-             bcs   :store
-             and   #$3f
+             lda   TMPA             ; selected: draw it inverse, in whatever
+             jsr   INVCHR           ; way this character generator manages
              jmp   :store
 :plain       lda   TMPA
 :store       sta   LINEBUF,x

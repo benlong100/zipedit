@@ -130,3 +130,16 @@ SHOWCURSOR   lda   CURSROW
              and   #$3f
 :put         sta   (SCRPTR),y
 :skip        rts
+
+*--------------------------------------
+* INVCHR -- the inverse of the character in A
+*
+* The alternate character set carries inverse lowercase at $60-$7F, so a
+* lowercase letter is already its own inverse form and only the rest need
+* folding down into $00-$3F.
+*--------------------------------------
+INVCHR       and   #$7f
+             cmp   #$60
+             bcs   :done            ; inverse lowercase is itself
+             and   #$3f
+:done        rts
