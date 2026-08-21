@@ -379,7 +379,7 @@ RENDER       lda   #$00
              bcc   :eol
 
              ldx   CURCOL
-             cpx   #SCRW
+             cpx   GSCRW
              bcs   :next            ; past the right margin, drop it
              lda   VIS
              beq   :bump            ; above the viewport: count, do not draw

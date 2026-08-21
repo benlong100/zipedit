@@ -206,14 +206,14 @@ RTFLOW       lda   GAPBEG
 * that is what makes this affordable, and it is why OA-R exists.
 *--------------------------------------
 WRAPCHECK    lda   CCOL
-             cmp   #WRAPCOL+1
+             cmp   GWRAP1
              bcc   :look            ; the cursor is still short of the margin
              jsr   DOWRAP           ; past it: break behind us, as it always did
              jmp   RTFWD            ; and tidy what follows, same as the other path
 :look
 
 *--- room left on this line before the margin
-             lda   #WRAPCOL+1
+             lda   GWRAP1
              sec
              sbc   CCOL
              sta   WLOOK
@@ -346,7 +346,7 @@ WRAPALL      jsr   HOMECURSOR
              bcs   :done            ; end of buffer
              jsr   GAPRIGHT
              lda   CCOL
-             cmp   #WRAPCOL+1
+             cmp   GWRAP1
              bcc   :loop
              jsr   DOWRAP           ; breaks behind us and returns the cursor
              jmp   :loop
@@ -397,7 +397,7 @@ REFLOWHERE
 
 :char        jsr   GAPRIGHT
 :check       lda   CCOL
-             cmp   #WRAPCOL+1
+             cmp   GWRAP1
              bcc   :loop
              jsr   DOWRAP
              jmp   :loop

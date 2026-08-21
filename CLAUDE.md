@@ -66,6 +66,13 @@ generator probe, `src/hello.S` is the minimal toolchain check.
   `SOFTCR` a wrap that replaced a space, `SOFTWD` a wrap inside a long word.
   Only `HARDCR` reaches the file. Test for a line end with `cmp #TEXTLO / bcc`,
   never `cmp #$8d` — a missed one is a break that some subsystem cannot see.
+- **Never hard-code a screen column.** The layout's columns -- the wrap
+  margin, the status row's fields, the prompt's hint, the help box's edge --
+  live in the record in `src/geom.S`, filled at startup from a table. An
+  equate compiled into the code that reads it is an 80-column assumption, and
+  there is a 40-column machine coming. Rows are different: 24 either way, so
+  `CHEATROW`, `STATROW` and `TEXTROWS` stay equates. `SCRW` survives only as
+  the size of the widest line we allocate.
 - **High ASCII.** Anything destined for the screen or for a text file has bit 7
   set. `asc "..."` (double quotes) sets it; single quotes do not.
 

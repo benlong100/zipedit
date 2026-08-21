@@ -163,7 +163,7 @@ RENDERROW    jsr   CLRBUF
              jsr   AUXBLK           ; one bank switch for the whole run
 
 *--- the rest of the line resumes past the gap
-:post        lda   #SCRW
+:post        lda   GSCRW
              sec
              sbc   CCOL
              sta   BLKLEN
@@ -201,7 +201,7 @@ RENDERROW    jsr   CLRBUF
 *--- that copy ran past the end of the line, so blank from the newline on.
 *    Scanning main memory costs nothing next to reading aux a byte at a time.
              ldx   CCOL
-:scan        cpx   #SCRW
+:scan        cpx   GSCRW
              bcs   :draw
              lda   LINEBUF,x        ; buffer bytes, so any break ends the row
              cmp   #TEXTLO
@@ -211,7 +211,7 @@ RENDERROW    jsr   CLRBUF
 :blank       lda   #$a0
 :bl          sta   LINEBUF,x
              inx
-             cpx   #SCRW
+             cpx   GSCRW
              bcc   :bl
 
 :draw        lda   CURLNO

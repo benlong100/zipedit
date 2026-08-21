@@ -113,7 +113,9 @@ AUXBLK       equ   $0110            ; a block, with one bank switch for the lot
 FCHEAT       equ   %00000001        ; cheat sheet visible
 
 *--- screen geometry ---
-SCRW         equ   80
+SCRW         equ   80               ; the WIDEST line we allocate for. The
+                                    ; layout reads GSCRW at run time; this is
+                                    ; only ever a buffer size. See geom.S.
 CHEATROW     equ   22               ; 0-based; row 23 in the design doc
 STATROW      equ   23
 TEXTROWS     equ   22               ; when the cheat sheet is showing

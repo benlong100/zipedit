@@ -63,7 +63,7 @@ SETROW       tax
 * CLRBUF -- fill LINEBUF with spaces
 *--------------------------------------
 CLRBUF       lda   #$a0
-             ldx   #SCRW-1
+             ldx   GSCRWM1
 :loop        sta   LINEBUF,x
              dex
              bpl   :loop
@@ -76,7 +76,7 @@ CLRBUF       lda   #$a0
 BUFSTR       ldy   #$00
 :loop        lda   (STRPTR),y
              beq   :done
-             cpx   #SCRW
+             cpx   GSCRW
              bcs   :done
              sta   LINEBUF,x
              inx
@@ -90,7 +90,7 @@ BUFSTR       ldy   #$00
 * Bytes with the high bit clear are raw screen codes deliberately placed in the
 * buffer -- MouseText -- and must not be touched. Ordinary text always arrives
 * here as high ASCII, so the sign bit tells the two apart.
-INVBUF       ldy   #SCRW-1
+INVBUF       ldy   GSCRWM1
 :loop        lda   LINEBUF,y
              bpl   :raw             ; MouseText: leave as is
              and   #$7f             ; back to plain ASCII
@@ -322,7 +322,7 @@ STATUPD      lda   MSGSHOWN
              sta   NUMV+1
              lda   #$04
              sta   PWID
-             ldx   #LNDIG
+             ldx   GLNDIG
              jsr   PUTNUM
 
 :docol       lda   CCOL
@@ -337,7 +337,7 @@ STATUPD      lda   MSGSHOWN
              sta   NUMV+1
              lda   #$03
              sta   PWID
-             ldx   #CLDIG
+             ldx   GCLDIG
              jsr   PUTNUM
 
 *--- modified indicator. It is a star straight after the name now, so it moves
@@ -385,16 +385,16 @@ SHOWNAME     lda   #STATROW
 *    are actually looking at. Losing the star to a long path is the worst of
 *    both -- the document looks saved when it is not.
              lda   NAMELEN
-             cmp   #NAMEW           ; NAMEW-1 characters, plus the star
+             cmp   GNAMEW           ; NAMEW-1 characters, plus the star
              bcc   :draw
              sec
-             sbc   #NAMEW-1         ; how much to drop off the front
+             sbc   GNAMEWM1         ; how much to drop off the front
              clc
              adc   STRPTR
              sta   STRPTR
              bcc   :cap
              inc   STRPTR+1
-:cap         lda   #NAMEW-1
+:cap         lda   GNAMEWM1
              sta   NAMELEN
              jmp   :draw
 :untitled    lda   #UNTLEN
@@ -429,7 +429,7 @@ SHOWNAME     lda   #STATROW
              jsr   PUTCELL
              inc   NAMEI
              lda   NAMEI
-             cmp   #NAMEW
+             cmp   GNAMEW
              bne   :loop
              rts
 

@@ -334,7 +334,7 @@ PROMPT       jsr   CLRBUF
              sta   STRPTR
              lda   #>HINTESC
              sta   STRPTR+1
-             ldx   #PHINTCOL
+             ldx   GPHINT
              jsr   BUFSTR
              lda   #$00
              sta   PLEN
@@ -352,7 +352,7 @@ PROMPT       jsr   CLRBUF
              bcc   :key
 
              ldx   PLEN
-             cpx   #PMAXLEN
+             cpx   GPMAX
              bcs   :key
              sta   TMPA
              sta   PBUF,x
@@ -466,7 +466,7 @@ SHOWBUSY     jsr   CLRBUF
              iny
              bne   :len
 :got         sty   TMPA
-             lda   #SCRW
+             lda   GSCRW
              sec
              sbc   TMPA
              lsr                    ; centre it

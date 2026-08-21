@@ -16,7 +16,10 @@
              put   equates
 
 *--------------------------------------
-START        lda   #$00             ; cheat sheet hidden by default; OA-/ shows it
+START        jsr   GEOMINIT         ; the layout's columns first of all: it
+                                    ; depends on nothing, and everything that
+                                    ; draws depends on it
+             lda   #$00             ; cheat sheet hidden by default; OA-/ shows it
              sta   FLAGS
              lda   #$00
              sta   SCROLLTOP
@@ -193,6 +196,7 @@ HOMECURSOR   jsr   GAPLEFT
              put   buffer
              put   display
              put   machine
+             put   geom
 
 *--------------------------------------
 * Sample content. CR ($8D) separates lines, $00 terminates.

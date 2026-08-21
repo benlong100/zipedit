@@ -82,7 +82,7 @@ HELPSHOW     lda   #$00
              lda   HELPTBL2+1,y
              sta   STRPTR+1
 :draw        jsr   CLRBUF
-             ldx   #HELPCOL
+             ldx   GHELPCOL
              jsr   BUFSTR
              lda   HELPI
              jsr   DRAWLINE
