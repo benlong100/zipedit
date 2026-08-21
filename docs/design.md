@@ -792,8 +792,21 @@ the heading above and below untouched.
 
 ## 9. The Apple ][+ — as designed, not yet built
 
-Target: a **stock 64K ][+**, 40 columns, uppercase only. No shift-key mod, no
-lowercase character ROM, no 80-column card. Those may come later; the floor is
+Target: a **stock 64K ][+**, 40 columns. No shift-key mod, no lowercase
+character ROM, no 80-column card.
+
+**Case is handled Apple Writer's way**, which needs no hardware at all. The
+keyboard sends only capitals, and a writer wants far more lowercase than
+capitals, so a letter means the lowercase one and **Esc before it asks for the
+capital**. On screen a lowercase letter draws as an ordinary capital and a
+CAPITAL draws inverse -- backwards from how it looks written down, and right
+on the screen, because the text reads normally and the capitals you chose are
+the ones that stand out. The buffer and the file hold real mixed case, so what
+reaches the Mac is ordinary prose rather than a shout.
+
+That is why the Esc commands live on symbols and control codes: `Esc A` has to
+mean a capital A, so save-as is `Esc Ctrl-S` and delete-word is `Esc Ctrl-Z`.
+Only letters are ambiguous, and nothing else after Esc ever needs to be one. Those may come later; the floor is
 a machine as it left the factory, plus the Language Card that ProDOS 8 requires.
 
 Capacity drops from 46K to roughly 20K, because there is no auxiliary bank and

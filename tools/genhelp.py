@@ -206,49 +206,49 @@ def h40(text):
 
 P1_40 = [
     h40("MOVING"),
-    e40("ARROWS",    "CHAR LEFT/RIGHT"),
-    e40("CTRL-K J",  "LINE UP/DOWN"),
-    e40("CTRL-A E",  "LINE START/END"),
-    e40("ESC + KEY", "WORD OR PAGE"),
-    e40("ESC < >",   "TOP/END OF DOC"),
+    e40("arrows", "char left/right"),
+    e40("ctrl-j k", "line up/down"),
+    e40("ctrl-a e", "line start/end"),
+    e40("esc + key", "word or page"),
+    e40("esc < >", "top/end of doc"),
     None,
     h40("EDITING"),
-    e40("CTRL-Z",    "DELETE LEFT"),
-    e40("CTRL-D",    "DELETE RIGHT"),
-    e40("CTRL-Y",    "TO END OF LINE"),
-    e40("ESC Z",     "DELETE WORD"),
-    e40("CTRL-B I",  "BOLD / ITALIC"),
-    e40("TAB",       "INDENT"),
-    e40("CTRL-R",    "REFLOW PARA"),
+    e40("ctrl-z", "delete left"),
+    e40("ctrl-d", "delete right"),
+    e40("ctrl-y", "to end of line"),
+    e40("esc z", "delete word"),
+    e40("ctrl-b i", "bold / italic"),
+    e40("tab", "indent"),
+    e40("ctrl-r", "reflow para"),
     h40("SELECTING"),
-    e40("CTRL-T",    "START, ARROWS PAINT"),
-    e40("ESC",       "CANCEL"),
+    e40("ctrl-t", "start, arrows paint"),
+    e40("esc", "cancel"),
 ]
 
 P2_40 = [
     h40("CLIPBOARD"),
-    e40("CTRL-C",    "COPY"),
-    e40("CTRL-X",    "CUT"),
-    e40("CTRL-V",    "PASTE"),
+    e40("ctrl-c", "copy"),
+    e40("ctrl-x", "cut"),
+    e40("ctrl-v", "paste"),
     None,
     h40("FILES"),
-    e40("CTRL-S",    "SAVE"),
-    e40("ESC A",     "SAVE AS"),
-    e40("CTRL-O",    "OPEN"),
-    e40("CTRL-N",    "NEW"),
-    e40("CTRL-Q",    "QUIT"),
+    e40("ctrl-s", "save"),
+    e40("esc a", "save as"),
+    e40("ctrl-o", "open"),
+    e40("ctrl-n", "new"),
+    e40("ctrl-q", "quit"),
     None,
     h40("SEARCH"),
-    e40("CTRL-F",    "FIND"),
-    e40("CTRL-G",    "FIND AGAIN"),
-    e40("CTRL-L",    "GO TO LINE"),
-    e40("CTRL-W",    "WORD COUNT"),
-    e40("CTRL-P",    "THIS HELP, OR ESC ?"),
+    e40("ctrl-f", "find"),
+    e40("ctrl-g", "find again"),
+    e40("ctrl-l", "go to line"),
+    e40("ctrl-w", "word count"),
+    e40("ctrl-p", "this help, or esc ?"),
 ]
 
-TITLE40 = "ZIPEDIT -- COMMANDS"
-F1_40   = "ANY KEY FOR MORE    1 OF 2"
-F2_40   = "ANY KEY TO RETURN   2 OF 2"
+TITLE40 = "zipedit -- commands"
+F1_40   = "any key for more    1 of 2"
+F2_40   = "any key to return   2 of 2"
 
 def centre40(t):
     return row([((W40 - len(t)) // 2, t)], W40)

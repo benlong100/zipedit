@@ -19,7 +19,20 @@ GETKEY       lda   KBD
              sta   MODOA
              sta   MODCA
              sta   KBDSTRB          ; value written is irrelevant
+
+*--- This keyboard has no lowercase, and a writer needs far more lowercase
+*    than capitals, so a letter means the lowercase one. Esc before it asks
+*    for the capital, which is how Apple Writer did it on this machine and
+*    needs no soldering iron. The BUFFER holds real mixed case either way, so
+*    what reaches the Mac is ordinary text and not a shout.
              lda   KEYCHR
+             cmp   #$c1             ; 'A'
+             bcc   :done
+             cmp   #$db             ; past 'Z'
+             bcs   :done
+             ora   #$20             ; capital -> lowercase
+             sta   KEYCHR
+:done        lda   KEYCHR
              rts
 
 *--------------------------------------
@@ -41,10 +54,10 @@ KEYTBL
              da    KLEFT            ; Ctrl-H, and the left arrow key
              dfb   $95,$00
              da    KRIGHT           ; Ctrl-U, and the right arrow key
-             dfb   $8b,$00
-             da    KUPSEL           ; Ctrl-K
              dfb   $8a,$00
-             da    KDOWNSEL         ; Ctrl-J
+             da    KUPSEL           ; Ctrl-J
+             dfb   $8b,$00
+             da    KDOWNSEL         ; Ctrl-K
              dfb   $8d,$00
              da    KRETURN          ; Return
              dfb   $84,$00
@@ -121,8 +134,20 @@ ESCPFX       lda   SELACT
              beq   :prefix
              jmp   SELESC           ; something to cancel: cancel it
 
+*--- A letter after Esc is that letter capitalised. Everything else after Esc
+*    is a command, which is why the commands live on symbols and control
+*    codes: those can never be confused with a letter somebody wants a
+*    capital of.
 :prefix      jsr   GETKEY
-             ldx   #$00
+             cmp   #$e1             ; 'a'
+             bcc   :cmd
+             cmp   #$fb             ; past 'z'
+             bcs   :cmd
+             and   #$df             ; lowercase -> capital
+             sta   KEYCHR
+             jmp   DISPATCH         ; no table entry for a letter: it is typed
+
+:cmd         ldx   #$00
 :scan        lda   ESCTBL,x
              beq   :none            ; unknown second key: do nothing
              cmp   KEYCHR
@@ -139,18 +164,19 @@ ESCPFX       lda   SELACT
 :none        rts
 
 ESCTBL
-             dfb   $c1
-             da    KSAVEAS          ; Esc A -- save as
+             dfb   $93
+             da    KSAVEAS          ; Esc Ctrl-S -- save as. Not Esc A: that
+                                    ; is how you type a capital A.
              dfb   $bc
              da    KTOP             ; Esc < -- start of the document
              dfb   $be
              da    KEND             ; Esc > -- end of it
-             dfb   $da
-             da    KDELWORD         ; Esc Z -- delete the word behind
-             dfb   $8b
-             da    KPGUP            ; Esc Ctrl-K -- a page up
+             dfb   $9a
+             da    KDELWORD         ; Esc Ctrl-Z -- delete the word behind
              dfb   $8a
-             da    KPGDN            ; Esc Ctrl-J -- a page down
+             da    KPGUP            ; Esc Ctrl-J -- a page up
+             dfb   $8b
+             da    KPGDN            ; Esc Ctrl-K -- a page down
              dfb   $88
              da    KWORDLSEL        ; Esc Ctrl-H -- a word left
              dfb   $95

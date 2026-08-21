@@ -98,19 +98,35 @@ PUTCELL      jsr   FOLDCASE
 * The buffer keeps the case that was typed; only the screen loses it.
 *--------------------------------------
 FOLDCASE     cmp   #$40
-             bcc   :done            ; $00-$3F is inverse, and inverse is the
-                                    ; one thing this ROM does properly
+             bcc   :done            ; $00-$3F is already inverse, and that is
+                                    ; the one thing this ROM does properly
              cmp   #$80
-             bcs   :lower
+             bcs   :high
              clc
-             adc   #$80             ; $40-$7F flashes on this machine. The //e
-                                    ; puts MouseText and the open apple there;
-                                    ; here they would blink at the reader, so
-                                    ; lift them into the normal range instead
-:lower       cmp   #$e0
-             bcc   :done
+             adc   #$80             ; $40-$7F flashes here. The //e keeps
+                                    ; MouseText and the open apple there and
+                                    ; they would blink at the reader.
+
+*--- One alphabet, two cases to show. Apple Writer's answer, and it is still
+*    the right one: a lowercase letter draws as an ordinary capital, and a
+*    CAPITAL draws inverse. So text reads normally and the capitals you asked
+*    for are the ones that stand out -- which is exactly backwards from how it
+*    looks written down, and exactly right on the screen.
+:high        cmp   #$e1             ; 'a'
+             bcc   :upper
+             cmp   #$fb             ; past 'z'
+             bcs   :sym
              sec
-             sbc   #$20             ; and lowercase to capitals
+             sbc   #$20             ; lowercase -> a plain capital
+             rts
+:upper       cmp   #$c1             ; 'A'
+             bcc   :done
+             cmp   #$db             ; past 'Z'
+             bcs   :done
+             and   #$3f             ; CAPITAL -> inverse capital
+             rts
+:sym         sec
+             sbc   #$20             ; the few symbols above 'z'
 :done        rts
 
 *--------------------------------------
