@@ -230,6 +230,8 @@ LOADFILE     jsr   OPENF
              sta   READPARM+1
              sta   CLOSEPARM+1
              jsr   BUFINIT          ; discard whatever was there
+             lda   #$00
+             sta   WASCR            ; no CR pending, so a leading LF breaks
 
 :loop        jsr   READF
              bcs   :eof             ; end of file reports as an error
@@ -241,7 +243,7 @@ LOADFILE     jsr   OPENF
              beq   :loop
              lda   DATBUF,y
              sty   TMPB
-             jsr   INSCHR
+             jsr   LOADCH
              ldy   TMPB
              iny
              jmp   :ins
@@ -252,6 +254,66 @@ LOADFILE     jsr   OPENF
              clc
              rts
 :fail        sec
+             rts
+
+*--------------------------------------
+* LOADCH -- put one byte from a file into the buffer, whatever it came from
+*
+* The buffer holds high ASCII, and the line-end test is a single compare
+* against TEXTLO -- so anything below $A0 ends a line. That is fine for a file
+* this editor wrote, and it is a disaster for one it did not: a .txt from a Mac
+* or a PC is LOW ascii throughout, so every byte reads as a line break and the
+* document comes up as several thousand empty lines. Which looks, on screen,
+* exactly like nothing at all. Reported from a //c under MAME: a 6.5K text
+* file, a blank screen.
+*
+* So the file is normalised on the way in rather than trusted:
+*
+*   CR, LF or CRLF   one HARDCR, however the file spells its line endings
+*   tab              two spaces, matching what the Tab key inserts
+*   $20-$7E          the same character with bit 7 set
+*   anything else     dropped, before it can punch a phantom line break
+*
+* Masking bit 7 first is what lets one path serve both conventions: high and
+* low ASCII differ by exactly that bit, and it carries no meaning in a text
+* file beyond which machine wrote it.
+*--------------------------------------
+LOADCH       and   #$7f             ; both conventions, one path from here
+             cmp   #$0d
+             beq   :cr
+             cmp   #$0a
+             beq   :lf
+
+*--- not a CR, so any LF after this one is a line of its own
+             ldx   #$00
+             stx   WASCR
+             cmp   #$09
+             beq   :tab
+             cmp   #$20             ; control character: drop it
+             bcc   :drop
+             cmp   #$7f             ; and DEL with it
+             beq   :drop
+             ora   #$80             ; ordinary text
+             jmp   INSCHR
+
+:drop        rts
+
+:tab         lda   #$a0
+             jsr   INSCHR
+             lda   #$a0
+             jmp   INSCHR
+
+:cr          ldx   #$01
+             stx   WASCR            ; an LF straight after this is the same break
+             lda   #HARDCR
+             jmp   INSCHR
+
+:lf          ldx   WASCR
+             bne   :crlf
+             lda   #HARDCR          ; a lone LF is a line ending too
+             jmp   INSCHR
+:crlf        ldx   #$00             ; second half of a CRLF: the CR did the work
+             stx   WASCR
              rts
 
 *--------------------------------------
@@ -539,6 +601,10 @@ MSGERR       asc   " PRODOS ERROR $"
 * Mutable storage, declared but not emitted.
 * IOBUF must be 1K and page aligned; ProDOS requires it.
 *--------------------------------------
+             dum   $1443            ; $1441-$1442 are machine.S's
+WASCR        ds    1                ; a CR just went in, so swallow an LF
+             dend
+
              dum   $0800
 IOBUF        ds    1024
 DATBUF       ds    256

@@ -64,6 +64,7 @@ screen:
 # can overwrite it. Put a fresh copy back before every run.
 test: $(IMAGE) plaindisk checkhelp
 	@$(TOOLS)/xfer.sh push $(IMAGE) tests >/dev/null
+	@python3 $(TOOLS)/asciifixtures.py $(IMAGE) >/dev/null
 	@tests/run.sh $(SECTION)
 
 # src/help.S is generated but committed, so it can fall behind tools/genhelp.py
