@@ -65,8 +65,9 @@ GEOM40       dfb   40               ; GSCRW
              dfb   14               ; GNAMEWM1  star, in what is left
              dfb   28               ; GPHINT    prompt hint, shortened there
              dfb   20               ; GPMAX     input, capped short of it
-             dfb   1                ; GHELPCOL  a help box with no room to
-                                    ;           indent
+             dfb   0                ; GHELPCOL  no box at all: the border is
+                                    ;           MouseText, which this machine
+                                    ;           cannot draw
              dfb   <STATTXT40       ; GSTATLO
              dfb   >STATTXT40       ; GSTATHI
 

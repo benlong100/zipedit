@@ -16,7 +16,7 @@ W = 62            # interior width, between the two verticals
 LH, LK, LD = 1, 3, 16     # left header / key / description columns
 RH, RK, RD = 32, 34, 43   # right header / key / description columns
 
-def row(cells):
+def row(cells, width=None):
     """cells: list of (col, text) placed into a blank interior line.
 
     Two things can go wrong with a cell and only one of them used to be
@@ -34,13 +34,14 @@ def row(cells):
     description reaching the next column, a key reaching its own description,
     and any column stop added later.
     """
-    buf = [" "] * W
+    W_ = W if width is None else width
+    buf = [" "] * W_
     placed = []                       # (start, end, text) already laid down
     for col, text in cells:
         end = col + len(text)
-        assert end <= W, (
+        assert end <= W_, (
             f"overflows the border: {text!r} at column {col} would reach {end}, "
-            f"and the interior is {W} wide")
+            f"and the interior is {W_} wide")
         for start, stop, other in placed:
             if col < stop and start < end:
                 raise AssertionError(
@@ -150,7 +151,9 @@ def build(content, foot):
     out += ["|" + row([(0, b)]) + "|" for b in body]
     out += ["|" + centre(foot) + "|"]       # 19 footer
     out += ["=" * 63]                       # 20 bottom edge
-    assert len(out) == 21, len(out)
+    assert len(out) == 21, (
+        f"a page is 21 rows: title, a blank, up to 18 of content, and a footer. "
+        f"This one came to {len(out)}.")
     return out
 
 def encode(line):
@@ -175,6 +178,113 @@ def tables():
             out.append("             dfb   $00")
     return "\n".join(out) + "\n"
 
+
+#--------------------------------------------------------------------------
+# The 40 column help, for the Apple ][+
+#
+# Not the 80 column screen made narrower. Three things force a different
+# document rather than a different width:
+#
+#   no box      the border is MouseText, which a ][+ does not have. Folded to
+#               the nearest thing it can draw, it comes out as rows of letters
+#   one column  two columns of key-and-description do not fit in 40
+#   other keys  this machine has no Open-Apple, so every command behind it is
+#               named differently. A help screen describing keys the reader
+#               does not have is worse than no help screen
+#
+# Capitals throughout because the character generator has nothing else, and
+# writing them here keeps the source honest about the machine.
+#--------------------------------------------------------------------------
+W40 = 40
+K40, D40 = 2, 14          # key column, description column
+
+def e40(key, desc):
+    return [(K40, key), (D40, desc)]
+
+def h40(text):
+    return [(0, text)]
+
+P1_40 = [
+    h40("MOVING"),
+    e40("ARROWS",    "CHAR LEFT/RIGHT"),
+    e40("CTRL-K J",  "LINE UP/DOWN"),
+    e40("CTRL-A E",  "LINE START/END"),
+    e40("ESC + KEY", "WORD OR PAGE"),
+    e40("ESC < >",   "TOP/END OF DOC"),
+    None,
+    h40("EDITING"),
+    e40("CTRL-Z",    "DELETE LEFT"),
+    e40("CTRL-D",    "DELETE RIGHT"),
+    e40("CTRL-Y",    "TO END OF LINE"),
+    e40("ESC Z",     "DELETE WORD"),
+    e40("CTRL-B I",  "BOLD / ITALIC"),
+    e40("TAB",       "INDENT"),
+    e40("CTRL-R",    "REFLOW PARA"),
+    h40("SELECTING"),
+    e40("CTRL-T",    "START, ARROWS PAINT"),
+    e40("ESC",       "CANCEL"),
+]
+
+P2_40 = [
+    h40("CLIPBOARD"),
+    e40("CTRL-C",    "COPY"),
+    e40("CTRL-X",    "CUT"),
+    e40("CTRL-V",    "PASTE"),
+    None,
+    h40("FILES"),
+    e40("CTRL-S",    "SAVE"),
+    e40("ESC A",     "SAVE AS"),
+    e40("CTRL-O",    "OPEN"),
+    e40("CTRL-N",    "NEW"),
+    e40("CTRL-Q",    "QUIT"),
+    None,
+    h40("SEARCH"),
+    e40("CTRL-F",    "FIND"),
+    e40("CTRL-G",    "FIND AGAIN"),
+    e40("CTRL-L",    "GO TO LINE"),
+    e40("CTRL-W",    "WORD COUNT"),
+    e40("CTRL-P",    "THIS HELP"),
+]
+
+TITLE40 = "ZIPEDIT -- COMMANDS"
+F1_40   = "ANY KEY FOR MORE    1 OF 2"
+F2_40   = "ANY KEY TO RETURN   2 OF 2"
+
+def centre40(t):
+    return row([((W40 - len(t)) // 2, t)], W40)
+
+def build40(content, foot):
+    out = [centre40(TITLE40), row([], W40)]
+    for line in content:
+        out.append(row(line or [], W40))
+    while len(out) < 20:
+        out.append(row([], W40))
+    out.append(centre40(foot))
+    assert len(out) == 21, (
+        f"a page is 21 rows: title, a blank, up to 18 of content, and a footer. "
+        f"This one came to {len(out)}.")
+    return out
+
+def encode40(line):
+    return bytes(ord(c) + 0x80 for c in line)
+
+def tables40():
+    pages = [build40(P1_40, F1_40), build40(P2_40, F2_40)]
+    out = []
+    for pi, _ in enumerate(pages, 1):
+        out.append(f"HELPTBL{pi}")
+        out += [f"             da    H{pi}{i:02d}" for i in range(21)]
+        out.append("")
+    for pi, p in enumerate(pages, 1):
+        for i, line in enumerate(p):
+            b = encode40(line)
+            assert len(b) == 40, (pi, i, len(b))
+            out.append(f"H{pi}{i:02d}")
+            out.append("             hex   " + b[:20].hex().upper())
+            out.append("             hex   " + b[20:].hex().upper())
+            out.append("             dfb   $00")
+    return "\n".join(out) + "\n"
+
 import sys, pathlib
 
 # --check <file>: is the generated table in that file the one this layout
@@ -183,19 +293,25 @@ import sys, pathlib
 # was added here, help.S was never regenerated, and every build after that
 # shipped a help screen with a blank line where the command should have been.
 if "--check" in sys.argv:
-    target = pathlib.Path(sys.argv[sys.argv.index("--check") + 1])
-    have = target.read_text().splitlines()
-    try:
-        first = next(i for i, l in enumerate(have) if l.startswith("HELPTBL1"))
-        last  = next(i for i, l in enumerate(have) if l.strip().startswith("dum "))
-    except StopIteration:
-        sys.exit(f"{target}: cannot find the generated region")
-    want = tables().splitlines()
-    if [l.rstrip() for l in have[first:last]] == [l.rstrip() for l in want]:
+    args = [a for a in sys.argv[1:] if not a.startswith("--")]
+    if len(args) != 1:
+        sys.exit("usage: genhelp.py --check [--40] <file>")
+    target = pathlib.Path(args[0])
+    want = tables40() if "--40" in sys.argv else tables()
+    text = target.read_text()
+    marker = "*--- generated below this line: tools/genhelp.py\n"
+    if marker not in text:
+        sys.exit(f"{target}: no generated-content marker")
+    have = text.split(marker, 1)[1]
+    if [l.rstrip() for l in have.splitlines()] == [l.rstrip() for l in want.splitlines()]:
         print(f"{target} matches the layout")
         sys.exit(0)
-    sys.exit(f"{target} is out of date -- regenerate it:\n"
-             f"    python3 tools/genhelp.py   (and paste over the HELPTBL region)")
+    sys.exit(f"{target} is out of date -- regenerate it with:\n"
+             f"    python3 tools/genhelp.py {'--40 ' if '--40' in sys.argv else ''}")
+
+if "--40" in sys.argv:
+    print(tables40(), end="")
+    sys.exit(0)
 
 if "--preview" in sys.argv:
     for n, p in enumerate(pages, 1):

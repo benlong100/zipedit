@@ -31,6 +31,7 @@
              put   select
              put   edit_ops
              put   help
+             put   helpdata40
              put   splash
              put   buffer
              put   display

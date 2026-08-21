@@ -71,7 +71,8 @@ test: $(IMAGE) plaindisk checkhelp
 # without anything noticing -- which is how the OA-Delete row went missing from
 # the shipped help screen. This makes that a build failure.
 checkhelp:
-	@python3 $(TOOLS)/genhelp.py --check src/help.S
+	@python3 $(TOOLS)/genhelp.py --check src/helpdata80.S
+	@python3 $(TOOLS)/genhelp.py --check --40 src/helpdata40.S
 
 # A second image whose editor is patched to draw the original //e's glyphs.
 # Virtual ][ has no unenhanced //e, so this is how that path gets tested.

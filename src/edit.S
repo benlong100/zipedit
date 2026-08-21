@@ -21,6 +21,7 @@
              put   select
              put   edit_ops
              put   help
+             put   helpdata80
              put   splash
              put   buffer
              put   display
