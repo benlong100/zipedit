@@ -18,38 +18,6 @@
 *--------------------------------------
 
 *--------------------------------------
-* DISPINIT -- 80 column text mode, screen cleared
-*--------------------------------------
-DISPINIT     sta   TXTSET
-             sta   MIXCLR
-             sta   HIRESOFF
-             sta   SET80VID
-             sta   SET80STORE
-             sta   SETALTCHAR
-             jsr   CLRSCRN
-             rts
-
-*--------------------------------------
-* CLRSCRN -- fill both screen halves with spaces
-*--------------------------------------
-CLRSCRN      ldx   #$00
-:loop        lda   #$a0
-             sta   MAINWR
-             sta   $0400,x
-             sta   $0500,x
-             sta   $0600,x
-             sta   $0700,x
-             lda   #$a0
-             sta   AUXWR
-             sta   $0400,x
-             sta   $0500,x
-             sta   $0600,x
-             sta   $0700,x
-             inx
-             bne   :loop
-             rts
-
-*--------------------------------------
 * SETROW -- A = row (0-23) -> SCRPTR = row base address
 *--------------------------------------
 SETROW       tax
@@ -100,39 +68,6 @@ INVBUF       ldy   GSCRWM1
 :keep        sta   LINEBUF,y
 :raw         dey
              bpl   :loop
-             rts
-
-*--------------------------------------
-* DRAWLINE -- A = row. Blit LINEBUF to the screen.
-*
-* Two passes: 40 even columns into aux, then 40 odd columns into main. X walks
-* LINEBUF two at a time while Y walks the screen offset, so no self-modifying
-* code is needed and the code image stays immutable -- which lets the test
-* suite compare emulated RAM against the build artifact byte for byte.
-*--------------------------------------
-DRAWLINE     jsr   SETROW
-
-             sta   AUXWR            ; even columns -> aux
-             ldx   #$00
-             ldy   #$00
-:l1          lda   LINEBUF,x
-             sta   (SCRPTR),y
-             inx
-             inx
-             iny
-             cpy   #40
-             bne   :l1
-
-             sta   MAINWR           ; odd columns -> main
-             ldx   #$01
-             ldy   #$00
-:l2          lda   LINEBUF,x
-             sta   (SCRPTR),y
-             inx
-             inx
-             iny
-             cpy   #40
-             bne   :l2
              rts
 
 *--------------------------------------
@@ -203,23 +138,6 @@ TOGGLECHEAT  lda   FLAGS
              bne   :on
              jmp   CLRCHEAT
 :on          jmp   DRAWCHEAT
-
-*--------------------------------------
-* PUTCELL -- write screen code A at column X of the row already in SCRPTR
-*--------------------------------------
-PUTCELL      pha
-             txa
-             and   #$01
-             beq   :aux
-             sta   MAINWR           ; odd column
-             jmp   :put
-:aux         sta   AUXWR            ; even column
-:put         txa
-             lsr
-             tay
-             pla
-             sta   (SCRPTR),y
-             rts
 
 *--------------------------------------
 * PUTNUM -- render NUMV right aligned in PWID cells starting at column X,
@@ -437,38 +355,11 @@ UNTITLED     asc   "UNTITLED.MD"
              dfb   $00
 
 *--------------------------------------
-* SHOWCURSOR -- invert the character cell the cursor sits on
-*
-* With 80STORE on, PAGE2 selects which bank $0400-$07FF reaches for reads as
-* well as writes, so the same switch serves the read-modify-write.
-*--------------------------------------
-SHOWCURSOR   lda   CURSROW
-             cmp   MAXROW
-             bcs   :skip            ; cursor scrolled off the text area
-             jsr   SETROW
-             lda   CURSCOL
-             and   #$01
-             beq   :aux
-             sta   MAINWR           ; odd column
-             jmp   :rd
-:aux         sta   AUXWR            ; even column
-:rd          lda   CURSCOL
-             lsr
-             tay
-             lda   (SCRPTR),y
-             and   #$7f             ; strip to plain ASCII
-             cmp   #$60
-             bcs   :put             ; lowercase inverts to itself
-             and   #$3f
-:put         sta   (SCRPTR),y
-:skip        rts
-
-*--------------------------------------
 * DRAWSTATUS -- render the status line, inverse video
 *--------------------------------------
-DRAWSTATUS   lda   #<STATTXT
+DRAWSTATUS   lda   GSTATLO          ; whichever width this screen is
              sta   STRPTR
-             lda   #>STATTXT
+             lda   GSTATHI
              sta   STRPTR+1
              lda   #STATROW
              jsr   SHOWSTRINV
@@ -490,6 +381,13 @@ STATTXT
              hex   A0D5CED4C9D4CCC5C4AECDC4A0A0A0A0A0A0A0A0A0A0A0A0A0A0A0A0A0A0A0A0
              hex   A0A0A0A0A0A0CCBAA0A0A0A0A0C3BAA0A0A0A0A0B4B6CBA0C6D2C5C5A0A0A0A0
              hex   41ADBFA0C8C5CCD0A0A0A0A0A0A0A0A0
+             dfb   $00
+
+*--- and at 40 columns: the filename and the position, and nothing else. The
+*    free-memory readout and the help hint do not fit and are not missed.
+STATTXT40
+             hex   A0D5CED4C9D4CCC5C4AECDC4A0A0A0A0A0CCBAA0A0A0A0C3BAA0A0A0A0A0A0A0
+             hex   A0A0A0A0A0A0A0A0
              dfb   $00
 
 *--- screen row base addresses (the usual non-linear Apple II layout) ---

@@ -23,8 +23,8 @@
 *--------------------------------------
 * GEOMINIT -- fill the record in. The one place a width is chosen.
 *--------------------------------------
-GEOMINIT     ldx   #GEOMN-1
-:loop        lda   GEOM80,x
+GEOMINIT     ldx   #GEOMN-1         ; GEOMTBL is named by the screen driver
+:loop        lda   GEOMTBL,x
              sta   GEOM,x
              dex
              bpl   :loop
@@ -43,6 +43,8 @@ GEOM80       dfb   80               ; GSCRW     screen width
              dfb   66               ; GPHINT    prompt: the escape hint
              dfb   45               ; GPMAX     prompt: longest input accepted
              dfb   8                ; GHELPCOL  help box: left edge
+             dfb   <STATTXT         ; GSTATLO   the static status row text,
+             dfb   >STATTXT         ; GSTATHI   which is a layout, not a string
 GEOMN        equ   *-GEOM80
 
 *--- 40 columns, for an Apple ][+. Nothing selects this yet: the display and
@@ -57,14 +59,16 @@ GEOMN        equ   *-GEOM80
 GEOM40       dfb   40               ; GSCRW
              dfb   39               ; GSCRWM1
              dfb   37               ; GWRAP1    a 36 column margin
-             dfb   17               ; GLNDIG    " NAME*      L:12 C:34"
-             dfb   23               ; GCLDIG
+             dfb   19               ; GLNDIG    " NAME*    L:12  C:34"
+             dfb   25               ; GCLDIG
              dfb   15               ; GNAMEW    the filename field, and its
              dfb   14               ; GNAMEWM1  star, in what is left
              dfb   28               ; GPHINT    prompt hint, shortened there
              dfb   20               ; GPMAX     input, capped short of it
              dfb   1                ; GHELPCOL  a help box with no room to
                                     ;           indent
+             dfb   <STATTXT40       ; GSTATLO
+             dfb   >STATTXT40       ; GSTATHI
 
 *--- The record the layout actually reads. $1450-$14A7 is wrap's.
              dum   $14a8
@@ -79,4 +83,6 @@ GNAMEWM1     ds    1
 GPHINT       ds    1
 GPMAX        ds    1
 GHELPCOL     ds    1
+GSTATLO      ds    1
+GSTATHI      ds    1
              dend

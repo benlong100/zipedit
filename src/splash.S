@@ -30,8 +30,7 @@ SPLASH       jsr   CLRSCRN
              lda   SPLPTR+1,y
              sta   STRPTR+1
              jsr   CLRBUF
-             ldx   SPLI
-             lda   SPLCOL,x
+             jsr   SPLMID           ; centre it for whatever width this is
              tax                    ; BUFSTR starts at this column
              jsr   BUFSTR
              ldx   SPLI
@@ -51,9 +50,31 @@ SPLPTR       da    SPLNAME
              da    SPLHELP
              da    SPLGO
 
-*--- row and column for each line, in the same order
+*--------------------------------------
+* SPLMID -- the column that centres the string at STRPTR
+*
+* This used to be a table of columns, measured by hand for an 80 column
+* screen. On a 40 column one every line ran off the right edge and wrapped:
+* "ZipEdit" came out as "ZipE" on one row and "dit" three rows below, which
+* is a memorable way to be told that a layout constant is a layout
+* assumption. Measure the string and halve what is left instead, and the
+* splash centres itself on any screen the editor can draw on.
+*--------------------------------------
+SPLMID       ldy   #$00
+:count       lda   (STRPTR),y       ; how long is it
+             beq   :mid
+             iny
+             bne   :count
+:mid         tya
+             sta   SPLLEN
+             lda   GSCRW
+             sec
+             sbc   SPLLEN           ; the space left over
+             lsr                    ; half of it, rounding down, which is
+             rts                    ; what the hand-measured table did too
+
+*--- row for each line, in the same order as SPLPTR
 SPLROW       dfb   10,12,14,20,21
-SPLCOL       dfb   36,33,33,32,27
 
 SPLNAME      asc   "ZipEdit"
              dfb   $00
@@ -69,4 +90,9 @@ SPLGO        asc   "press any key to continue"
 
              dum   $1440            ; $1400-$143F are taken; see design.md
 SPLI         ds    1                ; which line is being drawn
+             dend
+
+*--- $1441-$1442 are machine.S's and $1443 is file.S's
+             dum   $1444
+SPLLEN       ds    1                ; length of the line being centred
              dend
