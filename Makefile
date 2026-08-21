@@ -21,7 +21,7 @@ VII     := $(TOOLS)/vii.sh
 BIN     := $(BUILD)/$(NAME)
 IMAGE   := $(BUILD)/ZIPEDIT.po
 
-.PHONY: all disk run screen test clean tools pull push eject release probe card plaindisk checkhelp
+.PHONY: all disk run screen test clean tools pull push eject release probe card plaindisk checkhelp keyprobe
 
 all: $(BIN)
 
@@ -106,6 +106,17 @@ probe: | $(BUILD)
 	@rm -f src/_FileInformation.txt
 	@RELEASE=0 VOL=PROBE NAME=PROBE.SYSTEM $(TOOLS)/mkprobe.sh
 	@echo "probe disk: $(BUILD)/CHARPROBE.po"
+
+# A disk that answers what a keyboard really sends. Built for one question the
+# emulator cannot answer: does Ctrl-J carry $8A on a real ][+?
+keyprobe:
+	@$(MERLIN) $(ASMINC) src/keyprobe.S > $(BUILD)/keyprobe.log 2>&1 || \
+		{ echo "--- Merlin32 failed ---"; cat $(BUILD)/keyprobe.log; exit 1; }
+	@mv src/KEYPROBE.SYSTEM $(BUILD)/KEYPROBE.SYSTEM
+	@rm -f src/_FileInformation.txt
+	@RELEASE=1 VOL=KEYPROBE SYS=KEYPROBE.SYSTEM $(TOOLS)/mkdisk.sh \
+		$(BUILD)/KEYPROBE.po $(BUILD)/KEYPROBE.SYSTEM >/dev/null
+	@echo "keyboard probe disk: $(BUILD)/KEYPROBE.po"
 
 # A disk to hand to real hardware: editor + ProDOS + BASIC.SYSTEM, no test files.
 release: $(BIN)
