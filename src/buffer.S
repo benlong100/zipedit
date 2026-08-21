@@ -1,79 +1,19 @@
 *--------------------------------------
-* BUFFER.S -- gap buffer in auxiliary memory
+* BUFFER.S -- the gap buffer
 *
-*   aux $0800                  GAPBEG      GAPEND               aux $C000
+*   BUFLO*256                  GAPBEG      GAPEND            BUFHI*256
 *     | text before cursor .......|<<< gap >>>|..... text after cursor |
 *
 * Insert and delete are O(1) -- move a gap edge. Cursor movement shuffles
 * bytes across the gap, costing time proportional to the distance moved, which
 * for an editor is almost always a line or less.
 *
-* Reading and writing aux are NOT symmetric:
-*
-*   writes  RAMWRT redirects stores to $0200-$BFFF into aux while instruction
-*           fetches (which follow RAMRD) stay in main. An ordinary store loop
-*           works inline.
-*
-*   reads   RAMRD redirects loads AND instruction fetches. Code at $2000 would
-*           fetch its own next instruction out of the text buffer and die. So
-*           reads go through AUXRD, a four-instruction stub copied into the
-*           stack page, which RAMRD does not control.
-*
-* AUXRD assumes interrupts are not in play: an IRQ taken between RAMRD on and
-* RAMRD off would run its handler out of aux. Nothing in this configuration
-* generates interrupts under ProDOS 8 -- revisit if that changes.
+* Where the buffer lives, and how a byte in it is reached, is not this file's
+* business. A memory driver supplies AUXRD, PUTAUX, AUXBLK, AUXFILL, INSTSTUB
+* and UNHOOKRAM, and the bounds BUFLO and BUFHI: auxbuf.S puts the buffer in
+* the //e's auxiliary bank, mainbuf.S puts it in main memory for a machine
+* that has no auxiliary bank at all. Everything below is the same either way.
 *--------------------------------------
-
-*--------------------------------------
-* INSTSTUB -- copy the aux read stub into the stack page
-*--------------------------------------
-INSTSTUB     ldx   #STUBEND-STUBSRC-1
-:loop        lda   STUBSRC,x
-             sta   AUXRD,x
-             dex
-             bpl   :loop
-             ldx   #BLKEND-BLKSRC-1
-:loop2       lda   BLKSRC,x
-             sta   AUXBLK,x
-             dex
-             bpl   :loop2
-             rts
-
-* Position independent: zero page indirect and absolute I/O only.
-* On entry AUXPTR -> aux address, Y = index. On exit A = byte, flags set from
-* it (STA does not disturb them).
-STUBSRC      sta   RAMRDON
-             lda   (AUXPTR),y
-             sta   RAMRDOFF
-             rts
-STUBEND
-
-* Block copy aux -> main with a single bank switch, rather than one per byte.
-* Reads follow RAMRD and land in aux; writes follow RAMWRT, which stays off, so
-* they land in main. Zero page follows ALTZP and is untouched, so both pointers
-* stay readable. Entry: AUXPTR source, DSTPTR destination, BLKLEN count (1-255),
-* Y = 0. About 15 cycles a byte against roughly 49 through AUXRD.
-BLKSRC       sta   RAMRDON
-:loop        lda   (AUXPTR),y
-             sta   (DSTPTR),y
-             iny
-             cpy   BLKLEN
-             bne   :loop
-             sta   RAMRDOFF
-             rts
-BLKEND
-
-*--------------------------------------
-* PUTAUX -- store the byte in A at aux address AUXPTR,Y
-*--------------------------------------
-*    No need to save the byte across the switch: STA does not touch the
-*    accumulator, and a soft switch cares only that its address was written,
-*    not what was written to it. This used to stash A in X and take it back,
-*    which cost two bytes, four cycles a write, and X.
-PUTAUX       sta   RAMWRTON         ; value in A is irrelevant to the switch
-             sta   (AUXPTR),y
-             sta   RAMWRTOFF
-             rts
 
 *--------------------------------------
 * BUFINIT -- empty buffer: the gap is the whole of aux $0800-$BFFF
@@ -85,9 +25,9 @@ BUFINIT      lda   #$00
              sta   CURLNO+1
              sta   GAPBEG
              sta   GAPEND
-             lda   #AUXLO
+             lda   #BUFLO
              sta   GAPBEG+1
-             lda   #AUXHI
+             lda   #BUFHI
              sta   GAPEND+1
              rts
 
@@ -95,7 +35,7 @@ BUFINIT      lda   #$00
 * ATSTART -- carry set if the cursor is at the start of the buffer
 *--------------------------------------
 ATSTART      lda   GAPBEG+1
-             cmp   #AUXLO
+             cmp   #BUFLO
              bne   :no
              lda   GAPBEG
              bne   :no
@@ -108,7 +48,7 @@ ATSTART      lda   GAPBEG+1
 * ATEND -- carry set if the cursor is at the end of the buffer
 *--------------------------------------
 ATEND        lda   GAPEND+1
-             cmp   #AUXHI
+             cmp   #BUFHI
              bcc   :no
              sec
              rts
@@ -332,7 +272,7 @@ RENDER       lda   #$00
              beq   :nosel
              jsr   SELBOUNDS
 :nosel
-             lda   #AUXLO
+             lda   #BUFLO
              sta   AUXPTR+1
 
 *--- already inside the viewport if it starts at line zero
@@ -362,7 +302,7 @@ RENDER       lda   #$00
              sta   AUXPTR+1
 
 :notgap      lda   AUXPTR+1         ; ran off the end of the buffer?
-             cmp   #AUXHI
+             cmp   #BUFHI
              bcs   :done
 
              ldy   #$00

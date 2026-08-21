@@ -12,6 +12,28 @@ VII="$ROOT/tools/vii.sh"
 IMAGE="${IMAGE:-$ROOT/build/ZIPEDIT.po}"
 BIN="${BIN:-$ROOT/build/ZIPEDIT.SYSTEM}"
 PLAINIMAGE="${PLAINIMAGE:-$ROOT/build/ZIPEDIT-PLAIN.po}"
+
+# One suite at a time. Virtual ][ has exactly one front machine, so a second
+# run -- or a stray boot from another window -- steers the machine out from
+# under the first, and what comes back is a scatter of failures in sections
+# that were never touched. That has happened three times in one day, and each
+# time cost a full run to work out that nothing was wrong with the code.
+LOCK="${TMPDIR:-/tmp}/zipedit-suite.lock"
+if ! mkdir "$LOCK" 2>/dev/null; then
+    # A bare lock cannot tell "held" from "abandoned", and a run that dies
+    # badly would then block every later one. Record the pid and take over a
+    # lock whose owner is gone.
+    other="$(cat "$LOCK/pid" 2>/dev/null)"
+    if [ -n "$other" ] && kill -0 "$other" 2>/dev/null; then
+        echo "another test run (pid $other) holds the emulator" >&2
+        exit 2
+    fi
+    echo "clearing a stale lock from pid ${other:-unknown}" >&2
+    rm -rf "$LOCK"
+    mkdir "$LOCK" || { echo "cannot take $LOCK" >&2; exit 2; }
+fi
+echo "$$" > "$LOCK/pid"
+trap 'rm -rf "$LOCK"' EXIT INT TERM
 WRAPCOL=76        # must match src/equates.S
 SCRW=80           # 80-column screen, likewise
 TMP="$(mktemp -d)"

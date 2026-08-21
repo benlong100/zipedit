@@ -42,7 +42,7 @@ FINDNEXT     lda   FINDLEN
              sec
              sbc   FINDLEN
              sta   TMPA
-             lda   #AUXHI
+             lda   #BUFHI
              sbc   #$00
              sta   TMPB
 
@@ -243,7 +243,7 @@ GRABLINE     lda   #$00
 :ploop       cpx   #$ff
              bcs   :done
              lda   AUXPTR+1
-             cmp   #AUXHI
+             cmp   #BUFHI
              bcs   :done
              ldy   #$00
              jsr   AUXRD
@@ -306,7 +306,7 @@ KWORDS       lda   #$00
              sta   WCNT+1
              sta   INWORD
              sta   AUXPTR
-             lda   #AUXLO
+             lda   #BUFLO
              sta   AUXPTR+1
 
 :loop        lda   AUXPTR           ; standing at the gap? jump over it
@@ -321,7 +321,7 @@ KWORDS       lda   #$00
              sta   AUXPTR+1
 
 :notgap      lda   AUXPTR+1         ; ran off the end of the buffer?
-             cmp   #AUXHI
+             cmp   #BUFHI
              bcs   :count
              ldy   #$00
              jsr   AUXRD
@@ -470,7 +470,7 @@ WORDBACK     lda   #$00
              lda   GAPBEG+1
              sta   AUXPTR+1
 :loop        lda   AUXPTR+1
-             cmp   #AUXLO
+             cmp   #BUFLO
              bne   :dec
              lda   AUXPTR
              beq   :stop

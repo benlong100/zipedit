@@ -22,7 +22,8 @@
              put   equates
              put   main             ; START first: ProDOS enters at $2000
              put   screen40         ; 40 columns, one bank, no MouseText
-             put   auxmem
+             put   auxbuf
+             put   keysiie
              put   keyboard
              put   file
              put   wrap

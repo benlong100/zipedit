@@ -43,7 +43,7 @@ GETPOS       lda   GAPBEG
              sta   LPOS
              lda   GAPBEG+1
              sec
-             sbc   #AUXLO
+             sbc   #BUFLO
              sta   LPOS+1
              rts
 

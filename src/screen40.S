@@ -60,6 +60,7 @@ CLRSCRN      ldx   #$00
 DRAWLINE     jsr   SETROW
              ldy   #$00
 :loop        lda   LINEBUF,y
+             jsr   FOLDCASE
              sta   (SCRPTR),y
              iny
              cpy   GSCRW
@@ -75,12 +76,42 @@ DRAWLINE     jsr   SETROW
 * came out as "SML.D", which is a good way to be reminded that a routine
 * touching a soft switch belongs to the screen and not to the layout.
 *--------------------------------------
-PUTCELL      pha
+PUTCELL      jsr   FOLDCASE
+             pha
              txa
              tay
              pla
              sta   (SCRPTR),y
              rts
+
+*--------------------------------------
+* FOLDCASE -- lowercase to uppercase, on the way to the screen
+*
+* This character generator holds 64 glyphs, so $E0-$FF repeats $A0-$BF: a
+* lowercase 'a' does not come out as a capital A, it comes out as an
+* exclamation mark. A splash screen in mixed case reads as gibberish, which
+* is how this was found -- on the hardware, since every emulator to hand
+* draws lowercase perfectly well.
+*
+* Folding here rather than in the strings means everything is covered at
+* once: the splash, the help screen, the prompts, and the writer's own text.
+* The buffer keeps the case that was typed; only the screen loses it.
+*--------------------------------------
+FOLDCASE     cmp   #$40
+             bcc   :done            ; $00-$3F is inverse, and inverse is the
+                                    ; one thing this ROM does properly
+             cmp   #$80
+             bcs   :lower
+             clc
+             adc   #$80             ; $40-$7F flashes on this machine. The //e
+                                    ; puts MouseText and the open apple there;
+                                    ; here they would blink at the reader, so
+                                    ; lift them into the normal range instead
+:lower       cmp   #$e0
+             bcc   :done
+             sec
+             sbc   #$20             ; and lowercase to capitals
+:done        rts
 
 *--------------------------------------
 * SHOWCURSOR -- invert the character cell the cursor sits on

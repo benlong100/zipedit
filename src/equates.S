@@ -38,9 +38,8 @@ DEVNUM       equ   $bf30
 DEVCNT       equ   $bf31            ; device count MINUS ONE
 DEVLST       equ   $bf32
 
-*--- auxiliary text buffer ---
-AUXLO        equ   $08              ; buffer starts at aux $0800
-AUXHI        equ   $c0              ; and ends below aux $C000
+*--- The text buffer's bounds, and how a byte in it is reached, are the
+*    memory driver's: see auxbuf.S and mainbuf.S.
 
 *--- zero page ---
 * $3c-$43 are left alone: AUXMOVE uses them as A1/A2/A4.
@@ -100,14 +99,6 @@ VERTMOVE     equ   $67              ; this keystroke moved vertically
 WASVERT      equ   $68              ; the previous one did
 CLIPMAX      equ   1024             ; clipboard capacity
 
-*--- runtime home of the aux read stub ---
-* Reads of aux cannot be done from code living in $0200-$BFFF: RAMRD redirects
-* instruction fetches too, so the CPU would fetch its own next instruction out
-* of the text buffer. The stack page follows ALTZP rather than RAMRD, so a stub
-* copied there keeps executing from main while RAMRD points at aux. $0100 is
-* the last address the stack would ever reach.
-AUXRD        equ   $0100            ; one byte
-AUXBLK       equ   $0110            ; a block, with one bank switch for the lot
 
 *--- FLAGS bits ---
 FCHEAT       equ   %00000001        ; cheat sheet visible

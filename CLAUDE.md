@@ -150,6 +150,16 @@ detection itself still needs real hardware.
 - `releases.prodos8.com` serves a GitHub Pages `*.github.io` certificate, so
   HTTPS fails name validation. `bootstrap.sh` fetches over HTTP and verifies by
   SHA-256 instead.
+- **Rebuilding a mounted image gets it clobbered.** Virtual ][ buffers writes
+  to a mounted image and flushes them on eject, so `make disk` on an image the
+  emulator still holds is undone the moment the next `boot` ejects it -- and
+  the editor then runs a stale binary. If a refactor moved code without
+  changing its size, the file and the image are the same length and nothing
+  looks wrong until the `toolchain` section compares them. `mkdisk.sh` ejects
+  the image first now.
+- **Only one test run at a time.** There is one front machine, so a second run
+  or a stray `boot` steers it out from under the first, and the failures land
+  in sections nothing touched. `tests/run.sh` takes a lock.
 - **Virtual ][ buffers writes to a mounted image until the disk is ejected.**
   A file saved inside the emulator will not appear in the `.po` on disk until
   then, so `make pull` ejects first.

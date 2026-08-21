@@ -28,6 +28,25 @@ STRIP=(VIEW.README BITSY.BOOT QUIT.SYSTEM BASIC.SYSTEM COPYIIPLUS.8.4
 [ -f "$BIN" ]  || { echo "missing binary: $BIN (run make first)" >&2; exit 1; }
 
 mkdir -p "$(dirname "$OUT")"
+
+# Eject this image from Virtual ][ before overwriting it. The emulator buffers
+# writes to a mounted image and flushes them on eject -- so building an image
+# that is currently mounted, then booting it, lets that flush land ON TOP of
+# what was just built. The editor then runs a stale binary of exactly the same
+# size, which is invisible until something compares the two. That cost a whole
+# suite run to find.
+osascript >/dev/null 2>&1 <<EJECT || true
+tell application "Virtual ]["
+    repeat with m in machines
+        tell m
+            try
+                if (disk image of device "S6D1") is "$OUT" then eject device "S6D1"
+            end try
+        end tell
+    end repeat
+end tell
+EJECT
+
 cp "$BASE" "$OUT"
 
 for f in "${STRIP[@]}"; do

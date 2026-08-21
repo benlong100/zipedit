@@ -124,13 +124,13 @@ SAVEFILE     jsr   DESTROYF         ; a missing file is not an error here
 *--- run one: buffer start up to the gap
              lda   #$00
              sta   AUXPTR
-             lda   #AUXLO
+             lda   #BUFLO
              sta   AUXPTR+1
              lda   GAPBEG
              sta   RUNLEN
              lda   GAPBEG+1
              sec
-             sbc   #AUXLO
+             sbc   #BUFLO
              sta   RUNLEN+1
              jsr   WRITERUN
              bcs   :failed
@@ -144,7 +144,7 @@ SAVEFILE     jsr   DESTROYF         ; a missing file is not an error here
              sec
              sbc   GAPEND
              sta   RUNLEN
-             lda   #AUXHI
+             lda   #BUFHI
              sbc   GAPEND+1
              sta   RUNLEN+1
              jsr   WRITERUN

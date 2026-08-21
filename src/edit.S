@@ -12,7 +12,8 @@
              put   equates
              put   main             ; START first: ProDOS enters at $2000
              put   screen80         ; the machine-specific half of the display
-             put   auxmem
+             put   auxbuf
+             put   keysiie
              put   keyboard
              put   file
              put   wrap

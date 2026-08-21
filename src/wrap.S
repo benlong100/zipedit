@@ -25,7 +25,7 @@ CALCCOL       lda   #$00
              lda   GAPBEG+1
              sta   AUXPTR+1
 :loop        lda   AUXPTR+1         ; start of buffer?
-             cmp   #AUXLO
+             cmp   #BUFLO
              bne   :dec
              lda   AUXPTR
              beq   :done
@@ -55,7 +55,7 @@ FINDSPC      lda   #$00
              lda   GAPBEG+1
              sta   AUXPTR+1
 :loop        lda   AUXPTR+1
-             cmp   #AUXLO
+             cmp   #BUFLO
              bne   :dec
              lda   AUXPTR
              beq   :none            ; ran back to the start of the buffer
@@ -226,7 +226,7 @@ WRAPCHECK    lda   CCOL
              sec
              sbc   GAPEND
              sta   WTMP
-             lda   #AUXHI
+             lda   #BUFHI
              sbc   GAPEND+1
              bne   :room            ; 256+ bytes left, more than any look needs
              lda   WTMP             ; fewer than 256 bytes left
@@ -304,7 +304,7 @@ PEEK2        lda   GAPEND
              lda   GAPEND+1
              adc   #$00
              sta   AUXPTR+1
-             cmp   #AUXHI
+             cmp   #BUFHI
              bcs   :none
              ldy   #$00
              jsr   AUXRD

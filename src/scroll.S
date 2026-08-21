@@ -23,7 +23,7 @@ CALCLINE     lda   #$00
              sta   LINENO
              sta   LINENO+1
              sta   AUXPTR
-             lda   #AUXLO
+             lda   #BUFLO
              sta   AUXPTR+1
 :loop        lda   AUXPTR
              cmp   GAPBEG
@@ -174,7 +174,7 @@ RENDERROW    jsr   CLRBUF
              sec
              sbc   GAPEND
              sta   TMPA
-             lda   #AUXHI
+             lda   #BUFHI
              sbc   GAPEND+1
              bne   :room            ; 256+ bytes left, the cap already fits
              lda   TMPA
