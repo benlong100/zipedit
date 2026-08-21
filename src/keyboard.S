@@ -148,9 +148,9 @@ KRETURN      lda   #HARDCR          ; the writer asked for this one
 *--------------------------------------
 ASKUNSAVED   lda   MODFLAG
              beq   :yes             ; nothing to lose
-             lda   #<MSGUNSAVED
+             lda   GUNSVLO          ; the 40 column screen has its own
              sta   STRPTR
-             lda   #>MSGUNSAVED
+             lda   GUNSVHI
              sta   STRPTR+1
              jsr   SHOWMSG
 
@@ -177,6 +177,11 @@ ASKUNSAVED   lda   MODFLAG
              rts
 
 MSGUNSAVED   asc   " UNSAVED CHANGES.  S = SAVE FIRST   D = DISCARD   ESC = CANCEL"
+             dfb   $00
+
+*--- Sixty-three columns of it will not fit on forty. The keys stay the same
+*    letters, so the habit carries over; only the words are shorter.
+MSGUNSV40    asc   " Save first?  S save  D discard  Esc"
              dfb   $00
 
 *--------------------------------------

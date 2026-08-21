@@ -90,7 +90,10 @@ DRAWLINE     jsr   SETROW
 *--------------------------------------
 * PUTCELL -- write screen code A at column X of the row already in SCRPTR
 *--------------------------------------
-PUTCELL      pha
+PUTCELL      jsr   INVCHR           ; chrome is inverse on this machine, and
+                                    ; PUTCELL only ever writes chrome: the
+                                    ; filename, and the line and column digits
+             pha
              txa
              and   #$01
              beq   :aux
@@ -143,3 +146,22 @@ INVCHR       and   #$7f
              bcs   :done            ; inverse lowercase is itself
              and   #$3f
 :done        rts
+
+*--------------------------------------
+* CHROMEBUF -- turn LINEBUF into a status or prompt line
+*
+* Inverse video, which is what a //e status bar has always been. The
+* alternate character set carries inverse lowercase at $60-$7F, so those are
+* already their own inverse form.
+*--------------------------------------
+CHROMEBUF    ldy   GSCRWM1
+:loop        lda   LINEBUF,y
+             bpl   :raw             ; MouseText: leave as is
+             and   #$7f             ; back to plain ASCII
+             cmp   #$60
+             bcs   :keep            ; lowercase: inverse code == ascii
+             and   #$3f
+:keep        sta   LINEBUF,y
+:raw         dey
+             bpl   :loop
+             rts

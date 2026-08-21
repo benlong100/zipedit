@@ -45,6 +45,8 @@ GEOM80       dfb   80               ; GSCRW     screen width
              dfb   8                ; GHELPCOL  help box: left edge
              dfb   <STATTXT         ; GSTATLO   the static status row text,
              dfb   >STATTXT         ; GSTATHI   which is a layout, not a string
+             dfb   <MSGUNSAVED      ; GUNSVLO   and the unsaved-changes
+             dfb   >MSGUNSAVED      ; GUNSVHI   question, which is a width
 GEOMN        equ   *-GEOM80
 
 *--- 40 columns, for an Apple ][+. Nothing selects this yet: the display and
@@ -70,6 +72,8 @@ GEOM40       dfb   40               ; GSCRW
                                     ;           cannot draw
              dfb   <STATTXT40       ; GSTATLO
              dfb   >STATTXT40       ; GSTATHI
+             dfb   <MSGUNSV40       ; GUNSVLO
+             dfb   >MSGUNSV40       ; GUNSVHI
 
 *--- The record the layout actually reads. $1450-$14A7 is wrap's.
              dum   $14a8
@@ -86,4 +90,6 @@ GPMAX        ds    1
 GHELPCOL     ds    1
 GSTATLO      ds    1
 GSTATHI      ds    1
+GUNSVLO      ds    1
+GUNSVHI      ds    1
              dend

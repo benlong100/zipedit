@@ -53,24 +53,6 @@ BUFSTR       ldy   #$00
 :done        rts
 
 *--------------------------------------
-* INVBUF -- convert LINEBUF from normal to inverse video in place
-*--------------------------------------
-* Bytes with the high bit clear are raw screen codes deliberately placed in the
-* buffer -- MouseText -- and must not be touched. Ordinary text always arrives
-* here as high ASCII, so the sign bit tells the two apart.
-INVBUF       ldy   GSCRWM1
-:loop        lda   LINEBUF,y
-             bpl   :raw             ; MouseText: leave as is
-             and   #$7f             ; back to plain ASCII
-             cmp   #$60
-             bcs   :keep            ; lowercase: inverse code == ascii
-             and   #$3f
-:keep        sta   LINEBUF,y
-:raw         dey
-             bpl   :loop
-             rts
-
-*--------------------------------------
 * SHOWSTR -- draw a string on its own row, space padded
 *   STRPTR -> string, A = row
 *--------------------------------------
@@ -83,13 +65,13 @@ SHOWSTR      sta   TMPA
              rts
 
 *--------------------------------------
-* SHOWSTRINV -- as SHOWSTR, but inverse video
+* SHOWCHROME -- as SHOWSTR, but inverse video
 *--------------------------------------
-SHOWSTRINV   sta   TMPA
+SHOWCHROME   sta   TMPA
              jsr   CLRBUF
              ldx   #$00
              jsr   BUFSTR
-             jsr   INVBUF
+             jsr   CHROMEBUF
              lda   TMPA
              jsr   DRAWLINE
              rts
@@ -188,7 +170,8 @@ PUTNUM       stx   PCOL
              sta   PLEAD
              lda   PDIG
              clc
-             adc   #$30             ; inverse digit
+             adc   #$b0             ; a plain digit: PUTCELL decides how
+                                    ; chrome looks on this screen
              ldx   PCOL
              jsr   PUTCELL
              inc   PCOL
@@ -200,7 +183,7 @@ PUTNUM       stx   PCOL
 :pad         lda   PCOL
              cmp   PEND
              bcs   :done
-             lda   #$20             ; inverse space
+             lda   #$a0             ; a plain space
              ldx   PCOL
              jsr   PUTCELL
              inc   PCOL
@@ -283,7 +266,7 @@ RESTORESTAT  lda   #$00
 * with a length byte -- and is empty until the document has been named, which
 * is what the placeholder is for.
 *
-* The row is inverse video, so each character is folded the way INVBUF folds
+* The row is inverse video, so each character is folded the way CHROMEBUF folds
 * it: below $60 comes down with AND #$3F, $60 and up inverts to itself.
 *
 * PUTCELL clobbers Y, so the index lives in memory rather than in a register.
@@ -328,10 +311,6 @@ SHOWNAME     lda   #STATROW
              cpy   NAMELEN
              bcs   :past            ; past the name
              lda   (STRPTR),y
-             and   #$7f
-             cmp   #$60
-             bcs   :put             ; lowercase inverts to itself
-             and   #$3f
              jmp   :put
 
 *--- the cell straight after the name carries the star, and only that cell:
@@ -339,9 +318,9 @@ SHOWNAME     lda   #STATROW
 :past        bne   :pad
              lda   MODFLAG
              beq   :pad
-             lda   #$2a             ; inverse star: unsaved changes
+             lda   #$aa             ; a plain star: unsaved changes
              jmp   :put
-:pad         lda   #$20             ; inverse space
+:pad         lda   #$a0             ; a plain space
 :put         ldx   NAMEI
              inx                    ; NAMECOL is 1
              jsr   PUTCELL
@@ -362,7 +341,7 @@ DRAWSTATUS   lda   GSTATLO          ; whichever width this screen is
              lda   GSTATHI
              sta   STRPTR+1
              lda   #STATROW
-             jsr   SHOWSTRINV
+             jsr   SHOWCHROME
              lda   #$ff             ; force the digits to repaint
              sta   LASTCOL
              sta   LASTLN

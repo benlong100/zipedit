@@ -57,10 +57,22 @@ CLRSCRN      ldx   #$00
 * alternating columns, and the loop bound comes from the geometry record so
 * this stays honest if a 40-column machine ever turns out to be 32 or 64.
 *--------------------------------------
-DRAWLINE     jsr   SETROW
+DRAWLINE     ldx   #$00
+             cmp   #STATROW
+             bne   :go
+             ldx   #$01             ; the bottom line is chrome
+:go          stx   CHROME
+             jsr   SETROW
              ldy   #$00
 :loop        lda   LINEBUF,y
-             jsr   FOLDCASE
+             ldx   CHROME
+             beq   :draw
+             cmp   #$c1             ; on the chrome row a capital is not a
+             bcc   :draw            ; capital, it is just a letter -- so
+             cmp   #$db             ; lowercase it and let FOLDCASE draw it
+             bcs   :draw            ; plain. Inverse MEANS capital here, and a
+             ora   #$20             ; status bar in inverse reads as shouting.
+:draw        jsr   FOLDCASE
              sta   (SCRPTR),y
              iny
              cpy   GSCRW
@@ -76,7 +88,12 @@ DRAWLINE     jsr   SETROW
 * came out as "SML.D", which is a good way to be reminded that a routine
 * touching a soft switch belongs to the screen and not to the layout.
 *--------------------------------------
-PUTCELL      jsr   FOLDCASE
+PUTCELL      cmp   #$c1             ; PUTCELL only ever writes chrome -- the
+             bcc   :fold            ; filename and the line and column digits
+             cmp   #$db             ; -- and it bypasses DRAWLINE, so the same
+             bcs   :fold            ; rule has to be stated again here
+             ora   #$20
+:fold        jsr   FOLDCASE
              pha
              txa
              tay
@@ -174,3 +191,27 @@ INVCHR       and   #$7f
              sbc   #$20             ; lowercase -> its capital
 :inv         and   #$3f             ; and into the inverse range
              rts
+
+*--------------------------------------
+* CHROMEBUF -- turn LINEBUF into a status or prompt line
+*
+* NOT inverse here, which is the opposite of the //e and is the point. On
+* this machine inverse MEANS capital -- that is the whole case scheme -- so
+* an inverse status bar reads as a line of shouting, and "SAVE AS:" looks
+* like it is being hollered at the writer.
+*
+* So lowercase it instead. FOLDCASE then draws it as ordinary capitals, which
+* under the same scheme reads as ordinary lowercase prose. The line is still
+* obvious: it is the bottom one, and it is the only place that says anything.
+*
+* Doing it here rather than in the strings means every prompt is covered at
+* once -- save, open, find, go to line, the error messages -- with no second
+* copy of any of them to fall out of step.
+*--------------------------------------
+CHROMEBUF    rts                    ; nothing: DRAWLINE already knows that the
+                                    ; bottom line is chrome, and does it for
+                                    ; every path that reaches the screen
+
+             dum   $1445            ; $1444 is splash's SPLLEN
+CHROME       ds    1                ; drawing the chrome row right now
+             dend

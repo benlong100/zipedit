@@ -472,7 +472,7 @@ SHOWBUSY     jsr   CLRBUF
              lsr                    ; centre it
              tax
              jsr   BUFSTR
-             jsr   INVBUF
+             jsr   CHROMEBUF
              lda   #$01
              sta   MSGSHOWN
              lda   #STATROW
