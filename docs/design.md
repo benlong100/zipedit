@@ -788,3 +788,85 @@ the heading above and below untouched.
 5. Editing operations, hard wrap on entry, reflow.
 6. ProDOS file I/O, plus `make pull` / `make push`.
 7. Emphasis shortcuts, find, clipboard, go-to-line.
+
+
+## 9. The Apple ][+ — as designed, not yet built
+
+Target: a **stock 64K ][+**, 40 columns, uppercase only. No shift-key mod, no
+lowercase character ROM, no 80-column card. Those may come later; the floor is
+a machine as it left the factory, plus the Language Card that ProDOS 8 requires.
+
+Capacity drops from 46K to roughly 20K, because there is no auxiliary bank and
+the text buffer moves into main RAM.
+
+### What the keyboard actually sends
+
+Established with `make keyprobe` on real hardware, because the emulator is
+wrong about one of these and silent about another.
+
+| key | code | |
+|---|---|---|
+| Ctrl-H, Ctrl-U | `$88`, `$95` | left, right — same codes the arrow keys send |
+| Ctrl-K, Ctrl-J | `$8B`, `$8A` | **up, down** |
+| Ctrl-C | `$83` | arrives. Applesoft steals it; a machine-language editor does not |
+| Ctrl-S | `$93` | arrives. BASIC pauses on it; we do not |
+| Ctrl-Space | `$A0` | **identical to Space. Unusable as a binding** |
+| Delete | — | **no such key.** The emulator will happily send `$FF`; the hardware cannot |
+
+The important one is Ctrl-J. Virtual ][ cannot deliver `$8A` at all — it turns
+a line feed into a carriage return somewhere between AppleScript and the
+machine — so Ctrl-J reads as `$8D` there however it is sent. On real hardware
+it carries `$8A`. That single fact is why the ][+ needs no cursor mode, no
+IJKM diamond, and none of the spare Ctrl letters spent on movement.
+
+### The command set
+
+Eighteen commands live on Open-Apple, a key the ][+ does not have. Twelve of
+them keep their exact letter under Ctrl, so a //e user presses Ctrl where they
+would have pressed Open-Apple and is mostly right:
+
+    Ctrl-C copy      Ctrl-N new        Ctrl-S save
+    Ctrl-F find      Ctrl-O open       Ctrl-V paste
+    Ctrl-G again     Ctrl-Q quit       Ctrl-W word count
+    Ctrl-L go to     Ctrl-R reflow     Ctrl-X cut
+
+Three of the six leftovers get the three remaining free letters, ranked by how
+often they are wanted mid-typing:
+
+    Ctrl-Z  delete backwards   the most pressed of the six, and it cannot be
+                               two keystrokes
+    Ctrl-T  start selecting    pressed at the start of every selection
+    Ctrl-P  help               rarely wanted, but on a machine whose keymap is
+                               entirely new, the key that explains the keymap
+                               must not itself be a sequence
+
+The rest go behind an Esc prefix, being the deliberate, occasional commands:
+`Esc A` save as, `Esc <` and `Esc >` for the document ends, `Esc Z` delete
+word.
+
+Already free, needing nothing: Ctrl-A and Ctrl-E for line ends, Ctrl-B bold,
+Ctrl-I italic, Ctrl-D delete forward, Ctrl-Y delete to end of line, Return.
+
+### Layout at 40 columns
+
+The status row loses the free-memory readout and the help hint — at 40 columns
+the filename and the position are what you look at constantly and the other two
+almost never. The cheat sheet does not survive the trip at all; its material
+belongs in the help screen there. The help box grows to roughly twice the pages
+and should be loaded from disk rather than kept resident, since two resident
+help screens would cost a quarter of a 20K text buffer.
+
+The numbers are in `GEOM40` in `src/geom.S`, unselected until there is a
+display to select it.
+
+### What is left to build
+
+1. A 40-column display back-end: `DISPINIT`, `CLRSCRN`, `DRAWLINE`. Everything
+   else in `display.S` is already shared — `SETROW` works unchanged because the
+   row bases are identical at both widths, and the `LINEBUF` routines read
+   `GSCRW`.
+2. The text buffer moved to main RAM, behind the four accessors that already
+   isolate it.
+3. The keymap table above, and a 40-column help screen from `genhelp.py`.
+4. A second top-level source, so `make SRC=src/edit2p.S` builds it from the
+   same everything-else. Two binaries, two disk images, one source tree.
