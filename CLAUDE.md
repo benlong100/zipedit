@@ -200,6 +200,17 @@ detection itself still needs real hardware.
   31-failure run looked exactly like an editor regression and was not: every
   one was a stale machine or a keystroke backlog. Drain to a known state and
   re-run before believing any of it.
+- **Virtual ][ cannot deliver `$8A`.** Something between AppleScript and the
+  emulator turns a line feed into a carriage return, so Ctrl-J arrives as
+  `$8D` however it is sent -- `type control "J"` and `character id 10` alike.
+  The suite never noticed because it drives the down arrow with `key "down
+  arrow"`, one of the five real special keys, which works. So `$8A ->
+  KDOWNSEL` is exercised by the arrow key and is untestable via Ctrl-J. On
+  real hardware Ctrl-J does send `$8A` -- confirmed on a ][+ with
+  `make keyprobe` -- so the binding is sound and only the harness is blind to
+  it. Beware the trap this sets: a status row reading `L:6 C:1` looks the same
+  whether the cursor moved down five lines or five newlines were inserted.
+  Dump the buffer.
 - Typing costs a fixed ~100 ms plus ~0.035 ms per buffer byte, so tests must
   never sleep a fixed interval for a multi-character string. Use `ktext`, which
   waits for the text to appear.
