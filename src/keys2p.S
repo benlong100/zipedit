@@ -155,4 +155,10 @@ ESCTBL
              da    KWORDLSEL        ; Esc Ctrl-H -- a word left
              dfb   $95
              da    KWORDRSEL        ; Esc Ctrl-U -- a word right
+             dfb   $bf
+             da    HELPSHOW         ; Esc ? -- help, for the hand that keeps
+                                    ; reaching for it. Ctrl-P is the single
+                                    ; keystroke; this is what a //e user
+                                    ; types without thinking, OA-? being the
+                                    ; same key on that machine.
              dfb   $00

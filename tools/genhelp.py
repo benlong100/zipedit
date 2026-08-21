@@ -243,7 +243,7 @@ P2_40 = [
     e40("CTRL-G",    "FIND AGAIN"),
     e40("CTRL-L",    "GO TO LINE"),
     e40("CTRL-W",    "WORD COUNT"),
-    e40("CTRL-P",    "THIS HELP"),
+    e40("CTRL-P",    "THIS HELP, OR ESC ?"),
 ]
 
 TITLE40 = "ZIPEDIT -- COMMANDS"
