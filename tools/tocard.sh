@@ -17,6 +17,20 @@ VOL="${1:?usage: tocard.sh <volume-name> [image ...]}"; shift
 DEST="/Volumes/$VOL"
 [ -d "$DEST" ] || { echo "no volume mounted at $DEST" >&2; exit 1; }
 
+# The Floppy Emu reads FAT16 or FAT32. Disk Utility offers ExFAT by default for
+# anything but a small card, and an ExFAT card looks perfectly fine on the Mac
+# while the Emu cannot make sense of it -- which comes back as a complaint about
+# the image rather than about the card, and sends you hunting the wrong problem.
+FSTYPE="$(diskutil info "$DEST" 2>/dev/null | awk -F: '/Type \(Bundle\)/{gsub(/^[ \t]+/,"",$2); print $2}')"
+case "$FSTYPE" in
+    msdos|"") ;;
+    *)  echo "WARNING: $DEST is $FSTYPE, and the Floppy Emu wants FAT32." >&2
+        echo "         Reformat in Disk Utility as MS-DOS (FAT), not ExFAT." >&2
+        echo "         Copying anyway, but expect the Emu to refuse it." >&2
+        echo >&2
+        ;;
+esac
+
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 IMAGES=("$@")
 [ ${#IMAGES[@]} -eq 0 ] && IMAGES=("$ROOT/build/ZIPEDIT-REL.po")
@@ -67,5 +81,8 @@ if [ "$stray" -gt 0 ]; then
 fi
 
 echo
+strays="$(find "$DEST" -name '._*' 2>/dev/null | wc -l | tr -d ' ')"
+[ "$strays" != "0" ] && echo "WARNING: $strays macOS sidecar file(s) still on the card" >&2
+
 echo "done. Eject the card in Finder before removing it."
 df -h "$DEST" | tail -1 | awk '{print "free on card: "$4}'
