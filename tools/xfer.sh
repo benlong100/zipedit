@@ -1,4 +1,17 @@
 #!/bin/bash
+# Re-exec under bash. `sh xfer.sh ...` is a perfectly normal thing to type, and
+# it ignores the shebang -- after which the first process substitution below
+# dies with "syntax error near unexpected token `<'", which tells the reader
+# nothing about the actual problem.
+#
+# Testing BASH_VERSION does not work, and the reason is worth knowing: /bin/sh
+# on macOS IS bash, so the variable is set either way. What changes is that
+# bash in sh mode DISABLES process substitution. So use a sentinel instead and
+# re-exec exactly once, whatever we were started as.
+if [ -z "${XFER_UNDER_BASH:-}" ]; then
+    XFER_UNDER_BASH=1 export XFER_UNDER_BASH
+    exec bash "$0" "$@"
+fi
 # xfer.sh -- move Markdown between a ProDOS disk image and the Mac.
 #
 #   xfer.sh pull <image> <dir>   image -> dir, as UTF-8 with LF endings
