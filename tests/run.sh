@@ -1097,6 +1097,82 @@ assert_lc    "and the cursor followed the insert"     1 14
 fi
 
 #--------------------------------------
+# Reflow while typing. Inserting into a filled paragraph pushes a word onto
+# the next line, which pushes a word onto the one after it, all the way down.
+# RTFWD stops that cascade as soon as a break lands back on a byte that
+# already held one, which is only sound if the paragraph below really is
+# untouched from there on -- so what is checked here is the whole paragraph,
+# not the line that was typed into: every line still inside the margin, and
+# not one character gained or lost.
+#--------------------------------------
+if section "reflow while typing" ; then
+reboot_empty
+
+# Joined text of rows 0..N, with the wrap breaks read back as the spaces they
+# stood in for. Short words on purpose: they leave each line little slack, so
+# the cascade runs far rather than dying on the first line below the insert.
+joined() {
+    sed -n "1,$(($1+1))p" "$SCREEN" | sed 's/ *$//' | tr '\n' ' ' \
+        | sed 's/  */ /g; s/ *$//'
+}
+
+# ktext awaits the whole string on one row, which text this long never is --
+# it wraps. Type it and wait for the screen to stop moving instead.
+ktext_wrapped() { "$VII" text "$1" >/dev/null; "$VII" settle 4 >/dev/null; }
+
+PARA="the quick brown fox jumps over the lazy dog and then keeps running for a very long time indeed "
+ktext_wrapped "$PARA$PARA$PARA"
+"$VII" settle 2 >/dev/null
+snapshot
+WANT="$(joined 5)"
+[ -n "$WANT" ] || bad "the paragraph was typed" "nothing on screen"
+
+# Into the middle of the first line, where the whole paragraph lies below.
+"$VII" caps true >/dev/null; k oa "<"; "$VII" caps false >/dev/null
+for _i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20; do k key "right arrow"; done
+assert_lc    "the cursor is inside the first line"        1 21
+
+ktext "ZZZ"
+"$VII" settle 2 >/dev/null
+snapshot
+for r in 0 1 2 3 4; do
+    assert_maxcols "line $r is still inside the margin"    "$r" 76
+done
+GOT="$(joined 5)"
+if [ "${GOT//ZZZ/}" = "$WANT" ]; then
+    ok "the paragraph below the insert is intact"
+else
+    bad "the paragraph below the insert is intact" \
+        "expected: $WANT" "got:      ${GOT//ZZZ/}"
+fi
+
+# A word longer than the margin wraps with a break that stood in for nothing,
+# which shifts every byte below it. Nothing after that can be compared against
+# a position recorded before it, and reading one as a match would stop the
+# reflow dead with the rest of the paragraph still over-long.
+ktext_wrapped " aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa "
+"$VII" settle 2 >/dev/null
+snapshot
+# Strip the inserts back out -- the long word's own breaks stood in for
+# nothing, so the runs of it rejoin with no space between them.
+# Two or more a's in a row is the inserted word -- broken into runs by
+# breaks that stood in for nothing. A single a is the word "a".
+GOT="$(joined 6 | sed 's/ZZZ//g; s/a\{2,\}//g; s/  */ /g; s/ *$//')"
+if [ "$GOT" = "$WANT" ]; then
+    ok "the reflow ran on past a word longer than the margin"
+else
+    bad "the reflow ran on past a word longer than the margin" \
+        "expected: $WANT" "got:      $GOT"
+fi
+
+# NOT asserted here: that these lines sit inside the margin. They do not --
+# a word with no space in it breaks at column 77, one past the 76 the margin
+# is set to, on a plain empty document with nothing inserted and on the build
+# before any of the reflow work. That is its own defect and wants its own fix;
+# writing it down as an expectation here would only make it permanent.
+fi
+
+#--------------------------------------
 # New document. OA-N throws the whole document away, so it is guarded exactly
 # as OA-Q is -- they share ASKUNSAVED, and these assertions are what stop the
 # two from drifting apart.

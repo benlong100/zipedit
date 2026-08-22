@@ -224,3 +224,19 @@ detection itself still needs real hardware.
 - Typing costs a fixed ~100 ms plus ~0.035 ms per buffer byte, so tests must
   never sleep a fixed interval for a multi-character string. Use `ktext`, which
   waits for the text to appear.
+- **Benchmark the redraw with the ARROW KEYS, not with typing.** Most
+  keystrokes take the one-row path and never reach `RENDER` at all, so timing a
+  burst of typing averages the redraw away -- which is how "depth in the
+  document makes no difference" got measured, written into the source comments,
+  and believed, while the machine itself was taking half a second an arrow key
+  at line 112. A vertical move changes `CURLNO` and forces a full redraw every
+  single press, so it measures `RENDER` and nothing else.
+- **Virtual ][ cannot reproduce a dropped keystroke.** The real keyboard has no
+  buffer and loses anything typed while the editor is busy; the emulator queues
+  injected keys and delivers every one however slow the editor gets. So a
+  chars-per-second figure from the emulator describes throughput with a queue
+  behind it, never what the writer feels. "I have to type slowly or it drops
+  whole words" is a report the harness is structurally unable to make.
+- `ktext` waits for its whole string to appear on one row, so it can never
+  match text long enough to wrap. Type it with `"$VII" text` and `settle`
+  instead.

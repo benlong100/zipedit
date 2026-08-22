@@ -124,6 +124,8 @@ release: $(BIN)
 	@RELEASE=1 VOL=ZIPEDIT $(TOOLS)/mkdisk.sh $(BUILD)/ZIPEDIT-REL.po $(BIN)
 	@echo
 	@echo "release image: $(BUILD)/ZIPEDIT-REL.po"
+	@echo "  built from $(SRC) -> $(NAME), $$(stat -f%z $(BIN)) bytes"
+	@echo "  (src/edit.S is the 80-column //e; edit2p.S is the ][+)"
 
 # Copy the release image to a card, cleanly. VOL is the mounted volume name.
 card: release
