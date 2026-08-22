@@ -112,7 +112,9 @@ DESTROYF     jsr   MLI
 * The gap is not written out: the text is two runs, before it and after it,
 * so no compaction pass is needed.
 *--------------------------------------
-SAVEFILE     jsr   DESTROYF         ; a missing file is not an error here
+SAVEFILE     lda   #$00
+             sta   PENDSP           ; no soft wrap held over from last time
+             jsr   DESTROYF         ; a missing file is not an error here
              jsr   CREATEF
              bcs   :fail
              jsr   OPENF
@@ -173,9 +175,9 @@ WRITERUN     lda   RUNLEN
 :go          lda   RUNLEN+1         ; chunk = min(255, RUNLEN)
              bne   :full
              lda   RUNLEN
-             cmp   #$ff
-             bcc   :have
-:full        lda   #$ff
+             cmp   #$fe             ; 254: a held space can make one input
+             bcc   :have            ; byte produce two output bytes, and
+:full        lda   #$fe             ; DATBUF is 256
 :have        sta   TMPC
 
 *--- aux -> main staging, translating our own wraps back out of the text. The
@@ -192,9 +194,30 @@ WRITERUN     lda   RUNLEN
              cmp   #SOFTWD
              beq   :skip            ; stood in for nothing
              cmp   #SOFTCR
-             bne   :put
-             lda   #$a0             ; stood in for a space; give it back
-:put         sta   DATBUF,x
+             bne   :real
+             lda   #$01             ; hold its space back until we know what
+             sta   PENDSP           ; follows it
+             jmp   :skip
+
+*--- A real byte. A pending soft-wrap space is written only if text follows
+*    it: before a return, or at the end of the document, it is litter. That is
+*    where the trailing spaces in saved files came from -- a paragraph ending
+*    exactly at the wrap margin put a space before its own newline.
+*
+*    Y is the input counter and X the output one, so neither can be borrowed
+*    here. The byte goes in TMPA and every test is done in A.
+:real        sta   TMPA
+             cmp   #TEXTLO
+             bcc   :nospace         ; a break: drop any pending space
+             lda   PENDSP
+             beq   :nospace
+             lda   #$a0
+             sta   DATBUF,x
+             inx
+:nospace     lda   #$00
+             sta   PENDSP
+             lda   TMPA
+             sta   DATBUF,x
              inx
 :skip        iny
              jmp   :copy
@@ -601,8 +624,12 @@ MSGERR       asc   " PRODOS ERROR $"
 * Mutable storage, declared but not emitted.
 * IOBUF must be 1K and page aligned; ProDOS requires it.
 *--------------------------------------
-             dum   $1443            ; $1441-$1442 are machine.S's
+             dum   $1443            ; $1441-$1451 are other files'
 WASCR        ds    1                ; a CR just went in, so swallow an LF
+             dend
+
+             dum   $1446
+PENDSP       ds    1                ; a soft wrap's space, not yet written
              dend
 
              dum   $0800

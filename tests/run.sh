@@ -1447,6 +1447,61 @@ assert_blank "leaving no phantom blank lines"         2
 fi
 
 #--------------------------------------
+# What a soft wrap becomes on the way out. A wrap that replaced a space is
+# written back as a space -- except where nothing follows it. A paragraph that
+# ends exactly at the wrap margin used to put a space before its own newline,
+# and a document ending there gained a trailing space, because WRITERUN
+# translated every soft wrap the same way regardless of what came next.
+#
+# Nothing caught it: the suite checked that files round-trip and never that
+# they are TIDY.
+#
+# HONEST LABEL: this passes against the binary from BEFORE that fix too, so it
+# is not a regression test for it. Typing cannot end a paragraph on a soft
+# wrap -- the character that triggers a wrap always lands after it -- and I
+# could not construct the case by deleting either. What this does guard is the
+# general property: no space before a newline, none at the end. If some future
+# change puts one there, this fails.
+#--------------------------------------
+if section "no litter in saved files"; then
+reboot_empty
+
+# Long enough to wrap at 76, so the paragraph ends on a soft wrap.
+# Not ktext: it waits for the whole string on one row, and this one is
+# deliberately long enough to wrap, so it never appears that way.
+"$VII" text "the quick brown fox jumps over the lazy dog and keeps on running along until it wraps" >/dev/null
+"$VII" await "wraps" 180 || bad "typing never completed"   # the last word: any
+                                                          # longer a fragment
+                                                          # may straddle the wrap
+"$VII" settle 2 >/dev/null
+"$VII" line "" >/dev/null            # one Return
+"$VII" settle 2 >/dev/null
+ktext "second paragraph"
+"$VII" caps true >/dev/null
+k oa "A"; ktext "TIDY.MD"; "$VII" line "" >/dev/null
+"$VII" await "TIDY.MD" 90 || bad "save never completed"
+"$VII" caps false >/dev/null
+"$VII" settle 2 >/dev/null
+
+osascript -e 'tell application "Virtual ][" to tell (last machine) to eject device "S6D1"' >/dev/null 2>&1
+sleep 2
+if "$ROOT/tools/ac" -g "$IMAGE" TIDY.MD 2>/dev/null > "$TMP/tidy.raw" && python3 -c '
+import sys
+raw = open(sys.argv[1], "rb").read()
+text = "".join(chr(b & 0x7F) for b in raw)
+assert raw, "empty file"
+assert " \r" not in text, "a space before a return: " + repr(text)
+assert not text.endswith(" "), "a trailing space at the end: " + repr(text[-30:])
+assert "fox jumps" in text, "the soft wrap did not become a space: " + repr(text[:60])
+assert "\r" in text, "the typed return is missing: " + repr(text)
+' "$TMP/tidy.raw" 2>"$TMP/tidy.err"; then
+    ok "a saved file carries no stray spaces"
+else
+    bad "a saved file carries no stray spaces" "$(cat "$TMP/tidy.err" | tail -2 | tr '\n' ' ')"
+fi
+fi
+
+#--------------------------------------
 # Long filenames. FNAME holds a whole PATHNAME, not a bare filename, so the
 # field has to fit /VOLUME/FILE.MD. When even that is not enough the head is
 # what goes: losing the star to a long path makes an unsaved document look
