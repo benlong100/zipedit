@@ -177,6 +177,18 @@ BLANKTAIL    lda   CURROW
 *--------------------------------------
 HOMECURSOR   jsr   GAPLEFT
              bcc   HOMECURSOR
+
+*--- The cursor is at the first byte of the buffer, so the column is zero and
+*    saying so is cheaper than having walked there correctly. CCOL is one byte
+*    and GAPLEFT decrements it per character, so walking back over a line
+*    longer than 255 wraps the count around -- which cannot happen while
+*    editing, since nothing survives longer than the wrap margin, but happens
+*    on every LOAD before WRAPALL has run. A file whose lines are whole
+*    unwrapped paragraphs then arrived with CCOL already past the margin, and
+*    WRAPALL broke the line at its FIRST character: "**History Duel**" opened
+*    as "*" and then "*History Duel**" on the line below.
+             lda   #$00
+             sta   CCOL
              rts
 
 *--------------------------------------

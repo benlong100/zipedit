@@ -1444,6 +1444,24 @@ snapshot
 assert_row "tabs come in as spaces"                   0 "Tabs:  here  and  here."
 assert_row "and stray control bytes are dropped"      1 "After the junk."
 assert_blank "leaving no phantom blank lines"         2
+
+# A paragraph longer than 255 characters. CCOL is one byte and GAPLEFT
+# decrements it per character, so HOMECURSOR walking back over a line this
+# long wrapped the count around -- and WRAPALL, starting with CCOL already
+# past the margin, broke the line at its FIRST character. "**Bold**" opened
+# as "*" with "*Bold**" on the line below. Reported from a real document
+# whose paragraphs were, quite reasonably, longer than 255 characters.
+"$VII" caps true >/dev/null
+open_file "LONGLINE.TXT"
+"$VII" await "alpha bravo" 120 || bad "the long-line file never loaded"
+"$VII" caps false >/dev/null; "$VII" settle 2 >/dev/null
+snapshot
+assert_row "a paragraph over 255 chars keeps its first word" 0 "**Bold** alpha bravo"
+if "$VII" screen-raw | sed -n '1p' | grep -qE '^\*[[:space:]]*$'; then
+    bad "and is not broken at its first character" "row 0 is a lone asterisk"
+else
+    ok "and is not broken at its first character"
+fi
 fi
 
 #--------------------------------------
