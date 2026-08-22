@@ -12,7 +12,9 @@
 *--------------------------------------
 
 *--------------------------------------
-START        jsr   GEOMINIT         ; the layout's columns first of all: it
+START        lda   #$00             ; nothing remembered about the viewport yet
+             sta   TOPOK
+             jsr   GEOMINIT         ; the layout's columns first of all: it
                                     ; depends on nothing, and everything that
                                     ; draws depends on it
              lda   #$00             ; cheat sheet hidden by default; OA-/ shows it
@@ -71,9 +73,20 @@ START        jsr   GEOMINIT         ; the layout's columns first of all: it
 *--------------------------------------
 * Main loop. Redraw, wait for a key, act on it, repeat.
 *
-* A full redraw per keystroke is more work than it needs to be -- RENDER
-* rescans the buffer from the start every time. At this size it is well under
-* a frame and invisible; the line index is the fix when it stops being.
+* A full redraw per keystroke is more work than it needs to be, and what it
+* costs is the rescan from the buffer start: RENDER counts its way down from
+* byte zero every time, so the deeper in the document you are, the longer
+* every redraw takes. Timed at 1MHz with the arrow keys, which force a full
+* redraw on every press and so measure RENDER and nothing else:
+*
+*     line 1    218ms per arrow
+*     line 64   398ms
+*     line 112  553ms
+*
+* -- a straight line in the bytes above the viewport. That is what the line
+* index is for. Measure this with the ARROW keys: an earlier attempt used
+* typing, where most keystrokes take the one-row path and never reach RENDER
+* at all, and averaged the effect away into "depth does not matter".
 *--------------------------------------
 MAINLOOP     jsr   SCROLLFIX
              jsr   REDRAW
@@ -81,6 +94,7 @@ MAINLOOP     jsr   SCROLLFIX
 *--- remember what a one-row redraw is allowed to assume
 :keys        lda   #$00
              sta   FASTDRAW
+             sta   PARTIAL
              lda   CURLNO
              sta   OLDLINE
              lda   CURLNO+1
@@ -134,7 +148,34 @@ MAINLOOP     jsr   SCROLLFIX
              jsr   RENDERROW
              jmp   :keys
 
-:full        jsr   REDRAW
+*--- A wrap rearranges the text below the cursor and cannot touch a line above
+*    it, so the rows above the one the cursor started on are already right and
+*    RENDER can be told to count them rather than draw them. Everything else --
+*    a scroll, a selection, a return, a load -- redraws the lot.
+:full        lda   SELACT
+             ora   OLDSEL
+             bne   :all
+             lda   PARTIAL
+             beq   :all
+             lda   SCROLLTOP        ; a scroll moves every row: no shortcut
+             cmp   OLDTOP
+             bne   :all
+             lda   SCROLLTOP+1
+             cmp   OLDTOP+1
+             bne   :all
+
+             lda   OLDLINE          ; which row was that?
+             sec
+             sbc   SCROLLTOP
+             tax
+             lda   OLDLINE+1
+             sbc   SCROLLTOP+1
+             bne   :all             ; not on screen at all; draw everything
+             cpx   MAXROW
+             bcs   :all
+             stx   RSKIP
+
+:all         jsr   REDRAW
              jmp   :keys
 
 *--------------------------------------

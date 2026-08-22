@@ -103,6 +103,17 @@ DOWRAP       lda   #$00
              lda   #SOFTCR          ; a break that stands in for that space,
              jsr   INSCHR           ; and becomes one again when saved
 
+*--- where that break landed, for REFLOWHERE's stability test. INSCHR left
+*    GAPBEG one past it, and no bytes were gained or lost, so this offset is
+*    directly comparable with one recorded before the reflow started.
+             lda   GAPBEG
+             sec
+             sbc   #$01
+             sta   DWBRK
+             lda   GAPBEG+1
+             sbc   #$00
+             sta   DWBRK+1
+
              ldx   TMPB             ; and return to where we were
              dex
              stx   WDIST
@@ -117,6 +128,13 @@ DOWRAP       lda   #$00
 *    otherwise a long URL would come back with a space through the middle.
 :hard        inc   DWHARD           ; this one adds a byte; the caller has to
                                     ; know, or its walk home comes up short
+             lda   #$fe             ; a bare break is not byte-preserving, so
+             sta   DWBRK            ; nothing below it can be compared. NOT the
+             lda   #$ff             ; $ffff REFLOWHERE starts RTBRK at: these
+             sta   DWBRK+1          ; two sentinels must never test equal, or a
+                                    ; word longer than the margin would read as
+                                    ; a break landing back where it was and
+                                    ; stop the reflow dead
              lda   #SOFTWD
              jmp   INSCHR
 
@@ -140,22 +158,57 @@ DOWRAP       lda   #$00
 * The cheap tidy, used while typing. Everything behind the cursor is already
 * right, so this walks forward once to reflow and back once to return -- over
 * the remainder of the paragraph, not the whole of it.
+*
+* Two things keep that from being the whole remainder. REFLOWHERE stops as
+* soon as a break lands back on a byte that already held one, because a line
+* wraps according to where the break above it is and nothing else, so from
+* there down the paragraph is provably already right. And the walk back uses
+* GAPLQ rather than GAPLEFT, since the reflow cannot move the line the cursor
+* is on or its column within it: both are saved here and put back, instead of
+* being recounted a line at a time on the way home.
+*
+* What is left is real work. Inserting a character into a filled paragraph
+* pushes a word onto the next line, which pushes a word onto the one after,
+* and in tightly set prose that cascade genuinely does run to the end of the
+* paragraph -- every line below the cursor changes and has to be redrawn.
+* Measured worst case at 1MHz: a 2,000 character paragraph costs ~190ms a
+* keystroke, against ~30ms where nothing wraps.
 *--------------------------------------
 RTFWD        lda   GAPBEG
              sta   RTPOS
              lda   GAPBEG+1
              sta   RTPOS+1
 
-             jsr   REFLOWHERE       ; leaves the cursor at the paragraph end
+*--- The reflow only ever touches breaks below the cursor, so the line the
+*    cursor is on and its column within that line both come out of this
+*    unchanged. Keeping them means the walk back does not have to recount.
+             lda   CCOL
+             sta   RTCOL
+             lda   CURLNO
+             sta   RTLINE
+             lda   CURLNO+1
+             sta   RTLINE+1
+
+             lda   #$01             ; typing: stop as soon as what lies below
+             sta   RTSTOP           ; the cursor is provably unchanged
+             sta   PARTIAL          ; and nothing above the cursor can move
+             jsr   REFLOWHERE       ; leaves the cursor wherever it settled
 
 :back        lda   GAPBEG           ; walk back to where we started
              cmp   RTPOS
              bne   :step
              lda   GAPBEG+1
              cmp   RTPOS+1
-             beq   :done
-:step        jsr   GAPLEFT
+             beq   :put
+:step        jsr   GAPLQ            ; no accounting: we know the answer
              jmp   :back
+
+:put         lda   RTCOL
+             sta   CCOL
+             lda   RTLINE
+             sta   CURLNO
+             lda   RTLINE+1
+             sta   CURLNO+1
 :done        lda   #$00
              sta   FASTDRAW
              rts
@@ -383,12 +436,17 @@ WRAPALL      jsr   HOMECURSOR
 * A SOFTCR stood in for a space and becomes one again. A SOFTWD stood in for
 * nothing and simply goes.
 *--------------------------------------
-REFLOW       jsr   PARASTART
+REFLOW       lda   #$00             ; OA-R rewraps whatever state the
+             sta   RTSTOP           ; paragraph is in, so it never stops short
+             jsr   PARASTART
 
 *--- REFLOWHERE: the same loop, entered from wherever the cursor is. Everything
 *    behind the cursor is already wrapped correctly, so tidying after an insert
 *    only has to deal with what lies ahead of it.
-REFLOWHERE
+REFLOWHERE   lda   #$ff             ; no break removed yet to compare against
+             sta   RTBRK
+             sta   RTBRK+1
+
 :loop        jsr   PEEKFWD
              bcs   :done            ; end of buffer
              cmp   #TEXTLO
@@ -403,22 +461,50 @@ REFLOWHERE
              pla
 
              cmp   #HARDCR
-             beq   :char            ; the writer put this one here; keep it
+             beq   :hardcr          ; the writer put this one here; keep it
              cmp   #SOFTCR
              bne   :bare            ; SOFTWD replaced nothing
+
+*--- remember which byte this break sat on. A line wraps according to where
+*    the break above it is and nothing else, so if the rewrap puts one back on
+*    this same byte, every line below is already exactly right.
+             lda   GAPBEG
+             sta   RTBRK
+             lda   GAPBEG+1
+             sta   RTBRK+1
              jsr   DELFWD
              lda   #$a0             ; SOFTCR replaced a space; give it back
              jsr   INSCHR
              jmp   :check
-:bare        jsr   DELFWD
+
+*--- a bare break stood in for nothing, so removing it shifts every byte below
+*    it up by one and no recorded offset means anything any more.
+:bare        lda   #$ff
+             sta   RTBRK
+             sta   RTBRK+1
+             jsr   DELFWD
              jmp   :check
+
+*--- a return the writer typed ends the line no matter what is above it, so
+*    while typing there is nothing below one left to do.
+:hardcr      lda   RTSTOP
+             beq   :char
+             rts
 
 :char        jsr   GAPRIGHT
 :check       lda   CCOL
              cmp   GWRAP1
              bcc   :loop
              jsr   DOWRAP
-             jmp   :loop
+             lda   RTSTOP
+             beq   :loop            ; a full reflow carries on regardless
+             lda   DWBRK            ; did the break land back where it was?
+             cmp   RTBRK
+             bne   :loop
+             lda   DWBRK+1
+             cmp   RTBRK+1
+             bne   :loop
+             rts                    ; then the rest of the paragraph stands
 
 :enddrop     pla
 :done        rts
@@ -434,5 +520,10 @@ RTN          ds    2                ; RTFLOW: how far into the paragraph it was
              dend
 
              dum   $1447            ; $1446 is file.S's PENDSP
+RTBRK        ds    2                ; REFLOWHERE: the break it last removed
+DWBRK        ds    2                ; DOWRAP: where it last put one
+RTSTOP       ds    1                ; reflow may stop once it is provably done
+RTCOL        ds    1                ; RTFWD: the cursor's column across a reflow
+RTLINE       ds    2                ; RTFWD: and the line it is on
 DWHARD       ds    1                ; DOWRAP: that wrap added a byte
              dend

@@ -206,10 +206,34 @@ GAPRIGHT     jsr   ATEND
 
 *--------------------------------------
 * GAPLEFT -- move the cursor one byte left
+*
+* GAPLQ underneath it is the same move with none of the line and column
+* bookkeeping: X comes back holding the byte, carry set if there was nothing
+* to move. A caller that already knows where it will end up -- RTFWD walking
+* back over its own reflow -- can use it and skip the accounting, which is not
+* a micro-optimisation: the CALCCOL below rescans to the start of the line
+* every time one is crossed, so an unaccounted walk back over twenty lines is
+* twenty line-length scans shorter.
 *--------------------------------------
-GAPLEFT      jsr   ATSTART
-             bcc   :ok
+GAPLEFT      jsr   GAPLQ
+             bcs   :none            ; at the start of the buffer already
+             cpx   #TEXTLO          ; stepped back over a break: up a line
+             bcs   :samel
+             lda   CURLNO
+             bne   :4
+             dec   CURLNO+1
+:4           dec   CURLNO
+             jsr   CALCCOL          ; back on a previous line: recount
+             sta   CCOL
+             clc
              rts
+:samel       dec   CCOL
+             clc
+:none        rts
+
+GAPLQ        jsr   ATSTART
+             bcc   :ok
+             rts                    ; ATSTART left the carry set
 :ok          lda   GAPBEG           ; shrink both edges first
              bne   :1
              dec   GAPBEG+1
@@ -232,17 +256,6 @@ GAPLEFT      jsr   ATSTART
              sta   AUXPTR+1
              txa
              jsr   PUTAUX
-             cpx   #TEXTLO          ; stepped back over a break: up a line
-             bcs   :samel
-             lda   CURLNO
-             bne   :4
-             dec   CURLNO+1
-:4           dec   CURLNO
-             jsr   CALCCOL          ; back on a previous line: recount
-             sta   CCOL
-             clc
-             rts
-:samel       dec   CCOL
              clc
              rts
 
@@ -254,8 +267,10 @@ GAPLEFT      jsr   ATSTART
 * reach the viewport and stays true, so the test costs one byte compare per
 * line rather than a 16-bit comparison per character.
 *
-* Still rescans from the buffer start every time. That is what the line index
-* is for -- scrolling did not need it, speed does.
+* Rescanning from the buffer start is what this costs. Every line above the
+* viewport is counted, one byte at a time through a banked read, before a
+* single character is drawn -- 553ms an arrow key at line 112 against 218ms
+* at line 1. See the note in main.S.
 *--------------------------------------
 RENDER       lda   #$00
              sta   AUXPTR
@@ -275,15 +290,71 @@ RENDER       lda   #$00
              lda   #BUFLO
              sta   AUXPTR+1
 
-*--- already inside the viewport if it starts at line zero
+*--- Where the line at SCROLLTOP begins, if we know it. Counting down to it
+*    from byte zero is the single most expensive thing the editor does: every
+*    byte above the viewport read through a banked load, before one character
+*    is drawn. Remembering the address turns that into nothing.
+*
+*    Three things have to hold. The remembered line has to be the one being
+*    asked for; there must be no selection, whose bounds are logical positions
+*    that only come out right if every byte is counted; and the address has to
+*    still be behind the gap. That last one is what makes the rest safe --
+*    editing happens at the gap, so bytes before it never move, and an address
+*    below GAPBEG means the text there is exactly where it was left. Move the
+*    cursor above the top line and the bytes shuffle across the gap, GAPBEG
+*    drops below the address, and this falls back to counting.
+             lda   SELACT
+             bne   :count
+             lda   TOPOK
+             beq   :count
+             lda   GAPBEG+1         ; TOPADDR <= GAPBEG?
+             cmp   TOPADDR+1
+             bcc   :count
+             bne   :seek            ; NOT :fast -- the seek below is not
+             lda   GAPBEG           ; optional, it is what makes the address
+             cmp   TOPADDR          ; mean the line being asked for
+             bcc   :count
+:seek        jsr   TOPSEEK          ; walk it to the line being asked for
+             bcs   :count
+             lda   TOPADDR
+             sta   AUXPTR
+             lda   TOPADDR+1
+             sta   AUXPTR+1
+             lda   SCROLLTOP        ; and we are already that far down
+             sta   LINENO
+             lda   SCROLLTOP+1
+             sta   LINENO+1
+:count
+
+*--- Drawing starts RSKIP rows down the viewport, and the rows above that are
+*    counted and not drawn -- the same treatment the lines above SCROLLTOP get,
+*    and the same one byte of test per line. RSKIP is normally zero; the typing
+*    path sets it to the row the cursor was on, because a wrap rearranges the
+*    text below the cursor and cannot touch a line above it.
              lda   SCROLLTOP
-             ora   SCROLLTOP+1
-             beq   :vis
+             clc
+             adc   RSKIP
+             sta   VISLINE
+             lda   SCROLLTOP+1
+             adc   #$00
+             sta   VISLINE+1
+
+*--- On the slow path LINENO is zero and this is the old test, "is the
+*    viewport at the top". On the fast path the walk has already arrived, and
+*    the first row drawn is the first row of the walk.
              lda   #$00
-             beq   :setvis
-:vis         lda   #$01
-:setvis      sta   VIS
-             jsr   CLRBUF
+             sta   VIS
+             lda   LINENO
+             cmp   VISLINE
+             bne   :setvis
+             lda   LINENO+1
+             cmp   VISLINE+1
+             bne   :setvis
+             lda   #$01
+             sta   VIS
+             lda   RSKIP
+             sta   CURROW
+:setvis      jsr   CLRBUF
 
 :loop        lda   AUXPTR           ; standing at the gap? jump over it
              cmp   GAPBEG
@@ -303,7 +374,9 @@ RENDER       lda   #$00
 
 :notgap      lda   AUXPTR+1         ; ran off the end of the buffer?
              cmp   #BUFHI
-             bcs   :done
+             bcc   :inbuf
+             jmp   :done            ; :done is out of branch range from here
+:inbuf
 
              ldy   #$00
              jsr   AUXRD
@@ -353,13 +426,36 @@ RENDER       lda   #$00
 :chkvis      lda   VIS
              bne   :next
              lda   LINENO
-             cmp   SCROLLTOP
+             cmp   VISLINE
              bne   :next
              lda   LINENO+1
-             cmp   SCROLLTOP+1
+             cmp   VISLINE+1
              bne   :next
              lda   #$01
              sta   VIS
+             lda   RSKIP            ; the first row drawn is the first row NOT
+             sta   CURROW           ; skipped, not the top of the screen
+
+*--- Reaching the viewport the slow way is what teaches us where it starts, so
+*    that the next render need not. Only with RSKIP zero, since only then is
+*    the line just reached SCROLLTOP's own. AUXPTR still sits on the break
+*    that ended the line above, and the line begins one past it.
+             lda   RSKIP
+             bne   :nocache
+             lda   AUXPTR
+             clc
+             adc   #$01
+             sta   TOPADDR
+             lda   AUXPTR+1
+             adc   #$00
+             sta   TOPADDR+1
+             lda   SCROLLTOP
+             sta   TOPLINE
+             lda   SCROLLTOP+1
+             sta   TOPLINE+1
+             lda   #$01
+             sta   TOPOK
+:nocache
 
 :next        inc   RPOS             ; one more logical byte consumed
              bne   :rp
@@ -384,4 +480,144 @@ RENDER       lda   #$00
 *    trailing return would lose it on every full redraw, and only get it back
 *    from the one-row path the next time a key was pressed.
              inc   CURROW
-:fin         rts
+:fin         lda   #$00             ; spent: the next render draws the lot
+             sta   RSKIP
+             rts
+
+*--------------------------------------
+* TOPSEEK -- bring TOPADDR from TOPLINE to SCROLLTOP. Carry clear if it got
+*            there; set if the caller should count from the buffer start.
+*
+* Scrolling is what makes the remembered address worth keeping. Moving the
+* cursor down a line at the foot of the screen moves the viewport with it, so
+* SCROLLTOP changes on every keypress -- and a cache that only answered for
+* the exact line it recorded was wrong every single time, which measured as no
+* improvement whatsoever. One line down is fifty bytes of scanning; counting
+* from the start of a six thousand byte document is six thousand.
+*
+* A long jump -- a page, or OA-> to the end -- costs one full count, and every
+* keypress after it is a step from there.
+*--------------------------------------
+TOPSEEK      lda   SCROLLTOP
+             sec
+             sbc   TOPLINE
+             sta   TSN
+             lda   SCROLLTOP+1
+             sbc   TOPLINE+1
+             bmi   :back
+             bne   :no              ; 256 lines or more: just count
+             lda   TSN
+             beq   :ok              ; already the line we want
+             cmp   #65              ; further than this and counting wins
+             bcs   :no
+:fwd         jsr   TOPNEXT
+             bcs   :no
+             dec   TSN
+             bne   :fwd
+             beq   :ok
+
+*--- SCROLLTOP is above the line we remember, so walk back to it. Everything
+*    below TOPADDR is behind the gap and contiguous -- the caller checked --
+*    so this needs no gap handling at all.
+:back        lda   TOPLINE
+             sec
+             sbc   SCROLLTOP
+             sta   TSN
+             lda   TOPLINE+1
+             sbc   SCROLLTOP+1
+             bne   :no
+             lda   TSN
+             cmp   #65
+             bcs   :no
+:bk          jsr   TOPPREV
+             bcs   :no
+             dec   TSN
+             bne   :bk
+
+:ok          lda   SCROLLTOP
+             sta   TOPLINE
+             lda   SCROLLTOP+1
+             sta   TOPLINE+1
+             clc
+             rts
+:no          sec
+             rts
+
+*--------------------------------------
+* TOPNEXT -- TOPADDR to the first byte of the following line
+*--------------------------------------
+TOPNEXT      ldy   #$00
+:loop        lda   TOPADDR          ; standing at the gap? step over it
+             cmp   GAPBEG
+             bne   :rd
+             lda   TOPADDR+1
+             cmp   GAPBEG+1
+             bne   :rd
+             lda   GAPEND
+             sta   TOPADDR
+             lda   GAPEND+1
+             sta   TOPADDR+1
+:rd          lda   TOPADDR+1
+             cmp   #BUFHI
+             bcs   :end
+             lda   TOPADDR
+             sta   AUXPTR
+             lda   TOPADDR+1
+             sta   AUXPTR+1
+             jsr   AUXRD
+             pha
+             inc   TOPADDR
+             bne   :1
+             inc   TOPADDR+1
+:1           pla
+             cmp   #TEXTLO
+             bcs   :loop            ; ordinary text: keep going
+             clc                    ; that was the break, and TOPADDR is now
+             rts                    ; the first byte after it
+:end         sec
+             rts
+
+*--------------------------------------
+* TOPPREV -- TOPADDR back to the first byte of the preceding line
+*--------------------------------------
+TOPPREV      jsr   TOPDEC           ; onto the break that ended the line above
+             bcs   :none
+             ldy   #$00
+:scan        jsr   TOPDEC           ; and back across that line
+             bcs   :done            ; the buffer start IS a line start
+             lda   TOPADDR
+             sta   AUXPTR
+             lda   TOPADDR+1
+             sta   AUXPTR+1
+             jsr   AUXRD
+             cmp   #TEXTLO
+             bcs   :scan
+             inc   TOPADDR          ; the line starts one past that break
+             bne   :done
+             inc   TOPADDR+1
+:done        clc
+             rts
+:none        sec
+             rts
+
+*--------------------------------------
+* TOPDEC -- TOPADDR down one, carry set if it was already at the buffer start
+*--------------------------------------
+TOPDEC       lda   TOPADDR
+             bne   :dec
+             lda   TOPADDR+1
+             cmp   #BUFLO
+             beq   :none
+             dec   TOPADDR+1
+:dec         dec   TOPADDR
+             clc
+             rts
+:none        sec
+             rts
+
+             dum   $1422            ; $1420-$1421 are help.S's
+TOPADDR      ds    2                ; where the line at TOPLINE begins
+TOPLINE      ds    2                ; which line that is
+TOPOK        ds    1                ; and whether either means anything yet
+TSN          ds    1                ; TOPSEEK: lines still to walk
+             dend

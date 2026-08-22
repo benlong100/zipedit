@@ -97,6 +97,9 @@ CLIPLINE     equ   $65              ; clipboard holds a whole line, not a range
 OLDSEL       equ   $66              ; selection state before the keystroke
 VERTMOVE     equ   $67              ; this keystroke moved vertically
 WASVERT      equ   $68              ; the previous one did
+PARTIAL      equ   $69              ; handler changed nothing above the cursor
+RSKIP        equ   $6a              ; rows RENDER counts without drawing
+VISLINE      equ   $6b              ; 2 bytes, the first line RENDER draws
 CLIPMAX      equ   1024             ; clipboard capacity
 
 
