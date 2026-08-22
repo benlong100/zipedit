@@ -24,6 +24,17 @@ STRIP=(VIEW.README BITSY.BOOT QUIT.SYSTEM BASIC.SYSTEM COPYIIPLUS.8.4
        BLOCKWARDEN CAT.DOCTOR UNSHRINK CD.EXT FASTDSK FASTDSK.CONF
        FASTDSK.SYSTEM MAKE.SMALL.P8 MINIBAS MR.FIXIT.Y2K README)
 
+# A ProDOS filename stops at 15 characters, and AppleCommander truncates
+# rather than complains. Truncating a .SYSTEM name takes the .SYSTEM off the
+# end of it, ProDOS stops recognising it as bootable, and the disk comes up in
+# BASIC with no hint as to why -- which is a long way to travel to find out,
+# with a card in your hand and the Apple already switched on.
+if [ ${#SYS} -gt 15 ]; then
+    echo "SYS name '$SYS' is ${#SYS} characters; ProDOS allows 15." >&2
+    echo "It would be written as '${SYS:0:15}' and would not auto-boot." >&2
+    exit 1
+fi
+
 [ -f "$BASE" ] || { echo "missing base image: $BASE" >&2; exit 1; }
 [ -f "$BIN" ]  || { echo "missing binary: $BIN (run make first)" >&2; exit 1; }
 

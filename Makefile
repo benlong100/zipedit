@@ -7,6 +7,7 @@
 #   make test     run the AppleScript regression suite
 #   make clean
 
+VERSION := 1.1
 SRC     ?= src/edit.S
 NAME    ?= ZIPEDIT.SYSTEM
 BUILD   := build
@@ -21,7 +22,22 @@ VII     := $(TOOLS)/vii.sh
 BIN     := $(BUILD)/$(NAME)
 IMAGE   := $(BUILD)/ZIPEDIT.po
 
-.PHONY: all disk run screen test clean tools pull push eject release probe card plaindisk checkhelp keyprobe
+# The Apple ][+ build. Same editor, 40 columns, text buffer in main memory,
+# no Open-Apple key. It writes its own SYS name, so it can sit beside the //e
+# build in build/ and on a card without either being mistaken for the other.
+SRC2P   := src/edit2p.S
+NAME2P  := ZIPEDIT2P.SYSTEM
+BIN2P   := $(BUILD)/$(NAME2P)
+IMG2P   := $(BUILD)/ZIPEDIT2P-REL.po
+# On the disk it is ZIPEDIT.SYSTEM, as on the //e: it is the same program and
+# the machine it is for is not the writer's business. It also has to be --
+# a ProDOS filename stops at 15 characters and ZIPEDIT2P.SYSTEM is 16, so it
+# lands as ZIPEDIT2P.SYSTE, stops looking like a .SYSTEM file, and the disk
+# quietly boots to BASIC instead. The image FILENAME is what tells the two
+# builds apart on the card.
+SYS2P   := ZIPEDIT.SYSTEM
+
+.PHONY: all disk run screen test clean tools pull push eject release probe card plaindisk checkhelp keyprobe two release2p card2p dist
 
 all: $(BIN)
 
@@ -130,6 +146,50 @@ release: $(BIN)
 # Copy the release image to a card, cleanly. VOL is the mounted volume name.
 card: release
 	@$(TOOLS)/tocard.sh "$(VOL)" $(BUILD)/ZIPEDIT-REL.po
+
+# --- the Apple ][+ ------------------------------------------------------
+two: $(BIN2P)
+
+$(BIN2P): $(SOURCES) | $(BUILD)
+	@$(MERLIN) $(ASMINC) $(SRC2P) > $(BUILD)/merlin32-2p.log 2>&1 || \
+		{ echo "--- Merlin32 failed ---"; cat $(BUILD)/merlin32-2p.log; exit 1; }
+	@grep -iE '^\s+(Error|Warning)' $(BUILD)/merlin32-2p.log && exit 1 || true
+	@mv src/$(NAME2P) $(BIN2P)
+	@rm -f src/_FileInformation.txt src/$(NAME2P)_Output.txt
+	@echo "assembled $(SRC2P) -> $(BIN2P) ($$(stat -f%z $(BIN2P)) bytes)"
+
+release2p: $(BIN2P)
+	@RELEASE=1 VOL=ZIPEDIT2P SYS=$(SYS2P) $(TOOLS)/mkdisk.sh $(IMG2P) $(BIN2P)
+	@echo
+	@echo "release image: $(IMG2P)"
+	@echo "  built from $(SRC2P) -> $(NAME2P), $$(stat -f%z $(BIN2P)) bytes"
+	@echo "  (40 columns, main-memory buffer -- the Apple ][+ build)"
+
+card2p: release2p
+	@$(TOOLS)/tocard.sh "$(VOL)" $(IMG2P)
+
+# --- what gets uploaded -------------------------------------------------
+# Both machines in one archive. The splash screen is checked against VERSION
+# rather than trusted: the number lives in three places -- here, splash.S and
+# the suite's assertion -- and a release whose About box disagrees with its
+# own filename is a bad look that no test would otherwise catch.
+DIST    := $(BUILD)/ZipEdit-$(VERSION)
+ZIP     := $(BUILD)/ZipEdit-$(VERSION).zip
+
+dist: release release2p
+	@grep -q 'asc   "Version $(VERSION)"' src/splash.S || \
+		{ echo "src/splash.S does not say Version $(VERSION)" >&2; exit 1; }
+	@rm -rf $(DIST) $(ZIP)
+	@mkdir -p $(DIST)
+	@cp $(BUILD)/ZIPEDIT-REL.po $(DIST)/ZIPEDIT.po
+	@cp $(IMG2P) $(DIST)/ZIPEDIT2P.po
+	@cp $(TOOLS)/xfer.sh LICENSE $(DIST)/
+	@sed 's/@VERSION@/$(VERSION)/g' docs/release-README.txt > $(DIST)/README.txt
+	@cd $(BUILD) && zip -qr ZipEdit-$(VERSION).zip ZipEdit-$(VERSION)
+	@rm -rf $(DIST)
+	@echo
+	@echo "release archive: $(ZIP) ($$(du -h $(ZIP) | cut -f1))"
+	@unzip -l $(ZIP) | sed -n '4,$$p'
 
 clean:
 	@rm -rf $(BUILD) src/_FileInformation.txt src/$(NAME)
