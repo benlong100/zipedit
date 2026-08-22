@@ -1,15 +1,17 @@
 # ZipEdit
 
 An 80-column, full-screen **Markdown editor for the Enhanced Apple //e**,
-written in 6502 assembly. Files are drafted on the //e and moved back to a Mac
-for publishing.
+written in 6502 assembly — and, since 1.1, a 40-column one for the **Apple
+][+**. Files are drafted on the Apple and moved back to a Mac for publishing.
 
 Note the distinction: this is a text editor *implemented in* assembly, not an
 editor *for* assembly source. It is aimed at prose — hard wrap on entry, no
 soft wrap, and Markdown-aware emphasis shortcuts.
 
-The editor is 9,020 bytes and leaves about 46K free for your writing, which is
-roughly seven thousand words.
+The editor is 9,937 bytes and leaves about 46K free for your writing, which is
+roughly seven thousand words. The ][+ build is 8,960 bytes and has main memory
+rather than an auxiliary bank to put your text in, so it holds about three
+thousand.
 
 ## Getting it running
 
@@ -20,6 +22,8 @@ it yourself:
 ```sh
 tools/bootstrap.sh     # fetches Merlin32 and AppleCommander
 make disk              # assembles, then builds build/ZIPEDIT.po
+make release2p         # the ][+ build, at build/ZIPEDIT2P-REL.po
+make dist              # both, zipped, as the release ships them
 ```
 
 Mount `ZIPEDIT.po` in an emulator and boot it, or write it to a 5.25-inch disk.
@@ -30,10 +34,15 @@ two pages of keyboard help.
 
 | | |
 |---|---|
-| Computer | Enhanced Apple //e, 128K (or an emulator) |
+| Computer | Enhanced Apple //e, 128K — or an Apple ][+ with 64K (or an emulator) |
 | Operating system | ProDOS 8 |
-| Display | 80 columns |
-| Disk | one 5.25-inch, 143K |
+| Display | 80 columns, or 40 on a ][+ |
+| Disk | one 5.25-inch, 143K, for each machine |
+
+An unenhanced //e is detected at startup and draws without MouseText. On a
+][+ there is no Open-Apple key, so the commands are reached with `Ctrl` and
+`Esc` — `Esc ?` for the help screen — and case follows Apple Writer's scheme,
+since that machine's character generator has no lowercase letters.
 
 ## Getting your writing back out
 
@@ -120,9 +129,12 @@ things that turned out to be harder than they looked.
 
 ## Changes
 
-See [CHANGELOG.md](CHANGELOG.md). If you copied this repository at 1.0, note
-that 1.0.1 fixes a wrapping bug affecting the last line of nearly every saved
-file, and 1.0.2 fixes uninitialised state that breaks saving after a relaunch.
+See [CHANGELOG.md](CHANGELOG.md). 1.1 adds the ][+ build, and fixes a bug
+present in every release before it: a word longer than the wrap margin, typed
+into the middle of existing text, corrupted the file on disk. If you are on
+1.0.x, upgrade for that alone. 1.1 also stops the redraw counting from the
+start of the buffer, which is what made typing deep in a long document slow
+enough to drop keystrokes on real hardware.
 
 ## Licence
 
