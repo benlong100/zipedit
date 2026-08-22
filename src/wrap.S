@@ -86,7 +86,9 @@ FINDSPC      lda   #$00
 * The space becomes the newline, so no bytes are gained or lost and the text
 * either side is untouched.
 *--------------------------------------
-DOWRAP       jsr   FINDSPC
+DOWRAP       lda   #$00
+             sta   DWHARD
+             jsr   FINDSPC
              bcs   :hard
 
              ldx   TMPB             ; step back to just after the space
@@ -113,7 +115,9 @@ DOWRAP       jsr   FINDSPC
 *--- a single word longer than the margin: break it where the cursor stands.
 *    Nothing was removed to make room, so this one saves as nothing at all --
 *    otherwise a long URL would come back with a space through the middle.
-:hard        lda   #SOFTWD
+:hard        inc   DWHARD           ; this one adds a byte; the caller has to
+                                    ; know, or its walk home comes up short
+             lda   #SOFTWD
              jmp   INSCHR
 
 *--------------------------------------
@@ -283,8 +287,22 @@ WRAPCHECK    lda   CCOL
 *    the whole time you are typing, which is exactly when you are looking at it.
 *    So reflow now -- but only here, on the keystroke that actually broke a
 *    line, not on every character. Reflowing per character measured 3 chars/sec.
+*--- The walk out to the margin is undone by walking the same distance back --
+*    but only if the wrap put no bytes in the way. A break that stands in for a
+*    space is one byte for one, so the distance holds; a bare break inside a
+*    long word is a byte that was not there before, and one of the steps home
+*    gets spent stepping over it. The cursor then comes to rest one character
+*    late, and the NEXT character typed goes in one place further along than it
+*    should -- so a word longer than the margin, typed into the middle of a
+*    paragraph, laid its letters down alternating with the text already there.
+*    "jumps" and a run of a's came back from the disk as "jauamaaaaaaaaaaps".
 :brk         jsr   DOWRAP
+             lda   DWHARD           ; before RTFWD, which wraps on its own
+             sta   WSTEP            ; account and would overwrite this
              jsr   RTFWD            ; forward only: what is behind is already right
+             lda   WSTEP
+             beq   :back
+             jsr   GAPLEFT          ; one more, for the byte the break added
 :back        lda   WBACK
              beq   :done
              jsr   GAPLEFT
@@ -413,4 +431,8 @@ WTMP         ds    1                ; bytes left before the end of the buffer
 WSCAN        ds    80               ; the rest of the line, staged in main
 RTPOS        ds    2                ; RTFLOW: cursor offset before the reflow
 RTN          ds    2                ; RTFLOW: how far into the paragraph it was
+             dend
+
+             dum   $1447            ; $1446 is file.S's PENDSP
+DWHARD       ds    1                ; DOWRAP: that wrap added a byte
              dend
