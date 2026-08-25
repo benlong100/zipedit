@@ -224,16 +224,27 @@ detection itself still needs real hardware.
 - Typing costs a fixed ~100 ms plus ~0.035 ms per buffer byte, so tests must
   never sleep a fixed interval for a multi-character string. Use `ktext`, which
   waits for the text to appear.
-- **Benchmark the redraw with the ARROW KEYS, not with typing.** Most
-  keystrokes take the one-row path and never reach `RENDER` at all, so timing a
-  burst of typing averages the redraw away -- which is how "depth in the
-  document makes no difference" got measured, written into the source comments,
-  and believed, while the machine itself was taking half a second an arrow key
-  at line 112. A vertical move changes `CURLNO` and forces a full redraw every
-  single press, so it measures `RENDER` and nothing else.
+- **Do NOT benchmark the redraw with the arrow keys.** This entry used to say
+  exactly that, and it is wrong: an arrow press moves the cursor a whole LINE as
+  well as repainting, and the movement is nearly all of it. Timed that way a
+  full `RENDER` looks like 138-214ms -- the 1.1 table in the changelog is built
+  on those numbers -- and measured properly it is 2-3ms. Believing the wrong
+  figure sent an entire round of optimisation at the redraw, which was never the
+  cost; the reflow was, at ~72% of a mid-paragraph keystroke. Use a key that
+  repaints and does nothing else: an UNBOUND one, which `DISPATCH` ignores while
+  the main loop still draws. Timing a burst of typing is no good either, for the
+  opposite reason -- most keystrokes take the one-row path and never reach
+  `RENDER` at all, so it averages the redraw away. That is how "depth in the
+  document makes no difference" got measured, written into the source comments
+  and believed, while the machine was taking half a second an arrow key at line
+  112.
 - **Virtual ][ cannot reproduce a dropped keystroke.** The real keyboard has no
   buffer and loses anything typed while the editor is busy; the emulator queues
-  injected keys and delivers every one however slow the editor gets. So a
+  injected keys and delivers every one however slow the editor gets. This also
+  means it cannot exercise the code that PREVENTS a loss: `KBPOLL`, and anything
+  that asks whether a key is waiting, sees an empty latch in the emulator almost
+  every time. Force the condition in a scratch build to measure it, and confirm
+  the behaviour on real hardware. So a
   chars-per-second figure from the emulator describes throughput with a queue
   behind it, never what the writer feels. "I have to type slowly or it drops
   whole words" is a report the harness is structurally unable to make.
