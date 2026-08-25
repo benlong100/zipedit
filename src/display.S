@@ -226,14 +226,21 @@ STATUPD      lda   MSGSHOWN
              ldx   GLNDIG
              jsr   PUTNUM
 
-:docol       lda   CCOL
+:docol       lda   CCOL+1
+             cmp   LASTCOLH
+             bne   :paintcol
+             lda   CCOL
              cmp   LASTCOL
              beq   :docol2
+:paintcol    lda   CCOL
              sta   LASTCOL
+             lda   CCOL+1
+             sta   LASTCOLH
+             lda   CCOL
              clc
              adc   #$01
              sta   NUMV
-             lda   #$00
+             lda   CCOL+1
              adc   #$00
              sta   NUMV+1
              lda   #$03
@@ -393,10 +400,16 @@ PDIG         ds    1
 PLEAD        ds    1                ; non-zero once a digit has been emitted
 PEND         ds    1                ; one past the last cell of the field
 LASTLN       ds    2                ; last values painted, to skip redundant work
-LASTCOL      ds    1
+LASTCOL      ds    1                ; low byte; LASTCOLH below holds the high
 LASTMOD      ds    1
 MODFLAG      ds    1                ; non-zero when the document has unsaved edits
 MSGSHOWN     ds    1                ; a message owns the status line
 NAMEI        ds    1                ; SHOWNAME: index into the name
 NAMELEN      ds    1                ; SHOWNAME: how many characters it has
+             dend
+
+*--- This block is full to $143f, where splash.S's SPLI begins, so the high
+*    byte of the last column painted goes in the gap at $1428 instead.
+             dum   $1428            ; $1428-$142f is free; $1422 is buffer.S's
+LASTCOLH     ds    1                ; high byte of the last column painted
              dend

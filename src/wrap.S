@@ -11,15 +11,23 @@
 *--------------------------------------
 
 *--------------------------------------
-* CALCCOL -- A = characters between the start of the current line and the
+* CALCCOL -- CCOL = characters between the start of the current line and the
 *            cursor, counted the slow way by scanning back through aux.
 *
 * Off the hot path: CCOL is maintained incrementally by the buffer primitives.
 * This is only called when the cursor crosses back onto a previous line, where
 * the new column genuinely has to be discovered.
+*
+* Counts in sixteen bits, and writes CCOL itself rather than returning a byte
+* in A. It used to count in one byte and claim to saturate -- but `inc TMPC /
+* beq :done` returns ZERO on the 256th character, not $ff, so a line long
+* enough to reach here came back as column 1 on the status row and every wrap
+* decision taken from it was made on a lie. Nothing could build a line that
+* long while the wrap check saw every insert; PASTE can.
 *--------------------------------------
-CALCCOL       lda   #$00
-             sta   TMPC
+CALCCOL      lda   #$00
+             sta   CCOL
+             sta   CCOL+1
              lda   GAPBEG
              sta   AUXPTR
              lda   GAPBEG+1
@@ -37,11 +45,11 @@ CALCCOL       lda   #$00
              jsr   AUXRD
              cmp   #TEXTLO          ; start of line
              bcc   :done
-             inc   TMPC
-             beq   :done            ; saturate rather than wrap round
+             inc   CCOL
+             bne   :loop
+             inc   CCOL+1
              jmp   :loop
-:done        lda   TMPC
-             rts
+:done        rts
 
 *--------------------------------------
 * FINDSPC -- distance back from the cursor to the last space on this line.
@@ -203,8 +211,15 @@ RTFWD        lda   GAPBEG
 :step        jsr   GAPLQ            ; no accounting: we know the answer
              jmp   :back
 
+*--- RTCOL is one byte and that is sufficient: RTFWD is only ever entered from
+*    WRAPCHECK immediately after DOWRAP, which either breaks at the last space
+*    before the cursor or drops a SOFTWD on it, so the column here is always
+*    below the margin. The high byte still has to be put back, because the
+*    reflow just walked GAPRIGHT over lines long enough to have set it.
 :put         lda   RTCOL
              sta   CCOL
+             lda   #$00
+             sta   CCOL+1
              lda   RTLINE
              sta   CURLNO
              lda   RTLINE+1
@@ -262,10 +277,12 @@ RTFLOW       lda   GAPBEG
 * Overflow is pushed onto a new line rather than flowed into the line below:
 * that is what makes this affordable, and it is why OA-R exists.
 *--------------------------------------
-WRAPCHECK    lda   CCOL
-             cmp   GWRAP1
+WRAPCHECK    lda   CCOL+1
+             bne   :over            ; past column 255, so past the margin too:
+             lda   CCOL             ; only PASTE can build a line this long, and
+             cmp   GWRAP1           ; the byte compare below cannot see it
              bcc   :look            ; the cursor is still short of the margin
-             jsr   DOWRAP           ; past it: break behind us, as it always did
+:over        jsr   DOWRAP           ; past it: break behind us, as it always did
              jmp   RTFWD            ; and tidy what follows, same as the other path
 :look
 
@@ -416,10 +433,12 @@ WRAPALL      jsr   HOMECURSOR
 :loop        jsr   PEEKFWD
              bcs   :done            ; end of buffer
              jsr   GAPRIGHT
+             lda   CCOL+1
+             bne   :over
              lda   CCOL
              cmp   GWRAP1
              bcc   :loop
-             jsr   DOWRAP           ; breaks behind us and returns the cursor
+:over        jsr   DOWRAP           ; breaks behind us and returns the cursor
              jmp   :loop
 :done        jmp   HOMECURSOR
 
@@ -492,10 +511,12 @@ REFLOWHERE   lda   #$ff             ; no break removed yet to compare against
              rts
 
 :char        jsr   GAPRIGHT
-:check       lda   CCOL
+:check       lda   CCOL+1
+             bne   :over
+             lda   CCOL
              cmp   GWRAP1
              bcc   :loop
-             jsr   DOWRAP
+:over        jsr   DOWRAP
              lda   RTSTOP
              beq   :loop            ; a full reflow carries on regardless
              lda   DWBRK            ; did the break land back where it was?

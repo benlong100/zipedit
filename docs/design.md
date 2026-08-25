@@ -778,7 +778,50 @@ Verified: typing a long run breaks at column 76 on a word boundary, and
 reflowing a four-line paragraph reproduces it as 69/72/74-column lines with
 the heading above and below untouched.
 
-## 8. Build order
+### Paste and the wrap invariant
+
+`WRAPCHECK` is what keeps the invariant that no line is ever longer than the
+margin, and it holds only because every insert passes it one character at a
+time. Paste does not: `KPASTE` lays down a whole clipboard, up to 1,024 bytes,
+between one wrap check and the next.
+
+Until 1.2 nothing re-wrapped afterwards, so a paste at the end of a line built
+a line as long as the clipboard and left it there. `RENDER` clips at the
+margin, so the overflow sat in the buffer and never appeared on screen; it came
+back whenever something reflowed, which made it look like a redraw fault rather
+than a wrap that had never happened.
+
+The sharp edge was further in. `CCOL` was one byte, on the reasoning written
+into `HOMECURSOR`'s own comment — that a line longer than 255 "cannot happen
+while editing, since nothing survives longer than the wrap margin". Paste is
+the counter-example. Past 255 characters the column count wrapped, and
+`CALCCOL` returned **zero** rather than the `$ff` its comment claimed, because
+`inc TMPC / beq :done` falls out of the loop on the wrap itself. The editor
+then believed the cursor stood at column 1 of a 292-character line, and `OA-R`
+broke the paragraph after its first character — the same signature as the
+unwrapped-file bug fixed in 1.1, reached from the other end.
+
+Three things hold it now:
+
+- `KPASTE` ends in `RTFLOW`, which reflows the paragraph once and puts the
+  cursor back by its offset within it. A `WRAPCHECK` per pasted character would
+  be the faithful fix and is far too slow: it stages the rest of the line out
+  of aux on every call, so a 255-byte paste would pay that 255 times over.
+- `CCOL` is two bytes and `CALCCOL` counts in sixteen. Every margin test reads
+  the high byte first — non-zero means past the margin whatever the low byte
+  says — so the comparison can no longer be fooled by a wrapped count.
+- The one-row redraw is guarded. `RENDERROW` stages the row through `LINEBUF`,
+  which is exactly one screen wide, copying `CCOL` bytes into it from before
+  the gap and `GSCRW - CCOL` from after. Both run off the end of it once the
+  cursor sits further along the line than the screen is wide, and the second
+  runs off by however far that subtraction underflowed — straight through page
+  2 and into page 3. A cursor past the screen width now takes the full redraw,
+  which clips instead of overrunning.
+
+The suite asserts this against RAM rather than the screen, since a line running
+past the margin is precisely what the screen cannot show.
+
+## 8. Build order## 8. Build order
 
 1. Character-set probe — confirm the //e can display and type every character
    Markdown needs. Cheap, and it de-risks everything above.

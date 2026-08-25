@@ -145,6 +145,20 @@ MAINLOOP     jsr   SCROLLFIX
              lda   SCROLLTOP+1
              cmp   OLDTOP+1
              bne   :full
+
+*--- RENDERROW stages the row through LINEBUF, which is exactly one screen
+*    wide, copying CCOL bytes into it from before the gap and GSCRW-CCOL from
+*    after. Both of those run off the end of it once the cursor sits further
+*    along the line than the screen is wide, and the second one runs off by
+*    however far GSCRW-CCOL underflowed -- straight through page 2 and into
+*    page 3. Nothing could put the cursor there while every insert was
+*    wrap-checked; PASTE can. Over-long lines take the full redraw, which
+*    clips at the margin instead of overrunning.
+             lda   CCOL+1
+             bne   :full
+             lda   CCOL
+             cmp   GSCRW
+             bcs   :full
              jsr   RENDERROW
              jmp   :keys
 
@@ -220,16 +234,22 @@ HOMECURSOR   jsr   GAPLEFT
              bcc   HOMECURSOR
 
 *--- The cursor is at the first byte of the buffer, so the column is zero and
-*    saying so is cheaper than having walked there correctly. CCOL is one byte
-*    and GAPLEFT decrements it per character, so walking back over a line
-*    longer than 255 wraps the count around -- which cannot happen while
-*    editing, since nothing survives longer than the wrap margin, but happens
-*    on every LOAD before WRAPALL has run. A file whose lines are whole
-*    unwrapped paragraphs then arrived with CCOL already past the margin, and
-*    WRAPALL broke the line at its FIRST character: "**History Duel**" opened
-*    as "*" and then "*History Duel**" on the line below.
+*    saying so is cheaper than having walked there correctly. This used to be
+*    load-bearing rather than an optimisation: CCOL was one byte, GAPLEFT
+*    decrements it per character, and walking back over a line longer than 255
+*    wrapped the count around. A file whose lines are whole unwrapped
+*    paragraphs arrived with CCOL already past the margin and WRAPALL broke the
+*    line at its FIRST character: "**History Duel**" opened as "*" and then
+*    "*History Duel**" on the line below.
+*
+*    The comment here used to add that such a line "cannot happen while
+*    editing, since nothing survives longer than the wrap margin". That was
+*    wrong: PASTE inserts a whole clipboard between wrap checks and every
+*    character of it goes in unwrapped. CCOL is two bytes now, so the count no
+*    longer wraps either way, and this remains simply the cheap answer.
              lda   #$00
              sta   CCOL
+             sta   CCOL+1
              rts
 
 *--------------------------------------

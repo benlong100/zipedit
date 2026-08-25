@@ -21,6 +21,7 @@
 BUFINIT      lda   #$00
              sta   MODFLAG
              sta   CCOL
+             sta   CCOL+1
              sta   CURLNO
              sta   CURLNO+1
              sta   GAPBEG
@@ -95,8 +96,11 @@ INSCHR       pha
              inc   CURLNO+1
 :col0        lda   #$00
              sta   CCOL
+             sta   CCOL+1
              beq   :adv
 :samel       inc   CCOL
+             bne   :adv
+             inc   CCOL+1
 :adv         inc   GAPBEG
              bne   :done
              inc   GAPBEG+1
@@ -139,10 +143,12 @@ DELBACK      jsr   ATSTART
 :dn          dec   CURLNO
              jsr   :shrink
              jsr   CALCCOL          ; joined a line: column must be recounted
-             sta   CCOL
              clc
              rts
-:samel       dec   CCOL
+:samel       lda   CCOL
+             bne   :d0
+             dec   CCOL+1
+:d0          dec   CCOL
              jsr   :shrink
              clc
              rts
@@ -193,8 +199,11 @@ GAPRIGHT     jsr   ATEND
              inc   CURLNO+1
 :col0        lda   #$00
              sta   CCOL
+             sta   CCOL+1
              beq   :1
 :samel       inc   CCOL
+             bne   :1
+             inc   CCOL+1
 :1           inc   GAPBEG
              bne   :2
              inc   GAPBEG+1
@@ -224,10 +233,12 @@ GAPLEFT      jsr   GAPLQ
              dec   CURLNO+1
 :4           dec   CURLNO
              jsr   CALCCOL          ; back on a previous line: recount
-             sta   CCOL
              clc
              rts
-:samel       dec   CCOL
+:samel       lda   CCOL
+             bne   :5
+             dec   CCOL+1
+:5           dec   CCOL
              clc
 :none        rts
 

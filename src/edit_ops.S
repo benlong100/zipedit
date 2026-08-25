@@ -215,16 +215,27 @@ KCOPY        jsr   COPYSEL          ; a selection wins over the whole line
 GRABLINE     lda   #$00
              sta   CLIPLEN
 
+*--- The copy below counts in X, and the clipboard takes 255 characters at
+*    most, so the run before the cursor is clamped to that. CCOL is two bytes
+*    and X is one: left unclamped, `cpx CCOL` would compare against the low
+*    byte alone and take an arbitrary slice out of the middle of a long line.
+             lda   CCOL+1
+             beq   :precnt
+             lda   #$ff             ; longer than the clipboard: take the last
+             bne   :setpre          ; 255 characters before the cursor
+:precnt      lda   CCOL
+:setpre      sta   GRABPRE
+
 *--- the part before the cursor is contiguous, ending at the gap
              lda   GAPBEG
              sec
-             sbc   CCOL
+             sbc   GRABPRE
              sta   AUXPTR
              lda   GAPBEG+1
              sbc   #$00
              sta   AUXPTR+1
              ldx   #$00
-:pre         cpx   CCOL
+:pre         cpx   GRABPRE
              beq   :post
              ldy   #$00
              jsr   AUXRD
@@ -433,6 +444,20 @@ TENHI        dfb   $27,$03,$00,$00,$00
 *--------------------------------------
 * Paste replaces a selection, and only re-adds a newline when the clipboard
 * holds a whole line rather than an arbitrary range.
+*
+* Then it reflows the paragraph, which is what keeps the hard wrap honest.
+* Typing maintains the wrap one character at a time through WRAPCHECK, and
+* every other insert is small enough for that to hold; paste is the one path
+* that can lay down hundreds of characters between two wrap checks, so the
+* line it builds is already far past the margin before anything looks at it.
+* The result was text running off the right edge into nowhere -- RENDER clips
+* at the margin -- and, once the line passed 255 characters, a column count
+* that had wrapped and a cursor the editor could no longer place.
+*
+* A per-character WRAPCHECK would be the faithful fix and is far too slow: it
+* stages the rest of the line out of aux on every call, so a 255-byte paste
+* would pay that 255 times. RTFLOW walks the paragraph once instead, and puts
+* the cursor back by its offset within the paragraph afterwards.
 KPASTE       jsr   DELSEL
              lda   CLIPLEN
              ora   CLIPLEN+1
@@ -454,9 +479,10 @@ KPASTE       jsr   DELSEL
 :dec         jsr   DECLEN
              bne   :loop
              lda   CLIPLINE
-             beq   :done
+             beq   :flow
              lda   #HARDCR          ; a pasted line ends with a real return
              jsr   INSCHR
+:flow        jmp   RTFLOW           ; and re-wrap what we just ran through
 :done        rts
 
 *--------------------------------------
@@ -594,6 +620,7 @@ WDIG         ds    1                ; KWORDS: digit being emitted
 WLEAD        ds    1                ; non-zero once a digit has been emitted
 WIDX         ds    1                ; write position in WBUF
 WBUF         ds    16               ; " 1234 WORDS" and its terminator
+GRABPRE      ds    1                ; GRABLINE: characters taken before the gap
              dend
 
 *--------------------------------------

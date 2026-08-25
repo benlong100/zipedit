@@ -334,6 +334,86 @@ assert_mod() {
     fi
 }
 
+
+# --- helpers for the paste sections. All three read the buffer rather than the
+#     screen: RENDER clips at the margin, so a line running past it is exactly
+#     the thing the screen cannot show.
+
+# _pregap -- everything between the start of the buffer and the cursor
+_pregap() {
+    "$VII" dump 0x12 4 0 "$TMP/gap.bin" >/dev/null
+    _PGB=$(python3 -c "d=open('$TMP/gap.bin','rb').read(); print(d[0]|(d[1]<<8))")
+    _PGE=$(python3 -c "d=open('$TMP/gap.bin','rb').read(); print(d[2]|(d[3]<<8))")
+    : > "$TMP/pre.bin"
+    [ "$_PGB" -gt 2048 ] && "$VII" dump 0x0800 $((_PGB-2048)) 1 "$TMP/pre.bin" >/dev/null
+}
+
+# maxline <name> <max> -- longest unbroken run of text before the cursor
+maxline() {
+    local name="$1" max="$2" got
+    _pregap
+    got=$(python3 -c "
+d=open('$TMP/pre.bin','rb').read()
+best=n=0
+for b in d:
+    if b<0xa0: n=0
+    else:
+        n+=1
+        if n>best: best=n
+print(best)")
+    if [ "$got" -le "$max" ]; then ok "$name"; else
+        bad "$name" "longest line is $got characters, expected <= $max"
+    fi
+}
+
+# ccol_true <name> -- the column the editor reports against the column the
+# buffer actually holds. It was the disagreement between the two, not the long
+# line itself, that broke the reflow: CCOL wrapped at 256 and every wrap
+# decision after that was taken on a lie.
+ccol_true() {
+    local name="$1" want got
+    _pregap
+    "$VII" dump 0x30 2 0 "$TMP/ccol.bin" >/dev/null
+    got=$(python3 -c "d=open('$TMP/ccol.bin','rb').read(); print(d[0]|(d[1]<<8))")
+    want=$(python3 -c "
+d=open('$TMP/pre.bin','rb').read()
+n=0
+for b in reversed(d):
+    if b<0xa0: break
+    n+=1
+print(n)")
+    if [ "$got" = "$want" ]; then ok "$name"; else
+        bad "$name" "editor says column $got, buffer says $want"
+    fi
+}
+
+# textcount -- characters in the whole document as the FILE would hold them,
+# newlines excluded. A SOFTCR counts as the one it stands in for: wrapping
+# spends a space to store the break, so a paragraph that gains a soft wrap
+# genuinely holds one text byte fewer while holding the same writing. Counting
+# raw text bytes instead makes a correct reflow look like it lost a character
+# per wrap. SOFTWD stands in for nothing and so counts as nothing, and HARDCR
+# is a newline, not a character. The gap is not text either, so this is the two
+# live halves and nothing between them.
+textcount() {
+    _pregap
+    : > "$TMP/post.bin"
+    [ "$_PGE" -lt 49152 ] && "$VII" dump "$_PGE" $((49152-_PGE)) 1 "$TMP/post.bin" >/dev/null
+    python3 -c "
+n=0
+for f in ('$TMP/pre.bin','$TMP/post.bin'):
+    for b in open(f,'rb').read():
+        if b>=0xa0 or b==0x8a: n+=1
+print(n)"
+}
+
+# cliplen -- how many characters OA-V would insert
+cliplen() {
+    "$VII" dump 0x63 2 0 "$TMP/clip.bin" >/dev/null
+    python3 -c "d=open('$TMP/clip.bin','rb').read(); print(d[0]|(d[1]<<8))"
+}
+
+
 if section "toolchain"; then
 assert_mem "loaded image matches build artifact" 0x2000 "$(stat -f%z "$BIN")" 0 "$BIN"
 fi
@@ -1929,6 +2009,91 @@ assert "`code` spans" in text, "content lost"
     ok "file converts to clean UTF-8 Markdown for the Mac"
 else
     bad "file converts to clean UTF-8 Markdown for the Mac" "$(cat "$TMP/err")"
+fi
+fi
+
+#--------------------------------------
+# Paste keeps the hard wrap.
+#
+# Every other insert reaches the buffer one character at a time with a
+# WRAPCHECK behind it. Paste lays down a whole clipboard between two of them,
+# so before this it simply built a line as long as the clipboard and left it
+# there. Two symptoms, and the second is the dangerous one:
+#
+#   * RENDER clips at the margin, so the overflow was in the buffer and not on
+#     the screen. It came back when something reflowed, which made it look
+#     like a redraw glitch rather than a wrap that never happened.
+#   * Past 255 characters the one-byte column count wrapped. The status row
+#     read C:1 with the cursor at the end of a 292-character line, and OA-R
+#     then broke the paragraph after its FIRST character -- the same signature
+#     as the unwrapped-file bug fixed in 1.1, reached from the other end.
+#
+# The assertions are against RAM, not the screen: a line running past the
+# margin is exactly the thing the screen cannot show.
+#--------------------------------------
+if section "paste keeps the wrap"; then
+reboot_empty
+
+# Long enough to wrap, so ktext is no use here: it waits for its whole string
+# to turn up on ONE row and this one cannot. settle covers it instead -- the
+# screen changes on every keystroke, so it cannot go quiet until typing stops.
+"$VII" text "Here's a paragraph that's five lines long. Here's a paragraph that's five lines long. " >/dev/null
+"$VII" settle 5 >/dev/null
+snapshot
+assert_row "the test paragraph goes in"  0 "Here's a paragraph that's five"
+assert_row "and wraps onto a second row" 1 "lines long."
+
+"$VII" oa "<" >/dev/null; sleep 2
+k oa "C"
+"$VII" await "LINE COPIED" 60 || bad "OA-C never reported"
+k ctrl E
+k oa "V"
+"$VII" settle 3 >/dev/null
+snapshot
+
+assert_maxcols "the pasted line does not overrun the margin"   0 "$WRAPCOL"
+assert_maxcols "nor does the row it flows onto"                1 "$WRAPCOL"
+maxline        "no line in the buffer runs past the margin"    "$WRAPCOL"
+ccol_true      "the reported column is the real one"
+
+# Four more onto the END OF THE SAME LINE, which is what makes this bite: a
+# paste leaves the cursor on a fresh line below, so pasting again from where it
+# lands grows a different line every time and never gets near 255. Stepping
+# back up first is what Ben did by hand, and the third of these is the one that
+# used to carry the line past 255 characters and wrap the column count.
+PASTE_N="$(cliplen)"
+PASTE_BEFORE="$(textcount)"
+for i in 1 2 3 4; do
+    k key "up arrow"
+    k ctrl E
+    k oa "V"
+    "$VII" settle 3 >/dev/null
+done
+snapshot
+maxline "repeated pastes still leave every line inside the margin" "$WRAPCOL"
+
+# Stand at the end of that line before asking about the column. A paste leaves
+# the cursor at the start of a fresh line, where the count and the buffer both
+# read zero and agree about nothing; the disagreement only shows where the
+# cursor actually sits past character 255. Getting there is also what runs
+# CALCCOL over a line that long, which is where the count used to come back as
+# zero and put the cursor at "column 1" of a 292-character line.
+k key "up arrow"
+k ctrl E
+"$VII" settle 3 >/dev/null
+ccol_true "and the column count has not wrapped round"
+
+# The reflow is only allowed to move breaks about. Four pastes of a known
+# length must leave exactly that many characters more than we started with --
+# no word dropped on a wrap, none laid down twice.
+PASTE_AFTER="$(textcount)"
+PASTE_WANT=$((PASTE_BEFORE + 4 * PASTE_N))
+if [ "$PASTE_AFTER" = "$PASTE_WANT" ]; then
+    ok "four pastes add exactly four clipboards of text"
+else
+    bad "four pastes add exactly four clipboards of text" \
+        "document holds $PASTE_AFTER characters, expected $PASTE_WANT" \
+        "(started at $PASTE_BEFORE, clipboard is $PASTE_N)"
 fi
 fi
 

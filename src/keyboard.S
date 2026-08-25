@@ -308,8 +308,12 @@ EOL          jsr   PEEKFWD
 VERTSET      lda   VERTMOVE
              ora   WASVERT
              bne   :mark
-             lda   CCOL             ; fresh run: aim for where we are now
-             sta   GOALCOL
+             lda   CCOL+1           ; fresh run: aim for where we are now. A
+             beq   :take            ; goal beyond 255 is meaningless -- the
+             lda   #$ff             ; margin is far below it -- so clamp rather
+             bne   :set             ; than truncate to the low byte (always taken)
+:take        lda   CCOL
+:set         sta   GOALCOL
 :mark        lda   #$01
              sta   VERTMOVE
              rts

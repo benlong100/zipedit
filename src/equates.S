@@ -73,8 +73,11 @@ CURLNO       equ   $29              ; 2 bytes, line the cursor is on, maintained
 FASTDRAW     equ   $2b              ; handler opted in to a one-row redraw
 OLDLINE      equ   $2c              ; 2 bytes, CURLNO before the keystroke
 OLDTOP       equ   $2e              ; 2 bytes, SCROLLTOP before the keystroke
-CCOL         equ   $30              ; cursor column, maintained incrementally
-DSTPTR       equ   $31              ; 2 bytes, main-memory destination for AUXBLK
+CCOL         equ   $30              ; 2 bytes, cursor column, maintained
+                                    ; incrementally. Two bytes because PASTE
+                                    ; inserts a whole clipboard between wrap
+                                    ; checks, so a line really can pass 255
+                                    ; characters before anything breaks it.
 BLKLEN       equ   $33              ; bytes for AUXBLK to move
 CLIPLEN      equ   $63              ; 2 bytes, bytes in the clipboard
 FINDLEN      equ   $35              ; length of the search pattern
@@ -100,6 +103,7 @@ WASVERT      equ   $68              ; the previous one did
 PARTIAL      equ   $69              ; handler changed nothing above the cursor
 RSKIP        equ   $6a              ; rows RENDER counts without drawing
 VISLINE      equ   $6b              ; 2 bytes, the first line RENDER draws
+DSTPTR       equ   $6d              ; 2 bytes, main-memory destination for AUXBLK
 CLIPMAX      equ   1024             ; clipboard capacity
 
 

@@ -1,5 +1,74 @@
 # Changelog
 
+## Unreleased
+
+**Fixed: pasting at the end of a line left text unwrapped, and past 255
+characters it corrupted the cursor.**
+
+Reported from a real Enhanced //e: type a paragraph, copy a line, move to the
+end of the line and paste, and the pasted text runs off the first line with the
+cursor stranded partway down the screen. `OA-R` puts it right, which is what
+made it look cosmetic.
+
+It was not. Hard wrap on entry rests on `WRAPCHECK`, which runs after every
+printable insert — and holds only because every insert passes it one character
+at a time. Paste does not: `KPASTE` lays down a whole clipboard, up to 1,024
+bytes, between one wrap check and the next, and nothing re-wrapped afterwards.
+`RENDER` clips at the margin, so the overflow sat in the buffer and never
+reached the screen at all.
+
+Past 255 characters it stopped being cosmetic. `CCOL` was one byte, on the
+reasoning written into `HOMECURSOR`'s own comment — that a line that long
+"cannot happen while editing, since nothing survives longer than the wrap
+margin". Paste is the counter-example. Three pastes onto one line, and the
+editor reported the cursor at **column 1 of a 292-character line**; `OA-R` then
+broke the paragraph after its first character, `**History Duel**` opening as
+`*` — the same signature as the unwrapped-file bug fixed in 1.1, arrived at
+from the opposite direction.
+
+`CALCCOL` made it worse by lying about it. Its comment claimed to "saturate
+rather than wrap round", but `inc TMPC / beq :done` leaves the loop *on* the
+wrap and returns **zero**, not `$ff`. So the column did not merely overflow, it
+came back as 1.
+
+Paste now reflows the paragraph once when it is done, through `RTFLOW` — which
+was already written, and which nothing had ever called. A `WRAPCHECK` per
+pasted character would be the faithful fix and is far too slow: it stages the
+rest of the line out of aux on every call, so a 255-byte paste would pay that
+255 times over.
+
+`CCOL` is two bytes now and `CALCCOL` counts in sixteen. Every margin test
+reads the high byte first, so none of them can be fooled by a wrapped count
+again.
+
+**Fixed: a long line could overrun `LINEBUF` and write into page 3.**
+
+Found while fixing the above, and reachable the same way. `RENDERROW` stages
+the row through `LINEBUF`, which is exactly one screen wide at `$0200`, copying
+`CCOL` bytes into it from before the gap and `GSCRW - CCOL` from after. Once
+the cursor sits further along the line than the screen is wide, the first copy
+runs past the end of the buffer and the second underflows: at column 100 it
+copies 228 bytes to `$0264` and runs through page 2 into page 3. Arrowing right
+along a pasted line was enough to do it.
+
+The one-row redraw is only entered while the cursor's column fits on the
+screen now. Anything longer takes the full redraw, which clips.
+
+**Smaller things.**
+
+- `GRABLINE` clamps the run it copies before the cursor to the 255 characters
+  the clipboard holds. It counts in `X`, so against a two-byte `CCOL` it would
+  otherwise have compared the low byte alone and taken a slice out of the
+  middle of a long line.
+- The goal column clamps rather than truncating to the low byte, so a vertical
+  move from a long line aims at the end of it instead of somewhere arbitrary.
+- `DSTPTR` moves to `$6d` to give `CCOL` a contiguous pair at `$30-$31`.
+
+A `paste keeps the wrap` section in the suite, asserting against RAM rather
+than the screen — a line running past the margin is precisely what the screen
+cannot show. It fails 4 of 9 against 1.1 and passes against this one. 281
+assertions across 38 sections. The editor is 10,032 bytes.
+
 ## 1.1 — 22 August 2026
 
 Two machines this time. The editor that shipped as 1.0 needed an Enhanced
