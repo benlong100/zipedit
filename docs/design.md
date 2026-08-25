@@ -821,6 +821,83 @@ Three things hold it now:
 The suite asserts this against RAM rather than the screen, since a line running
 past the margin is precisely what the screen cannot show.
 
+### The typing cost, and where it actually was
+
+Hard wrap is not free. Measured at 1MHz, typing into the middle of a twelve-line
+paragraph cost 83ms a character and a twenty-line one 132ms; with the reflow
+removed altogether it costs 23ms. Roughly one keystroke in six fills the line
+and must break it, and that one pays to reflow everything below it.
+
+The Apple II keyboard latches exactly one key, so a stall does not delay what is
+typed into it — it discards it. The stall was word-sized, so words vanished.
+
+**The redraw was never the expensive half**, though it looked like it for two
+releases. A full `RENDER` measures 2-3ms. Every figure that said otherwise — the
+table in 1.1 included — was taken with the arrow keys, and an arrow press moves
+the cursor a whole line as well as repainting; the movement is nearly all of it.
+Benchmark the repaint with a key that repaints and does nothing else: an unbound
+one, which `DISPATCH` ignores while the main loop still draws.
+
+### Reflow by reading, not by walking
+
+A reflow's real work is tiny. A `SOFTCR` stood in for a space, so turning it
+back is a one-byte overwrite; breaking a line at a space is another. What cost
+the time was transport — `REFLOWHERE` dragged the gap through the paragraph a
+byte at a time and `RTFWD` dragged it back, each step a banked aux read *and* a
+banked write. About 1,400 accesses to change ten bytes.
+
+`RTFAST` scans forward with `AUXPTR` instead, counting columns as it goes and
+poking only the bytes that differ: one read per byte, no write-back, and no walk
+home, because the gap never moves and `CCOL` and `CURLNO` come out untouched.
+Twelve-line paragraphs went 83ms to 40.5ms a character.
+
+Two cases are not byte-preserving and hand back to the walking `RTFWD`: a
+`SOFTWD`, which stood in for nothing so removing it shifts everything below, and
+a line with no space to break at, which needs one inserted. Both are rare — zero
+fallbacks over a thirty-character burst — and a reflow is idempotent, so the
+partial work the scan has already done costs nothing when `RTFWD` starts again
+from the same cursor.
+
+### Deferring the tidy
+
+If a key is already waiting and it is a printable character, the writer has not
+finished the word: the pushed word is left on a short line and the reflow waits
+for the next pause — or for the next key that is not printable, which keeps the
+cursor inside the paragraph that needs tidying and means a document can never be
+saved ragged.
+
+Which walk finishes a deferred tidy depends on how many breaks are owed.
+`REFLOWHERE`'s early stop — a break landing back on a byte that already held one
+proves the rest of the paragraph is right — holds only if the paragraph was
+right to begin with. One deferred break leaves everything below it untouched, so
+`RTFWD` is still sound. Two or more and it is not: the stop fires on the first
+break that happens to land correctly and strands the rest, which showed up as
+single words left on lines of their own. `RTFWDALL` is the same walk with the
+early stop off.
+
+### Two things that were tried and do not work
+
+Recorded so they are not tried again.
+
+**Coalescing the redraw** — skipping the full `RENDER` while a key waits —
+saved nothing, because the redraw was never the cost. It also measured *worse*
+when the one-row path was deferred too, trading many cheap paints for fewer
+expensive ones.
+
+**Interrupting the reflow** when a key arrives measured 179ms a character
+against 83 for deferring nothing at all. Stopping works; the trouble is that the
+walk restarts from the cursor each time and re-covers its own ground, so the
+whole thing turns quadratic.
+
+### None of this is testable in the emulator
+
+Virtual ][ hands keys over as the program reads them, so a key is almost never
+waiting while the editor is busy. It cannot reproduce a dropped keystroke and it
+cannot exercise the paths that prevent one — a deferral fired five times in a
+thirty-character burst, and only when the editor was already fast. Every timing
+here was taken at 1MHz by forcing the condition in a scratch build. The
+behaviour itself was confirmed on real hardware.
+
 ## 8. Build order## 8. Build order
 
 1. Character-set probe — confirm the //e can display and type every character

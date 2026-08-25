@@ -182,7 +182,24 @@ DOWRAP       lda   #$00
 * Measured worst case at 1MHz: a 2,000 character paragraph costs ~190ms a
 * keystroke, against ~30ms where nothing wraps.
 *--------------------------------------
-RTFWD        lda   GAPBEG
+*--- RTFWDALL -- the same walk, with the early stop switched off.
+*
+*    REFLOWHERE normally stops the moment a break lands back on a byte that
+*    already held one, because a line wraps according to where the break above
+*    it is and nothing else -- so from there down the paragraph is provably
+*    already right. That proof depends on everything below being right to begin
+*    with, which is exactly what a deferred tidy breaks: several breaks below
+*    may be wrong at once, and the first one that happens to land where it was
+*    would stop the walk and strand the rest. A burst left "hotel", "india" and
+*    "juliet" sitting on lines of their own.
+RTFWDALL     lda   #$00
+             sta   RTSTOP
+             jmp   RTFWDGO
+
+RTFWD        lda   #$01             ; typing: stop as soon as what lies below
+             sta   RTSTOP           ; the cursor is provably unchanged
+
+RTFWDGO      lda   GAPBEG
              sta   RTPOS
              lda   GAPBEG+1
              sta   RTPOS+1
@@ -197,9 +214,8 @@ RTFWD        lda   GAPBEG
              lda   CURLNO+1
              sta   RTLINE+1
 
-             lda   #$01             ; typing: stop as soon as what lies below
-             sta   RTSTOP           ; the cursor is provably unchanged
-             sta   PARTIAL          ; and nothing above the cursor can move
+             lda   #$01
+             sta   PARTIAL          ; nothing above the cursor can move
              jsr   REFLOWHERE       ; leaves the cursor wherever it settled
 
 :back        lda   GAPBEG           ; walk back to where we started
@@ -262,6 +278,203 @@ RTFLOW       lda   GAPBEG
              rts
 
 *--------------------------------------
+* RTFAST / RTFASTALL -- reflow forward from the cursor WITHOUT moving it
+*
+* The same job as RTFWD, done by reading rather than by walking. RTFWD drags
+* the gap through the whole paragraph a byte at a time and then drags it all
+* the way back, and every one of those steps is a banked aux read AND a banked
+* aux write: about four accesses per byte to change perhaps ten of them. At
+* 1MHz that is ~360ms on one keystroke in six, which is a word-sized hole in a
+* keyboard that latches one key.
+*
+* But a reflow is byte-preserving in the ordinary case. A SOFTCR stood in for
+* a space, so turning it back is a ONE BYTE overwrite; breaking a line at a
+* space is another. Neither needs the gap moved at all. So this scans forward
+* with AUXPTR, counts columns as it goes, and pokes only the bytes that differ
+* -- one read per byte, no write-back, and no walk home, because the cursor
+* never moved and CCOL and CURLNO come out untouched.
+*
+* Two cases are not byte-preserving and hand back to RTFWD: a SOFTWD, which
+* stood in for nothing so removing it shifts everything below, and a line with
+* no space to break at, which needs one inserted. Both are rare, both are
+* already handled correctly by the old path, and the partial work done here
+* costs nothing because a reflow is idempotent -- RTFWD simply starts again
+* from the same cursor.
+*--------------------------------------
+RTFASTALL    lda   #$00             ; no early stop: several breaks may be wrong
+             sta   RTSTOP
+             beq   RTFASTGO         ; always taken
+
+RTFAST       lda   #$01             ; typing: stop once the rest is provably right
+             sta   RTSTOP
+
+RTFASTGO     lda   #$01
+             sta   PARTIAL          ; nothing above the cursor can move
+             lda   #$00
+             sta   FASTDRAW         ; the paragraph moved: full redraw
+
+*--- start at the first byte past the gap, at the cursor's own column
+             lda   GAPEND
+             sta   RFP
+             lda   GAPEND+1
+             sta   RFP+1
+             lda   CCOL
+             sta   RFCOL
+             lda   CCOL+1
+             sta   RFCOL+1
+             lda   #$ff             ; no space and no consumed break yet. Aux
+             sta   RFSP+1           ; runs to $BFFF, so a high byte of $ff can
+             sta   RFBRK+1          ; never be a real address
+             sta   RFSP
+             sta   RFBRK
+
+:loop        lda   RFP+1
+             cmp   #BUFHI
+             bcc   *+5              ; ran off the end of the buffer
+             jmp   :fin
+             jsr   :point
+             jsr   AUXRD
+             sta   RFB
+             cmp   #TEXTLO
+             bcs   :text
+
+*--- a break of some kind. A blank line after it ends the paragraph, whichever
+*    kind it is.
+             jsr   :peek2
+             bcc   *+5              ; that break was the last byte
+             jmp   :fin
+             cmp   #TEXTLO
+             bcs   *+5              ; blank line: the paragraph ends here
+             jmp   :fin
+             lda   RFB
+             cmp   #HARDCR
+             beq   :hard
+             cmp   #SOFTCR
+             beq   *+5              ; SOFTWD: changes the length
+             jmp   :slow
+
+*--- a soft wrap becomes the space it stood in for, in place
+             jsr   :point
+             lda   #$a0
+             jsr   PUTAUX
+             lda   #$01
+             sta   MODFLAG
+             lda   RFP              ; it counts as a space, and as the break
+             sta   RFSP             ; this line used to end at
+             sta   RFBRK
+             lda   RFP+1
+             sta   RFSP+1
+             sta   RFBRK+1
+             jmp   :count
+
+*--- a return the writer typed ends the line no matter what is above it, so
+*    while typing there is nothing below one left to do
+:hard        lda   RTSTOP
+             beq   *+5
+             jmp   :fin
+             lda   #$00             ; a full reflow carries on into it
+             sta   RFCOL
+             sta   RFCOL+1
+             lda   #$ff
+             sta   RFSP+1
+             sta   RFBRK+1
+             jmp   :next
+
+:text        cmp   #$a0
+             bne   :count
+             lda   RFP              ; remember where the space was
+             sta   RFSP
+             lda   RFP+1
+             sta   RFSP+1
+
+:count       inc   RFCOL
+             bne   :margin
+             inc   RFCOL+1
+:margin      lda   RFCOL+1
+             bne   :wrap
+             lda   RFCOL
+             cmp   GWRAP1
+             bcc   :next
+
+*--- past the margin: the break belongs at the last space on this line
+:wrap        lda   RFSP+1
+             cmp   #$ff
+             bne   *+5              ; no space to break at: needs a bare break
+             jmp   :slow
+             lda   RFSP
+             sta   AUXPTR
+             lda   RFSP+1
+             sta   AUXPTR+1
+             lda   #SOFTCR
+             ldy   #$00
+             jsr   PUTAUX
+             lda   #$01
+             sta   MODFLAG
+
+*--- the new line starts after that space, so the byte just counted stands
+*    RFP-RFSP characters into it
+             lda   RFP
+             sec
+             sbc   RFSP
+             sta   RFCOL
+             lda   RFP+1
+             sbc   RFSP+1
+             sta   RFCOL+1
+
+*--- did the break land back on the byte that already held one? Then every
+*    line below it is already exactly right and there is nothing left to do.
+             lda   RTSTOP
+             beq   :clear
+             lda   RFSP
+             cmp   RFBRK
+             bne   :clear
+             lda   RFSP+1
+             cmp   RFBRK+1
+             bne   *+5
+             jmp   :fin
+:clear       lda   #$ff
+             sta   RFSP+1
+             sta   RFBRK+1
+
+:next        inc   RFP
+             bne   *+5              ; both paths end at the jmp below
+             inc   RFP+1
+             jmp   :loop
+
+:fin         rts
+
+*--- hand back to the walking version, which handles the length-changing cases
+:slow        lda   RTSTOP
+             beq   :slowall
+             jmp   RTFWD
+:slowall     jmp   RTFWDALL
+
+*--- AUXPTR = RFP
+:point       lda   RFP
+             sta   AUXPTR
+             lda   RFP+1
+             sta   AUXPTR+1
+             ldy   #$00
+             rts
+
+*--- A = the byte after RFP, carry set if that is past the end of the buffer
+:peek2       lda   RFP
+             clc
+             adc   #$01
+             sta   AUXPTR
+             lda   RFP+1
+             adc   #$00
+             sta   AUXPTR+1
+             cmp   #BUFHI
+             bcs   :p2end
+             ldy   #$00
+             jsr   AUXRD
+             clc
+             rts
+:p2end       sec
+             rts
+
+*--------------------------------------
 * WRAPCHECK -- called after inserting a printable character
 *
 * The cursor's own column is not enough to go on. Insert into the middle of a
@@ -283,7 +496,7 @@ WRAPCHECK    lda   CCOL+1
              cmp   GWRAP1           ; the byte compare below cannot see it
              bcc   :look            ; the cursor is still short of the margin
 :over        jsr   DOWRAP           ; past it: break behind us, as it always did
-             jmp   RTFWD            ; and tidy what follows, same as the other path
+             jmp   RTFAST           ; and tidy what follows, same as the other path
 :look
 
 *--- room left on this line before the margin
@@ -369,8 +582,51 @@ WRAPCHECK    lda   CCOL+1
 :brk         jsr   DOWRAP
              lda   DWHARD           ; before RTFWD, which wraps on its own
              sta   WSTEP            ; account and would overwrite this
-             jsr   RTFWD            ; forward only: what is behind is already right
-             lda   WSTEP
+
+*--- Put the tidy-up off while the writer is still mid-word.
+*
+*    This is where the time goes. Measured at 1MHz, typing into the middle of a
+*    twelve-line paragraph costs 83ms a character; with this RTFWD removed
+*    altogether it costs 23ms. The reflow is ~72% of it, about 360ms on the one
+*    keystroke in six that actually breaks a line -- and the Apple II keyboard
+*    latches exactly ONE key, so everything struck inside that 360ms is lost.
+*    That is why a burst into a long paragraph loses whole words: the stall is
+*    word-sized.
+*
+*    The redraw is NOT the problem, though it looks like it: a full RENDER
+*    measures 2-3ms here. The 138/214ms figures that suggested otherwise were
+*    taken with the arrow keys, which move the cursor a whole line as well as
+*    repainting, and the movement is nearly all of it.
+*
+*    So if the next key is already waiting AND is a printable character, the
+*    writer has not finished the word. Leave the paragraph ragged -- a pushed
+*    word sitting on a short line of its own -- and tidy at the next pause.
+*    Only printable keys defer: a command or an arrow tidies first, so the
+*    cursor never moves away from a mess and leaves it behind.
+*
+*    The text is correct either way, so this cannot reach the file: a reflow
+*    only moves breaks about, and SOFTCR saves as the space it replaced while
+*    SOFTWD saves as nothing. A document saved mid-burst is byte-identical to
+*    one saved after the tidy.
+             lda   KBD
+             bpl   :flow            ; nothing waiting: tidy now
+             cmp   #TEXTLO
+             bcc   :flow            ; a control key or an arrow
+             cmp   #$ff             ; Delete
+             bcs   :flow
+             inc   FLOWOWED         ; count them: one deferred break still
+                                    ; leaves everything below it right, and the
+                                    ; cheap tidy can be used. Two or more and
+                                    ; it cannot -- see the main loop.
+*--- The break DOWRAP just made sits below the cursor, which leaves CURLNO
+*    untouched -- so without this the main loop would take the one-row path and
+*    never repaint the rows underneath, and the ragged text would be invisible
+*    until something else forced a full redraw.
+             lda   #$00
+             sta   FASTDRAW
+             beq   :hop             ; always taken
+:flow        jsr   RTFAST           ; forward only: what is behind is already right
+:hop         lda   WSTEP
              beq   :back
              jsr   GAPLEFT          ; one more, for the byte the break added
 :back        lda   WBACK
@@ -538,6 +794,15 @@ WTMP         ds    1                ; bytes left before the end of the buffer
 WSCAN        ds    80               ; the rest of the line, staged in main
 RTPOS        ds    2                ; RTFLOW: cursor offset before the reflow
 RTN          ds    2                ; RTFLOW: how far into the paragraph it was
+             dend
+
+*--- $14a8-$14b5 is geom.S's; above that is free
+             dum   $14b6
+RFP          ds    2                ; RTFAST: where the scan has reached
+RFCOL        ds    2                ; the column of the byte there
+RFSP         ds    2                ; last space on this line, $ffxx if none
+RFBRK        ds    2                ; the break this line used to end at
+RFB          ds    1                ; the byte just read
              dend
 
              dum   $1447            ; $1446 is file.S's PENDSP

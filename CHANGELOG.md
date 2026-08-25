@@ -41,6 +41,56 @@ rest of the line out of aux on every call, so a 255-byte paste would pay that
 reads the high byte first, so none of them can be fooled by a wrapped count
 again.
 
+**Faster: typing into the middle of a paragraph.**
+
+Reported from a real Enhanced //e: inserting text in the middle of a six-line
+paragraph drops the occasional character, and in a longer one it drops whole
+words. Roughly one keystroke in six fills the line and has to break it, and
+that keystroke pays for reflowing everything below it to the end of the
+paragraph. The Apple II keyboard latches exactly ONE key, so anything struck
+during that is not delayed, it is gone.
+
+Measured at 1MHz, typing mid-paragraph: a twelve-line paragraph cost 83ms a
+character and a twenty-line one 132ms; with the reflow removed altogether, 23.
+
+**The redraw was never the problem**, though for two releases it looked like
+it. A full `RENDER` measures 2-3ms. Every figure suggesting otherwise — the
+table in 1.1 among them — was taken with the arrow keys, and an arrow press
+moves the cursor a whole line as well as repainting; the movement is nearly all
+of it. Benchmark the repaint with a key that repaints and does nothing else: an
+unbound one, which `DISPATCH` ignores while the main loop still draws.
+
+What it cost was transport. A reflow's real work is tiny — a `SOFTCR` stood in
+for a space, so turning it back is a ONE BYTE overwrite — but `REFLOWHERE`
+dragged the gap through the whole paragraph a byte at a time and `RTFWD`
+dragged it back, each step a banked aux read AND write: some 1,400 accesses to
+change about ten bytes.
+
+`RTFAST` does the same job by reading. It scans forward with `AUXPTR`, counts
+columns, and pokes only the bytes that differ — one read per byte, no
+write-back, and no walk home, because the gap never moves and `CCOL` and
+`CURLNO` come out untouched. Twelve lines went 83ms to 40.5ms a character,
+twenty lines 132ms to 88ms. Two cases are not byte-preserving and hand back to
+the walking `RTFWD`: a `SOFTWD`, and a line with no space to break at.
+
+**And the tidy waits while you are mid-word.** If a key is already waiting and
+it is printable, the pushed word is left on a short line and the reflow happens
+at the next pause — or before the next key that is not printable, so an arrow
+can never carry the cursor away and strand the mess. A document cannot be saved
+ragged, and nothing reaches the file differently in any case.
+
+Which walk finishes a deferred tidy depends on how many breaks are owed.
+`RTFWD` stops as soon as a break lands back where one already was, which proves
+the rest of the paragraph is right — but only if it was right to begin with.
+One deferred break leaves everything below it untouched; two or more and the
+early stop strands the rest. `RTFWDALL` is the same walk without it.
+
+Two approaches were measured and thrown away. Coalescing the redraw saved
+nothing, because the redraw was never the cost. Interrupting the reflow when a
+key arrives measured 179ms a character against 83 for deferring nothing at all:
+stopping works, but the walk restarts from the cursor each time and re-covers
+its own ground, so the whole thing turns quadratic.
+
 **Fixed: a long line could overrun `LINEBUF` and write into page 3.**
 
 Found while fixing the above, and reachable the same way. `RENDERROW` stages
@@ -67,7 +117,7 @@ screen now. Anything longer takes the full redraw, which clips.
 A `paste keeps the wrap` section in the suite, asserting against RAM rather
 than the screen — a line running past the margin is precisely what the screen
 cannot show. It fails 4 of 9 against 1.1 and passes against this one. 281
-assertions across 38 sections. The editor is 10,032 bytes.
+assertions across 38 sections. The editor is 10,459 bytes.
 
 ## 1.1 — 22 August 2026
 

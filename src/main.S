@@ -58,6 +58,7 @@ START        lda   #$00             ; nothing remembered about the viewport yet
              sta   CLIPLEN          ; and nothing on the clipboard to paste
              sta   CLIPLEN+1
              sta   CLIPLINE
+             sta   FLOWOWED         ; no reflow put off yet
 
              jsr   DETECTMT         ; MouseText, or solid blocks instead
              jsr   PLAINIFY         ; which the help screen has to know before
@@ -121,6 +122,52 @@ MAINLOOP     jsr   SCROLLFIX
 
 :go          jsr   DISPATCH
 
+*--- The tidy-up WRAPCHECK put off, now that the writer has paused -- or is
+*    about to do something other than type.
+*
+*    The second half of that matters. Deferring only while the NEXT key is
+*    printable keeps the cursor inside the paragraph that needs tidying, and
+*    this mirrors it: a command or an arrow gets the tidy done FIRST, before it
+*    can move the cursor somewhere else and strand the mess. Without it, an
+*    arrow pressed at the end of a burst could carry the cursor into another
+*    paragraph and leave this one ragged until something else reflowed it.
+*
+*    Forward from the cursor, because forward is where the mess always is:
+*    DOWRAP breaks out at the margin, so every break put off is further along
+*    the line than the cursor and the words pushed off land on the lines below.
+*    The rule above guarantees the cursor is still where the typing left it.
+*
+*    Which of the two walks depends on HOW MANY breaks were put off. RTFWD
+*    stops as soon as a break lands back where one already was, which proves
+*    the rest of the paragraph is right -- but only if it WAS right to begin
+*    with. One deferred break leaves everything below it untouched, so the
+*    proof holds and the cheap walk is correct. Two or more and it does not:
+*    the early stop fires on the first break that happens to land right and
+*    strands the rest, which showed up as "hotel", "india" and "juliet" left
+*    sitting on lines of their own.
+*
+*    Measured at 1MHz, worst case -- a writer who pauses after every word, so
+*    the tidy runs as often as it would have anyway: 83ms a character for the
+*    cheap walk, matching no deferral at all, against 103ms if the thorough
+*    walk is used every time. RTFLOW, tried first, was 147ms.
+             lda   FLOWOWED
+             beq   :noflow
+             lda   KBD              ; peek: reading $C000 leaves the strobe
+             bpl   :doflow          ; nothing waiting: the writer has paused
+             cmp   #TEXTLO
+             bcc   :doflow          ; a control key or an arrow is next
+             cmp   #$ff             ; Delete
+             bcs   :doflow
+             bcc   :noflow          ; printable: the word is not finished
+:doflow      ldx   FLOWOWED
+             lda   #$00
+             sta   FLOWOWED
+             cpx   #$02
+             bcs   :flowall
+             jsr   RTFAST           ; one break: the early stop is still sound
+             jmp   :noflow
+:flowall     jsr   RTFASTALL        ; both clear FASTDRAW, so a full redraw
+:noflow
 
              jsr   SCROLLFIX
              jsr   STATUPD
@@ -162,6 +209,10 @@ MAINLOOP     jsr   SCROLLFIX
              jsr   RENDERROW
              jmp   :keys
 
+*--- A wrap rearranges the text below the cursor and cannot touch a line above
+*    it, so the rows above the one the cursor started on are already right and
+*    RENDER can be told to count them rather than draw them. Everything else --
+*    a scroll, a selection, a return, a load -- redraws the lot.
 *--- A wrap rearranges the text below the cursor and cannot touch a line above
 *    it, so the rows above the one the cursor started on are already right and
 *    RENDER can be told to count them rather than draw them. Everything else --
@@ -251,5 +302,10 @@ HOMECURSOR   jsr   GAPLEFT
              sta   CCOL
              sta   CCOL+1
              rts
+
+*--- $1428 is display.S's LASTCOLH; $1429-$142f is otherwise free.
+             dum   $1429
+FLOWOWED     ds    1                ; a reflow was put off and is still owed
+             dend
 
 *--------------------------------------
