@@ -78,9 +78,9 @@ SPLROW       dfb   10,12,14,20,21
 
 SPLNAME      asc   "ZipEdit"
              dfb   $00
-SPLVER       asc   "Version 1.1"
+SPLVER       asc   "Version 1.2d"
              dfb   $00
-SPLDATE      asc   "August, 2026."
+SPLDATE      asc   "August, 2026"
              dfb   $00
 SPLHELP      dfb   $41,$ad,$bf      ; Open Apple glyph, "-", "?"
              asc   " to get help"
