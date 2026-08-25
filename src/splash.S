@@ -78,7 +78,7 @@ SPLROW       dfb   10,12,14,20,21
 
 SPLNAME      asc   "ZipEdit"
              dfb   $00
-SPLVER       asc   "Version 1.2d"
+SPLVER       asc   "Version 1.2"
              dfb   $00
 SPLDATE      asc   "August, 2026"
              dfb   $00

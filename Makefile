@@ -7,7 +7,7 @@
 #   make test     run the AppleScript regression suite
 #   make clean
 
-VERSION := 1.2d
+VERSION := 1.2
 SRC     ?= src/edit.S
 NAME    ?= ZIPEDIT.SYSTEM
 BUILD   := build

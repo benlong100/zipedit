@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.2 — 24 August 2026
 
 **Fixed: pasting at the end of a line left text unwrapped, and past 255
 characters it corrupted the cursor.**
@@ -158,7 +158,7 @@ screen now. Anything longer takes the full redraw, which clips.
 A `paste keeps the wrap` section in the suite, asserting against RAM rather
 than the screen — a line running past the margin is precisely what the screen
 cannot show. It fails 4 of 9 against 1.1 and passes against this one. 281
-assertions across 38 sections. The editor is 10,633 bytes, or 9,728 on a ][+.
+assertions across 38 sections. The editor is 10,632 bytes, or 9,728 on a ][+.
 
 None of the typing work is something the suite can prove. Virtual ][ hands keys
 over as the program reads them, so a key is almost never waiting while the
