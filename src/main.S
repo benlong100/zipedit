@@ -59,6 +59,9 @@ START        lda   #$00             ; nothing remembered about the viewport yet
              sta   CLIPLEN+1
              sta   CLIPLINE
              sta   FLOWOWED         ; no reflow put off yet
+             sta   KBHEAD           ; and nothing caught in the ring. These
+             sta   KBTAIL           ; live in a dum block, so a relaunch would
+                                    ; otherwise start with garbage indices
 
              jsr   DETECTMT         ; MouseText, or solid blocks instead
              jsr   PLAINIFY         ; which the help screen has to know before
@@ -152,8 +155,8 @@ MAINLOOP     jsr   SCROLLFIX
 *    walk is used every time. RTFLOW, tried first, was 147ms.
              lda   FLOWOWED
              beq   :noflow
-             lda   KBD              ; peek: reading $C000 leaves the strobe
-             bpl   :doflow          ; nothing waiting: the writer has paused
+             jsr   KBNEXT           ; the ring counts as waiting, not just
+             bcs   :doflow          ; the latch. Nothing waiting: they paused
              cmp   #TEXTLO
              bcc   :doflow          ; a control key or an arrow is next
              cmp   #$ff             ; Delete

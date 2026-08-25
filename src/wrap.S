@@ -103,7 +103,10 @@ DOWRAP       lda   #$00
              dex
              stx   WDIST
              beq   :atspace
-:back        jsr   GAPLEFT
+:back        lda   KBD              ; DOWRAP steps back to the space
+             bpl   *+5
+             jsr   KBPOLL
+             jsr   GAPLEFT
              dec   WDIST
              bne   :back
 
@@ -126,7 +129,10 @@ DOWRAP       lda   #$00
              dex
              stx   WDIST
              beq   :done
-:fwd         jsr   GAPRIGHT
+:fwd         lda   KBD              ; and forward again afterwards
+             bpl   *+5
+             jsr   KBPOLL
+             jsr   GAPRIGHT
              dec   WDIST
              bne   :fwd
 :done        rts
@@ -328,7 +334,11 @@ RTFASTGO     lda   #$01
              sta   RFSP
              sta   RFBRK
 
-:loop        lda   RFP+1
+*--- catch anything struck while this walk runs; the latch holds only one
+:loop        lda   KBD
+             bpl   :nokey
+             jsr   KBPOLL
+:nokey       lda   RFP+1
              cmp   #BUFHI
              bcc   *+5              ; ran off the end of the buffer
              jmp   :fin
@@ -556,7 +566,10 @@ WRAPCHECK    lda   CCOL+1
 *    the one we walked out.
 :toolong     lda   WBACK
              sta   WSTEP
-:fwd         lda   WSTEP
+:fwd         lda   KBD              ; the walk out to the margin
+             bpl   *+5
+             jsr   KBPOLL
+             lda   WSTEP
              beq   :brk
              jsr   GAPRIGHT
              dec   WSTEP
@@ -608,8 +621,8 @@ WRAPCHECK    lda   CCOL+1
 *    only moves breaks about, and SOFTCR saves as the space it replaced while
 *    SOFTWD saves as nothing. A document saved mid-burst is byte-identical to
 *    one saved after the tidy.
-             lda   KBD
-             bpl   :flow            ; nothing waiting: tidy now
+             jsr   KBNEXT
+             bcs   :flow            ; nothing waiting: tidy now
              cmp   #TEXTLO
              bcc   :flow            ; a control key or an arrow
              cmp   #$ff             ; Delete
@@ -629,7 +642,10 @@ WRAPCHECK    lda   CCOL+1
 :hop         lda   WSTEP
              beq   :back
              jsr   GAPLEFT          ; one more, for the byte the break added
-:back        lda   WBACK
+:back        lda   KBD              ; and the walk home from it
+             bpl   *+5
+             jsr   KBPOLL
+             lda   WBACK
              beq   :done
              jsr   GAPLEFT
              dec   WBACK
@@ -722,7 +738,11 @@ REFLOWHERE   lda   #$ff             ; no break removed yet to compare against
              sta   RTBRK
              sta   RTBRK+1
 
-:loop        jsr   PEEKFWD
+*--- the walking fallback watches the keyboard too
+:loop        lda   KBD
+             bpl   :nok
+             jsr   KBPOLL
+:nok         jsr   PEEKFWD
              bcs   :done            ; end of buffer
              cmp   #TEXTLO
              bcs   :char            ; ordinary text: walk on

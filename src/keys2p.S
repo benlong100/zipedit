@@ -12,8 +12,16 @@
 * every key dispatches as a command: pressing Q on a real ][+ quits the
 * editor. Found on the hardware, because there is no other place to find it.
 *--------------------------------------
-GETKEY       lda   KBD
-             bpl   GETKEY
+*--- KBMODS -- what KBPOLL stores alongside a key it catches. Nothing, here:
+*    $C061 is a floating paddle button on this machine and reads as pressed,
+*    which is the trap described above.
+KBMODS       lda   #$00
+             rts
+
+GETKEY       jsr   KBDEQ            ; keys caught while the editor was busy
+             bcc   :fold            ; come first, in the order they were struck
+:wait        lda   KBD
+             bpl   :wait
              sta   KEYCHR
              lda   #$00             ; no Apple keys: no modifiers, ever
              sta   MODOA
@@ -25,7 +33,7 @@ GETKEY       lda   KBD
 *    for the capital, which is how Apple Writer did it on this machine and
 *    needs no soldering iron. The BUFFER holds real mixed case either way, so
 *    what reaches the Mac is ordinary text and not a shout.
-             lda   KEYCHR
+:fold        lda   KEYCHR
              cmp   #$c1             ; 'A'
              bcc   :done
              cmp   #$db             ; past 'Z'

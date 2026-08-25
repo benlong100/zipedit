@@ -858,6 +858,36 @@ fallbacks over a thirty-character burst — and a reflow is idempotent, so the
 partial work the scan has already done costs nothing when `RTFWD` starts again
 from the same cursor.
 
+### The keyboard buffer
+
+Making the reflow faster has a floor: hard wrap means inserting a character
+genuinely shifts every line below it, so the cost stays proportional to what
+follows the cursor however tight the loop.
+
+The machine's own word processors settle what to do about that. Apple Writer II
+and Cut & Paste never drop a character, and both let the redraw fall behind to
+manage it. PFS Write did neither well. So: catch the keystroke first, and let
+the screen catch up.
+
+`KBPOLL` runs inside the reflow — and inside the walks either side of the break
+— and puts any waiting key into a sixteen-deep ring. `GETKEY` drains the ring
+before it looks at the hardware. Eighteen keys out of a thirty-character burst
+were caught mid-reflow on a twenty-line paragraph: the eighteen that were being
+thrown away. A full ring leaves the key in the latch, which is where it would
+have been lost anyway, so it is never worse than no ring.
+
+Two things the ring must carry. Open-Apple is a soft switch rather than part of
+the character, so it is only true at the instant the key arrives: each entry
+stores its own modifier, or an `OA-S` struck during a reflow comes back as a
+literal `S` in the document. And the capture is machine-specific, because
+`$C061` is a floating paddle button on a ][+ and reads as permanently pressed.
+
+`KBNEXT` reports the key `GETKEY` will return next, ring or latch, without
+consuming it. Anything asking "is the writer still typing?" must come through
+it — once something else empties the latch, a bare `lda KBD` finds nothing
+waiting even in the middle of a burst, which would silently switch off whatever
+depended on it.
+
 ### Deferring the tidy
 
 If a key is already waiting and it is a printable character, the writer has not

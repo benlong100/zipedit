@@ -59,6 +59,97 @@ DISPATCH     ldx   #$00
 
 
 *--------------------------------------
+* The keyboard buffer
+*
+* The Apple II keyboard latches exactly ONE key. Anything struck while the
+* editor is busy is not delayed, it is discarded -- so a long operation does
+* not make the editor feel slow, it makes it lose text. Reflowing a paragraph
+* is the long operation: even scanned rather than walked, a twenty-line one
+* costs ~450ms on the keystroke that breaks a line, which is several
+* characters at writing speed.
+*
+* Making that faster has a floor, because hard wrap means inserting a
+* character genuinely shifts every line below it. So do what the editors that
+* got this right did: Apple Writer II and Cut & Paste never drop a character
+* and both let the redraw fall behind instead. Catch the keystroke first and
+* let the screen catch up afterwards.
+*
+* KBPOLL is called from inside the reflow. The ring is sixteen deep, which is
+* about two seconds of typing ahead of the editor -- past that the key stays
+* in the latch, which is exactly where it would have been lost before, so a
+* full ring is never worse than no ring.
+*--------------------------------------
+KBMASK       equ   15               ; ring is 16 deep, so the wrap is an AND
+
+*--- KBPOLL -- put a waiting keystroke in the ring. The Apple keys are machine
+*    state rather than part of the character, so the modifier has to be caught
+*    at the same instant as the key: KBMODS is the machine-specific half.
+KBPOLL       lda   KBD
+             bpl   :out             ; nothing waiting, which is the usual case
+             lda   KBHEAD
+             clc
+             adc   #$01
+             and   #KBMASK
+             cmp   KBTAIL
+             beq   :out             ; full: leave it in the latch rather than
+                                    ; drop what is already queued
+             ldx   KBHEAD
+             lda   KBD
+             sta   KBRING,x
+             jsr   KBMODS
+             sta   KBMOD,x
+             sta   KBDSTRB          ; value written is irrelevant
+             txa
+             clc
+             adc   #$01
+             and   #KBMASK
+             sta   KBHEAD
+:out         rts
+
+*--- KBNEXT -- the key GETKEY will return next, WITHOUT consuming it. Carry
+*    clear and A = that key; carry set if nothing is waiting anywhere.
+*
+*    Anything asking "is the writer still typing?" has to come through here
+*    rather than reading $C000 itself. KBPOLL empties the latch into the ring,
+*    so once polling exists a bare `lda KBD` finds nothing waiting even in the
+*    middle of a burst -- which would quietly switch the deferral off.
+KBNEXT       lda   KBHEAD
+             cmp   KBTAIL
+             beq   :latch
+             ldx   KBTAIL
+             lda   KBRING,x
+             clc
+             rts
+:latch       lda   KBD
+             bpl   :none
+             clc
+             rts
+:none        sec
+             rts
+
+*--- KBDEQ -- take the oldest queued key into KEYCHR and MODOA. Carry clear if
+*    there was one, set if the ring is empty.
+KBDEQ        lda   KBHEAD
+             cmp   KBTAIL
+             beq   :none
+             ldx   KBTAIL
+             lda   KBRING,x
+             sta   KEYCHR
+             lda   KBMOD,x
+             sta   MODOA
+             lda   #$00
+             sta   MODCA            ; never read, and never captured
+             txa
+             clc
+             adc   #$01
+             and   #KBMASK
+             sta   KBTAIL
+             clc
+             rts
+:none        sec
+             rts
+
+*--------------------------------------
 * Simple handlers
 *--------------------------------------
 FASTOK       lda   #$01
@@ -412,3 +503,11 @@ KTABITAL     jsr   INLEAD
 * inserts the markers and leaves the cursor in the middle, which is what you
 * want when reaching for emphasis before typing the word.
 *--------------------------------------
+
+*--- $14b6-$14be is wrap.S's RTFAST scratch
+             dum   $14bf
+KBRING       ds    16               ; the keys caught while the editor was busy
+KBMOD        ds    16               ; and the Open-Apple state of each
+KBHEAD       ds    1                ; where the next caught key goes
+KBTAIL       ds    1                ; where the next key read comes from
+             dend

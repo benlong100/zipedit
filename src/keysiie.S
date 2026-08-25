@@ -7,8 +7,17 @@
 * and impossible on a ][+, where those same addresses are the paddle buttons
 * and nothing else. See keys2p.S.
 *--------------------------------------
-GETKEY       lda   KBD
-             bpl   GETKEY
+*--- KBMODS -- what KBPOLL stores alongside a key it catches. Open-Apple is a
+*    soft switch, not part of the character, so it is only true at the instant
+*    the key arrives and has to be sampled then.
+KBMODS       lda   OPNAPPLE
+             and   #$80
+             rts
+
+GETKEY       jsr   KBDEQ            ; keys caught while the editor was busy
+             bcc   :fold            ; come first, in the order they were struck
+:wait        lda   KBD
+             bpl   :wait
              sta   KEYCHR
              lda   OPNAPPLE
              and   #$80
@@ -19,7 +28,7 @@ GETKEY       lda   KBD
              sta   KBDSTRB          ; value written is irrelevant
 
 *--- fold Open-Apple letters to uppercase so OA-q and OA-Q both dispatch
-             lda   MODOA
+:fold        lda   MODOA
              beq   :done
              lda   KEYCHR
              cmp   #$e1             ; 'a'
