@@ -129,7 +129,12 @@ things that turned out to be harder than they looked.
 
 ## Changes
 
-See [CHANGELOG.md](CHANGELOG.md). 1.1 adds the ][+ build, and fixes a bug
+See [CHANGELOG.md](CHANGELOG.md). 1.3 adds a key for the backtick — no Apple
+II keyboard has one, so until now Markdown code spans could not be typed at
+all: `OA-'` on the //e, `Esc '` on the ][+. 1.2 fixes a paste that left text
+unwrapped and, past 255 characters, corrupted the cursor, and makes typing
+into the middle of a long paragraph stop losing whole words. 1.1 adds the ][+
+build, and fixes a bug
 present in every release before it: a word longer than the wrap margin, typed
 into the middle of existing text, corrupted the file on disk. If you are on
 1.0.x, upgrade for that alone. 1.1 also stops the redraw counting from the

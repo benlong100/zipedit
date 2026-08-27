@@ -1,5 +1,70 @@
 # Changelog
 
+## 1.3 — 26 August 2026
+
+**Added: a key for the backtick, which no Apple II keyboard can send.**
+
+Markdown marks code with a backtick, and there is no grave-accent key on an
+Enhanced //e. There is none on a ][+ either. The character arrived with the
+IIgs, and every machine this editor targets predates it.
+
+The gap was invisible from the Mac, because Virtual ][ delivers every character
+whether or not the keyboard it emulates has a key for it — the design notes had
+flagged the backtick as needing a check on real hardware for exactly that
+reason, and the check found it missing.
+
+Nothing else about the character was broken. The buffer holds it, files carry
+it, the //e draws it, and the cheat sheet has displayed `` `code` `` since it
+was written. Only the way in was missing, so the fix is a key rather than a
+translation on the way to disk:
+
+| machine | key |
+|---|---|
+| Enhanced //e | `OA-'` |
+| Apple ][+ | `Esc '` |
+
+The apostrophe is the key that most looks like what it produces, and it was the
+only one still unbound on both machines. It **inserts one character** rather
+than wrapping the word the way `Ctrl-B` and `Ctrl-I` do, so that three presses
+open a fenced block and a lone marker stays possible.
+
+The alternative was typing `''` and swapping it for a backtick when saving.
+That was rejected because the buffer is the truth here — wrap, reflow, `CCOL`,
+find and the word count all read it, and a save-time swap puts the file out of
+step with everything the editor measured. A hard wrap bakes the breaks in, so a
+line arranged against the margin would ship a character short for every `''` on
+it. Loading is worse: translate back, and a genuine `''` in a file this editor
+did not write becomes a backtick the next time you save.
+
+**Fixed: the ][+ splash screen named a key that machine has never had.**
+
+The 40-column splash offered `OA-?` for help. The ][+ has no Open Apple key, so
+it advertised something unreachable — and drew the glyph as a bare `A`, since
+that machine has no MouseText either. It now reads `Esc-?`, which is bound
+there, alongside the single-keystroke `Ctrl-P`.
+
+`splash.S` is shared by every build, which is how a key name written into it
+became a claim about a keyboard the reader might not own. The hint now lives
+with the keymap, in `keysiie.S` and `keys2p.S`. That split is by keymap and not
+by screen width on purpose: the 40-column //e build is 40 columns and still a
+//e, and takes the Open Apple form.
+
+**Fixed: a backtick was invisible on a ][+.**
+
+That character generator holds 64 shapes and a grave accent is not among them,
+so `$E0` drew as a blank: a code span read as " code " with nothing marking
+either end. This affected **any file containing a backtick**, not only text
+typed on that machine. `FOLDCASE` now draws it as an apostrophe — the nearest
+shape the ROM has, and the key the writer pressed to get it.
+
+**Also:** both 40-column help pages were already at their 18-row limit, so the
+two delete rows merged into `ctrl-z d — delete left/right`, matching how the
+other paired keys were already written.
+
+The regression suite is 287 assertions, up from 281, and now boots the
+40-column build to read its splash — nothing had ever looked at that build's
+screen, which is why the wrong key shipped in the first place.
+
 ## 1.2 — 24 August 2026
 
 **Fixed: pasting at the end of a line left text unwrapped, and past 255

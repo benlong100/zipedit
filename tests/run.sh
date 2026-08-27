@@ -430,7 +430,7 @@ if section "splash screen"; then
 "$VII" settle 2 >/dev/null
 snapshot
 assert_centred "the name is centred"                  10 "ZipEdit"
-assert_centred "the version is centred below it"      12 "Version 1.2"
+assert_centred "the version is centred below it"      12 "Version 1.3"
 assert_centred "the date is centred below that"       14 "August, 2026"
 assert_blank   "with a blank line between them"       13
 # The Open Apple is a MouseText glyph, which reads back as "A".
@@ -1576,7 +1576,7 @@ else
 snapshot
 
 assert_row "the ][+ splash offers Esc-? for help"    20 "ESC-? TO GET HELP"
-assert_row "and still names its version"             12 "VERSION 1.2"
+assert_row "and still names its version"             12 "VERSION 1.3"
 
 # The Open Apple is a MouseText glyph, which reads back as "A" -- so the old
 # hint would surface here as "A-?". Row 20 of the //e build says exactly that
