@@ -124,12 +124,22 @@ FOLDCASE     cmp   #$40
                                     ; MouseText and the open apple there and
                                     ; they would blink at the reader.
 
+*--- $E0 has no glyph at all in this ROM. Sixty-four of them, and a grave
+*    accent is not among them, so a backtick draws as a blank and a code span
+*    reads as " code " with nothing marking either end. That is true of any
+*    file carrying one, not just of text typed here. An apostrophe is the
+*    nearest thing the generator has, and it is the key the writer pressed to
+*    get it.
+*
 *--- One alphabet, two cases to show. Apple Writer's answer, and it is still
 *    the right one: a lowercase letter draws as an ordinary capital, and a
 *    CAPITAL draws inverse. So text reads normally and the capitals you asked
 *    for are the ones that stand out -- which is exactly backwards from how it
 *    looks written down, and exactly right on the screen.
-:high        cmp   #$e1             ; 'a'
+:high        cmp   #BACKTICK
+             bne   :notick
+             lda   #$a7             ; draw it as an apostrophe
+:notick      cmp   #$e1             ; 'a'
              bcc   :upper
              cmp   #$fb             ; past 'z'
              bcs   :sym

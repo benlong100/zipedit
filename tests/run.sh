@@ -1590,6 +1590,56 @@ fi
 fi
 
 #--------------------------------------
+# The backtick key
+#
+# Markdown's code marker is the one character no Apple II keyboard can send --
+# neither the //e nor the ][+ has a grave-accent key, which was found on the
+# hardware and not here, because Virtual ][ will happily synthesise codes a
+# real keyboard cannot produce.
+#
+# Everything else about the character already worked: the buffer holds it, the
+# //e draws it, and the cheat sheet has carried one since it was written. So
+# the fix is a key -- OA-' here, Esc ' on the ][+ -- and not a translation on
+# the way to disk. That distinction is what the second assertion guards. A
+# backtick that merely LOOKS right on screen still reaches the file as the
+# wrong byte, and the file is the whole point of the editor.
+#--------------------------------------
+if section "the backtick key"; then
+reboot_empty
+
+k oa "'"
+ktext "code"
+k oa "'"
+"$VII" settle 3 >/dev/null
+snapshot
+assert_row "OA-' types the marker the keyboard has no key for" 0 '`code`'
+
+# $E0 is a backtick. Read the buffer rather than the screen: the display maps
+# characters on their way out -- the ][+ build draws this one as an apostrophe
+# because its ROM has no glyph for it -- so the screen cannot tell a real
+# backtick from a stand-in. The file gets what is in the buffer.
+_pregap
+_tick="$(python3 -c "print(open('$TMP/pre.bin','rb').read().hex())")"
+if [ "$_tick" = "e0e3efe4e5e0" ]; then
+    ok "and the buffer holds the character itself, not a lookalike"
+else
+    bad "and the buffer holds the character itself, not a lookalike" \
+        "buffer reads $_tick, wanted e0e3efe4e5e0" \
+        "(backtick, c, o, d, e, backtick)"
+fi
+
+# Three of them open a fenced block. This inserts one character rather than
+# wrapping the word the way Ctrl-B and Ctrl-I do, and a fence is why.
+"$VII" line "" >/dev/null
+k oa "'"
+k oa "'"
+k oa "'"
+"$VII" settle 3 >/dev/null
+snapshot
+assert_row "and three of them make a fence" 1 '```'
+fi
+
+#--------------------------------------
 # Text files this editor did not write. The buffer holds high ASCII and the
 # line-end test is one compare against TEXTLO, so anything below $A0 ends a
 # line. A .txt from a Mac or a PC is LOW ascii throughout, so every byte read

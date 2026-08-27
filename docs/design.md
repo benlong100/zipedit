@@ -28,12 +28,40 @@ The editor is for writing prose in Markdown. That shapes several decisions:
   `tests/snapshots/charset-reference.png`. `$7F` shows as a checkerboard, as
   expected.
 
-  **Keyboard: not yet confirmed on real hardware.** The //e was marketed as a
-  full-ASCII keyboard, and Virtual ][ delivers every character, but an emulator
-  will happily synthesise codes a physical keyboard cannot produce. Backtick in
-  particular is worth checking on the real machine, since fenced code spans
-  need it. If it turns out to be missing or awkward, the mitigation is a
-  dedicated insert shortcut rather than a change to any other layer.
+  **Keyboard: checked, and the backtick is missing.** The //e was marketed as
+  a full-ASCII keyboard and Virtual ][ delivers every character, but an
+  emulator will happily synthesise codes a physical keyboard cannot produce.
+  That is exactly what happened: there is no grave-accent key on a //e, nor on
+  a ][+, and the gap was invisible from here because the emulator filled it.
+
+  The mitigation is the one this note called for -- **a key, not a change to
+  any other layer**. `OA-'` on the //e and `Esc '` on the ][+, the apostrophe
+  being the key that most looks like what it produces and the only one still
+  unbound on both machines. `KBACKTICK` is `DISPATCH`'s own self-insert path
+  with the character supplied: once it is in the buffer a backtick is ordinary
+  printable text, and it wants exactly what a typed character gets.
+
+  **It inserts rather than wrapping the word**, which is where it parts company
+  with `Ctrl-B` and `Ctrl-I`. Three presses have to make a fence, and a lone
+  marker has to stay possible.
+
+  The alternative considered was typing `''` and swapping it for a backtick on
+  the way to disk. It was rejected because the buffer is the truth here: wrap,
+  reflow, `CCOL`, find and the word count all read it, and a save-time swap
+  puts the file out of step with everything the editor measured -- a hard wrap
+  bakes the breaks in, so a line arranged against the margin ships a character
+  short for every `''` on it. Load is worse. Translate back and a genuine `''`
+  in a file we did not write becomes a backtick on the next save, which is the
+  failure §"text from other machines" exists to prevent; do not, and the
+  digraph was only ever an input method -- at which point doing it on the way
+  IN is the same idea without any of that.
+
+  **A stock ][+ has no glyph for it at all.** That generator holds 64 shapes
+  and a grave accent is not among them, so `$E0` drew as a blank and a code
+  span read as " code " with nothing marking either end -- true of any file
+  carrying one, not just of text typed there. `FOLDCASE` now draws it as an
+  apostrophe, which is both the nearest shape the ROM has and the key the
+  writer pressed to get it.
 
 Not goals: soft wrap, word wrap toggling, multiple windows, proportional
 display, undo beyond a single level. Soft wrap is the most likely future

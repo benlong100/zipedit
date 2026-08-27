@@ -195,6 +195,8 @@ ESCTBL
                                     ; keystroke; this is what a //e user
                                     ; types without thinking, OA-? being the
                                     ; same key on that machine.
+             dfb   $a7
+             da    KBACKTICK        ; Esc ' -- a backtick
              dfb   $00
 
 *--------------------------------------

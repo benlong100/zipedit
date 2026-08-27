@@ -497,6 +497,25 @@ KTABITAL     jsr   INLEAD
              jmp   INSCHR
 
 *--------------------------------------
+* KBACKTICK -- type the one Markdown character no Apple II keyboard has
+*
+* OA-' on the //e, Esc ' on the ][+. The apostrophe is the key that looks most
+* like what it produces and it was unbound on both machines. This inserts the
+* character rather than wrapping the word the way Ctrl-B and Ctrl-I do, so
+* that three presses give a fence and a lone marker stays possible.
+*
+* The body is DISPATCH's own self-insert path. Once it is in the buffer a
+* backtick is an ordinary printable character, so it wants exactly what a
+* typed one gets: the selection replaced, one row repainted, and a wrap check
+* that looks down the line rather than only at the cursor.
+*--------------------------------------
+KBACKTICK    jsr   DELSEL           ; typing replaces the selection
+             lda   #BACKTICK
+             jsr   INSCHR
+             jsr   FASTOK           ; one row, like any other typed character
+             jmp   WRAPCHECK
+
+*--------------------------------------
 * KBOLD / KITALIC -- wrap the cursor in emphasis markers and sit between them
 *
 * Word-aware wrapping comes with the editing-operations work; for now this

@@ -88,7 +88,10 @@ no name yet; OA-A is save as, which always prompts and adopts the new name.
 Anything that replaces the document -- OA-N, OA-Q, OA-O -- must go through
 ASKUNSAVED first. OA-? (or OA-H) opens the keyboard help,
 which is two pages -- a key turns to page two, another leaves. OA-/ toggles the
-one-line cheat sheet, OA-Q quits. `$89` is both Tab and Ctrl-I and dispatches on
+one-line cheat sheet, OA-Q quits. **OA-`'` types a backtick** -- no Apple II
+keyboard has a grave-accent key, so this is the only way in; three of them
+make a fence. The ][+ spells it `Esc '`, and draws it as an apostrophe because
+that character generator has no glyph for it. `$89` is both Tab and Ctrl-I and dispatches on
 position -- see `docs/design.md`.
 
 ## Testing

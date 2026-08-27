@@ -129,6 +129,13 @@ HARDCR       equ   $8d              ; a return the writer typed; saved as a CR
 SOFTCR       equ   $8a              ; wrap that replaced a space; saved as one
 SOFTWD       equ   $8b              ; wrap inside a word; saved as nothing
 TEXTLO       equ   $a0              ; below this is a break, not text
+
+*--- The Apple //e keyboard has no grave-accent key and neither does the ][+,
+*    so Markdown's code marker cannot be typed. The character itself is fine
+*    everywhere else: the buffer holds it, files carry it, and the //e draws it
+*    -- the cheat sheet has shown `code` since it was written. Only the way in
+*    was missing, so the fix is a key, not a translation on the way to disk.
+BACKTICK     equ   $e0              ; `, the Markdown code marker
 LNDIG        equ   40               ; status column of the line number digits
 CLDIG        equ   47               ; status column of the column digits
 NAMECOL      equ   1                ; status column of the filename
