@@ -37,7 +37,7 @@ IMG2P   := $(BUILD)/ZIPEDIT2P-REL.po
 # builds apart on the card.
 SYS2P   := ZIPEDIT.SYSTEM
 
-.PHONY: all disk run screen test clean tools pull push eject release probe card plaindisk checkhelp keyprobe two release2p card2p dist
+.PHONY: all disk run screen test clean tools pull push eject release probe card plaindisk twodisk checkhelp keyprobe two release2p card2p dist
 
 all: $(BIN)
 
@@ -78,10 +78,10 @@ screen:
 
 # SAMPLE.MD is the suite's fixture and lives on the image, so a test that saves
 # can overwrite it. Put a fresh copy back before every run.
-test: $(IMAGE) plaindisk checkhelp
+test: $(IMAGE) plaindisk twodisk checkhelp
 	@$(TOOLS)/xfer.sh push $(IMAGE) tests >/dev/null
 	@python3 $(TOOLS)/asciifixtures.py $(IMAGE) >/dev/null
-	@tests/run.sh $(SECTION)
+	@tests/run.sh "$(SECTION)"
 
 # src/help.S is generated but committed, so it can fall behind tools/genhelp.py
 # without anything noticing -- which is how the OA-Delete row went missing from
@@ -101,6 +101,18 @@ $(PLAINIMG): $(BIN)
 	@python3 $(TOOLS)/forceplain.py $(BIN) $(PLAINBIN)
 	@VOL=ZIPEDIT SYS=ZIPEDIT.SYSTEM $(TOOLS)/mkdisk.sh $(PLAINIMG) $(PLAINBIN) >/dev/null
 	@echo "plain-glyph image: $(PLAINIMG)"
+
+# A third image: the 40-column ][+ build. The suite boots it only to read the
+# splash, which is the one screen naming a key on a machine whose keyboard we
+# cannot assume. splash.S is shared by every build, and 1.2 shipped telling
+# ][+ users to press an Open Apple key that machine has never had.
+TWOIMG    := $(BUILD)/ZIPEDIT2P.po
+
+twodisk: $(TWOIMG)
+
+$(TWOIMG): $(BIN2P)
+	@VOL=ZIPEDIT2P SYS=$(SYS2P) $(TOOLS)/mkdisk.sh $(TWOIMG) $(BIN2P) >/dev/null
+	@echo "40-column image: $(TWOIMG)"
 
 # Virtual ][ buffers image writes until eject, so pull needs a flush first.
 eject:

@@ -196,3 +196,12 @@ ESCTBL
                                     ; types without thinking, OA-? being the
                                     ; same key on that machine.
              dfb   $00
+
+*--------------------------------------
+* SPLHELP -- the hint on the splash screen. A ][+ has no Open Apple key, so
+* pointing at OA-? sends the writer hunting for a key the machine does not
+* have. Ctrl-P is the single keystroke here, but Esc-? is the one a hand
+* trained on the //e reaches for, and it is the one worth advertising.
+*--------------------------------------
+SPLHELP      asc   "Esc-? to get help"
+             dfb   $00

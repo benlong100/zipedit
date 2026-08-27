@@ -120,3 +120,12 @@ KEYTBL
              dfb   $c1,$80
              da    KSAVEAS          ; OA-A
              dfb   $00              ; end of table
+
+*--------------------------------------
+* SPLHELP -- the hint on the splash screen. It names a key that has to exist
+* on THIS machine, so it belongs with the keymap and not in splash.S, which
+* every build shares. edit40.S is 40 columns but still a //e, and takes this.
+*--------------------------------------
+SPLHELP      dfb   $41,$ad,$bf      ; Open Apple glyph, "-", "?"
+             asc   " to get help"
+             dfb   $00

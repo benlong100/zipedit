@@ -82,9 +82,8 @@ SPLVER       asc   "Version 1.2"
              dfb   $00
 SPLDATE      asc   "August, 2026"
              dfb   $00
-SPLHELP      dfb   $41,$ad,$bf      ; Open Apple glyph, "-", "?"
-             asc   " to get help"
-             dfb   $00
+*--- SPLHELP names a key, so it lives with the keymap: see keysiie.S and
+*    keys2p.S. Both builds share this file; they do not share that binding.
 SPLGO        asc   "press any key to continue"
              dfb   $00
 

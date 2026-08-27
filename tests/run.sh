@@ -12,6 +12,7 @@ VII="$ROOT/tools/vii.sh"
 IMAGE="${IMAGE:-$ROOT/build/ZIPEDIT.po}"
 BIN="${BIN:-$ROOT/build/ZIPEDIT.SYSTEM}"
 PLAINIMAGE="${PLAINIMAGE:-$ROOT/build/ZIPEDIT-PLAIN.po}"
+TWOIMAGE="${TWOIMAGE:-$ROOT/build/ZIPEDIT2P.po}"
 
 # One suite at a time. Virtual ][ has exactly one front machine, so a second
 # run -- or a stray boot from another window -- steers the machine out from
@@ -1545,6 +1546,46 @@ assert_cell "and its cursor is a block, not a checkerboard"    23  9 32
 "$VII" key esc >/dev/null
 "$VII" caps false >/dev/null
 "$VII" settle 2 >/dev/null
+fi
+fi
+
+#--------------------------------------
+# The ][+ splash names a key that machine actually has
+#
+# splash.S is shared by every build, so a key name written into it is a claim
+# about a keyboard we may not be sitting at. 1.2 shipped telling ][+ users to
+# press Open Apple, a key that machine has never had, because nothing in the
+# suite had ever looked at the 40-column build's screen. The hint lives with
+# the keymap now -- keysiie.S and keys2p.S -- and this is what would have
+# caught it.
+#
+# The split is by KEYMAP, not by width: edit40.S is 40 columns and still a //e,
+# so it takes the Open Apple form. Only the ][+ build changes.
+#
+# Virtual ][ offers no ][+, but the ][+ build runs on a //e, which is enough to
+# read a string back. That machine has no lowercase, so the splash comes back
+# in upper case throughout.
+#--------------------------------------
+if section "the ][+ splash"; then
+if [ ! -f "$TWOIMAGE" ]; then
+    bad "the 40-column image exists" "no $TWOIMAGE -- run: make twodisk"
+else
+"$VII" boot "$TWOIMAGE" >/dev/null || { echo "boot failed"; exit 1; }
+"$VII" await "ZIPEDIT" 120 >/dev/null || bad "the ][+ splash never appeared"
+"$VII" settle 3 >/dev/null
+snapshot
+
+assert_row "the ][+ splash offers Esc-? for help"    20 "ESC-? TO GET HELP"
+assert_row "and still names its version"             12 "VERSION 1.2"
+
+# The Open Apple is a MouseText glyph, which reads back as "A" -- so the old
+# hint would surface here as "A-?". Row 20 of the //e build says exactly that
+# and is right to; on this machine it is a key that does not exist.
+if sed -n '21p' "$SCREEN" | grep -q "A-?"; then
+    bad "and not a key the ][+ does not have" "row 20: $(sed -n '21p' "$SCREEN")"
+else
+    ok "and not a key the ][+ does not have"
+fi
 fi
 fi
 
