@@ -76,16 +76,8 @@ SPLMID       ldy   #$00
 *--- row for each line, in the same order as SPLPTR
 SPLROW       dfb   10,12,14,20,21
 
-SPLNAME      asc   "ZipEdit"
-             dfb   $00
-SPLVER       asc   "Version 1.3"
-             dfb   $00
-SPLDATE      asc   "August, 2026"
-             dfb   $00
 *--- SPLHELP names a key, so it lives with the keymap: see keysiie.S and
 *    keys2p.S. Both builds share this file; they do not share that binding.
-SPLGO        asc   "press any key to continue"
-             dfb   $00
 
              dum   $1440            ; $1400-$143F are taken; see design.md
 SPLI         ds    1                ; which line is being drawn

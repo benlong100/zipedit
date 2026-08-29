@@ -12,6 +12,56 @@ lives here as text and the hex is generated from it.
 Column stops are enforced: a description that would overrun the border is an
 assertion failure here rather than a mangled row on the machine.
 """
+
+import sys, re, pathlib
+
+# --------------------------------------------------------------- translation
+# Every human-readable string below goes through T(). With no --lang it is the
+# identity, so English is what it always was. With one, the string is looked up
+# in lang/<code>.txt and a miss is a build failure rather than an English word
+# left sitting in the middle of a Slovenian screen.
+_LANG = None
+for _i, _a in enumerate(sys.argv):
+    if _a == "--lang" and _i + 1 < len(sys.argv):
+        _LANG = sys.argv[_i + 1]
+
+_MAP, _MISSED = {}, []
+if _LANG and _LANG != "en":
+    _p = pathlib.Path(f"lang/{_LANG}.txt")
+    if not _p.exists():
+        sys.exit(f"genhelp: no {_p}")
+    for _n, _line in enumerate(_p.read_text(encoding="utf-8").splitlines(), 1):
+        _m = re.match(r'^HELP\s+"(.*?)"\s*=\s*"(.*)"\s*$', _line.strip())
+        if _m:
+            _MAP[_m.group(1)] = _m.group(2)
+
+# The screen has no glyph for these, so they travel as the codes YUSCII gives
+# them -- but NOT as those characters here. This file already uses | = ~ and @
+# as its own markup for the box: | is a vertical, = and ~ are rules, and @ is
+# the Open Apple glyph in a key name. A Slovenian c with a caron written as ~
+# came out as a MouseText rule in the middle of a word.
+#
+# So the letters travel as sentinels no text can contain, and encode() turns
+# them into screen codes at the last moment. The screen codes are the YUSCII
+# ones from tools/genlang.py; only the route is different.
+_XLAT = {"Ž": "\x11", "Č": "\x12", "š": "\x13",
+         "č": "\x14", "Š": "\x15", "ž": "\x16"}
+
+# sentinel -> the byte that goes on the screen (the YUSCII code, bit 7 set)
+_SCREEN = {"\x11": 0xC0, "\x12": 0xDE, "\x13": 0xFB,
+           "\x14": 0xFE, "\x15": 0xDC, "\x16": 0xFC}
+
+def T(text):
+    if not _LANG or _LANG == "en":
+        return text
+    if text not in _MAP:
+        _MISSED.append(text)
+        return text
+    out = _MAP[text]
+    for _k, _v in _XLAT.items():
+        out = out.replace(_k, _v)
+    return out
+
 W = 62            # interior width, between the two verticals
 LH, LK, LD = 1, 3, 16     # left header / key / description columns
 RH, RK, RD = 32, 34, 43   # right header / key / description columns
@@ -69,53 +119,53 @@ def page(left, right):
         lines.append(row(cells))
     return lines
 
-P1L = [header("MOVING", "L"),
-       entry("arrows",   "char / line",     "L"),
-       entry("@-arrows", "word / page",     "L"),
-       entry("Ctrl-A",   "line start",      "L"),
-       entry("Ctrl-E",   "line end",        "L"),
-       entry("@-<  @->", "doc start/end",   "L"),
+P1L = [header(T("MOVING"), "L"),
+       entry("arrows", T("char / line"),     "L"),
+       entry("@-arrows", T("word / page"),     "L"),
+       entry("Ctrl-A", T("line start"),      "L"),
+       entry("Ctrl-E", T("line end"),        "L"),
+       entry("@-<  @->", T("doc start/end"),   "L"),
        None,
-       header("SELECTING", "L"),
-       entry("@-space",  "start selecting", "L"),
-       entry("arrows",   "paint",           "L"),
-       entry("Esc",      "cancel",          "L")]
-P1R = [header("EDITING", "R"),
-       entry("Delete", "delete left",        "R"),
-       entry("Ctrl-D", "delete right",       "R"),
-       entry("Ctrl-Y", "delete to line end", "R"),
-       entry("Tab",    "indent two spaces",  "R"),
-       entry("@-R",      "reflow paragraph", "R"),
-       entry("@-Delete", "delete word left", "R")]
+       header(T("SELECTING"), "L"),
+       entry("@-space", T("start selecting"), "L"),
+       entry("arrows", T("paint"),           "L"),
+       entry("Esc", T("cancel"),          "L")]
+P1R = [header(T("EDITING"), "R"),
+       entry("Delete", T("delete left"),        "R"),
+       entry("Ctrl-D", T("delete right"),       "R"),
+       entry("Ctrl-Y", T("delete to line end"), "R"),
+       entry("Tab", T("indent two spaces"),  "R"),
+       entry("@-R", T("reflow paragraph"), "R"),
+       entry("@-Delete", T("delete word left"), "R")]
 
-P2L = [header("MARKDOWN", "L"),
-       entry("Ctrl-B", "**bold** word", "L"),
-       entry("Ctrl-I", "*italic* word", "L"),
-       entry("@-'", "`code` marker", "L"),
+P2L = [header(T("MARKDOWN"), "L"),
+       entry("Ctrl-B", T("**bold** word"), "L"),
+       entry("Ctrl-I", T("*italic* word"), "L"),
+       entry("@-'", T("`code` marker"), "L"),
        None,                        # SEARCH gained a row; keep the headers level
-       header("CLIPBOARD", "L"),
-       entry("@-C", "copy",  "L"),
-       entry("@-X", "cut",   "L"),
-       entry("@-V", "paste", "L")]
-P2R = [header("SEARCH", "R"),
-       entry("@-F @-G",  "find / again", "R"),
-       entry("@-L",      "go to line",   "R"),
-       entry("@-W",      "word count",   "R"),
+       header(T("CLIPBOARD"), "L"),
+       entry("@-C", T("copy"),  "L"),
+       entry("@-X", T("cut"),   "L"),
+       entry("@-V", T("paste"), "L")]
+P2R = [header(T("SEARCH"), "R"),
+       entry("@-F @-G", T("find / again"), "R"),
+       entry("@-L", T("go to line"),   "R"),
+       entry("@-W", T("word count"),   "R"),
        None,
-       header("FILES", "R"),
-       entry("@-N", "new",  "R"),
-       entry("@-O", "open", "R"),
-       entry("@-S", "save",    "R"),
-       entry("@-A", "save as", "R"),
-       entry("@-Q", "quit", "R"),
+       header(T("FILES"), "R"),
+       entry("@-N", T("new"),  "R"),
+       entry("@-O", T("open"), "R"),
+       entry("@-S", T("save"),    "R"),
+       entry("@-A", T("save as"), "R"),
+       entry("@-Q", T("quit"), "R"),
        None,
-       header("SCREEN", "R"),
-       entry("@-/", "cheat sheet", "R"),
-       entry("@-?", "this help",   "R")]
+       header(T("SCREEN"), "R"),
+       entry("@-/", T("cheat sheet"), "R"),
+       entry("@-?", T("this help"),   "R")]
 
-TITLE  = "MARKDOWN EDITOR FOR THE APPLE //e  --  KEYBOARD COMMANDS"
-FOOT1  = "press any key for more   --   page 1 of 2"
-FOOT2  = "press any key to return   --   page 2 of 2"
+TITLE  = T("MARKDOWN EDITOR FOR THE APPLE //e  --  KEYBOARD COMMANDS")
+FOOT1  = T("press any key for more   --   page 1 of 2")
+FOOT2  = T("press any key to return   --   page 2 of 2")
 
 def centre(t):
     return row([((W - len(t)) // 2, t)])
@@ -158,6 +208,7 @@ def build(content, foot):
 
 def encode(line):
     m = {"|": 0x5F, "~": 0x5C, "=": 0x4C, "@": 0x41}
+    m.update(_SCREEN)
     return bytes(m.get(c, ord(c) + 0x80) for c in line)
 
 pages = [build(page(P1L, P1R), FOOT1), build(page(P2L, P2R), FOOT2)]
@@ -205,50 +256,50 @@ def h40(text):
     return [(0, text)]
 
 P1_40 = [
-    h40("MOVING"),
-    e40("arrows", "char left/right"),
-    e40("ctrl-j k", "line up/down"),
-    e40("ctrl-a e", "line start/end"),
-    e40("esc + key", "word or page"),
-    e40("esc < >", "top/end of doc"),
+    h40(T("MOVING")),
+    e40("arrows", T("char left/right")),
+    e40("ctrl-j k", T("line up/down")),
+    e40("ctrl-a e", T("line start/end")),
+    e40("esc + key", T("word or page")),
+    e40("esc < >", T("top/end of doc")),
     None,
-    h40("EDITING"),
-    e40("ctrl-z d", "delete left/right"),
-    e40("ctrl-y", "to end of line"),
-    e40("esc z", "delete word"),
-    e40("ctrl-b i", "bold / italic"),
-    e40("esc '", "`code` marker"),
-    e40("tab", "indent"),
-    e40("ctrl-r", "reflow para"),
-    h40("SELECTING"),
-    e40("ctrl-t", "start, arrows paint"),
-    e40("esc", "cancel"),
+    h40(T("EDITING")),
+    e40("ctrl-z d", T("delete left/right")),
+    e40("ctrl-y", T("to end of line")),
+    e40("esc z", T("delete word")),
+    e40("ctrl-b i", T("bold / italic")),
+    e40("esc '", T("`code` marker")),
+    e40("tab", T("indent")),
+    e40("ctrl-r", T("reflow para")),
+    h40(T("SELECTING")),
+    e40("ctrl-t", T("start, arrows paint")),
+    e40("esc", T("cancel")),
 ]
 
 P2_40 = [
-    h40("CLIPBOARD"),
-    e40("ctrl-c", "copy"),
-    e40("ctrl-x", "cut"),
-    e40("ctrl-v", "paste"),
+    h40(T("CLIPBOARD")),
+    e40("ctrl-c", T("copy")),
+    e40("ctrl-x", T("cut")),
+    e40("ctrl-v", T("paste")),
     None,
-    h40("FILES"),
-    e40("ctrl-s", "save"),
-    e40("esc a", "save as"),
-    e40("ctrl-o", "open"),
-    e40("ctrl-n", "new"),
-    e40("ctrl-q", "quit"),
+    h40(T("FILES")),
+    e40("ctrl-s", T("save")),
+    e40("esc a", T("save as")),
+    e40("ctrl-o", T("open")),
+    e40("ctrl-n", T("new")),
+    e40("ctrl-q", T("quit")),
     None,
-    h40("SEARCH"),
-    e40("ctrl-f", "find"),
-    e40("ctrl-g", "find again"),
-    e40("ctrl-l", "go to line"),
-    e40("ctrl-w", "word count"),
-    e40("ctrl-p", "this help, or esc ?"),
+    h40(T("SEARCH")),
+    e40("ctrl-f", T("find")),
+    e40("ctrl-g", T("find again")),
+    e40("ctrl-l", T("go to line")),
+    e40("ctrl-w", T("word count")),
+    e40("ctrl-p", T("this help, or esc ?")),
 ]
 
-TITLE40 = "zipedit -- commands"
-F1_40   = "any key for more    1 of 2"
-F2_40   = "any key to return   2 of 2"
+TITLE40 = T("zipedit -- commands")
+F1_40   = T("any key for more    1 of 2")
+F2_40   = T("any key to return   2 of 2")
 
 def centre40(t):
     return row([((W40 - len(t)) // 2, t)], W40)
@@ -266,7 +317,7 @@ def build40(content, foot):
     return out
 
 def encode40(line):
-    return bytes(ord(c) + 0x80 for c in line)
+    return bytes(_SCREEN.get(c, ord(c) + 0x80) for c in line)
 
 def tables40():
     pages = [build40(P1_40, F1_40), build40(P2_40, F2_40)]
@@ -285,8 +336,7 @@ def tables40():
             out.append("             dfb   $00")
     return "\n".join(out) + "\n"
 
-import sys, pathlib
-
+import sys
 # --check <file>: is the generated table in that file the one this layout
 # produces? src/help.S is generated but committed, so it can fall behind the
 # layout silently -- which is exactly what happened to the OA-Delete row: it
@@ -309,8 +359,15 @@ if "--check" in sys.argv:
     sys.exit(f"{target} is out of date -- regenerate it with:\n"
              f"    python3 tools/genhelp.py {'--40 ' if '--40' in sys.argv else ''}")
 
+def _check():
+    if _MISSED:
+        sys.exit("genhelp: lang/%s.txt has no HELP line for:\n  %s"
+                 % (_LANG, "\n  ".join(sorted(set(_MISSED)))))
+
 if "--40" in sys.argv:
-    print(tables40(), end="")
+    _out = tables40()
+    _check()
+    print(_out, end="")
     sys.exit(0)
 
 if "--preview" in sys.argv:
@@ -318,4 +375,6 @@ if "--preview" in sys.argv:
         print(f"--- page {n} ---")
         for r in p: print(r)
 else:
-    print(tables(), end="")
+    _out = tables()
+    _check()
+    print(_out, end="")

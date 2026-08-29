@@ -1,0 +1,87 @@
+# ZipEdit -- every word the editor puts on the screen, in English.
+#
+# This is the file a translation starts from. Copy it, translate the strings,
+# and build with `make LANG=<code>`. tools/genlang.py turns it into assembly;
+# nothing else has to change, and a fix to the editor is a fix to every
+# language at once.
+#
+# RULES
+#
+# - Keep the names. They are what the code refers to. A renamed one assembles
+#   perfectly and then never appears.
+# - Trailing spaces are inside the quotes and they matter: a prompt ends in a
+#   space because the typed text follows it immediately.
+# - MSGERR ends in "$" because a hexadecimal error code is appended to it.
+# - {OA} is the Open Apple glyph. It exists only on an Enhanced //e.
+# - The status rows are LAYOUTS. See the note above STATTXT.
+
+# ---------------------------------------------------------------- the document
+# The name a document has before it is saved. It becomes a real filename if
+# the writer saves without naming it, so ProDOS's rules apply: up to fifteen
+# characters, a letter first, letters digits and full stops only.
+UNTITLED = "UNTITLED.MD"
+
+# ------------------------------------------------------------- the cheat sheet
+# One line of Markdown reminders, on OA-/. Most of this is Markdown syntax and
+# does not translate -- the words between the marks do. It is clipped at the
+# screen edge, so keep it under 80 characters.
+CHEATTXT = "`code` # H1 ## H2 - list 1. num - [ ] todo - [x] done > quote [link](url) ---"
+
+# --------------------------------------------------------------- the status row
+# Exactly 80 characters, and a layout rather than a sentence: the filename, the
+# line and column numbers and the free-memory figure are written OVER this at
+# fixed columns taken from src/geom.S. A label that runs long does not push the
+# next one along, it overwrites it. genlang.py checks the total width; it
+# cannot check that you left room in the right places.
+#
+#   col  1   the filename, up to 15 characters, and a modified marker
+#   col 38   the line number goes after this label
+#   col 45   the column number
+#   col 52   the free-memory figure, then its word
+#   col 64   the help hint
+STATTXT = " UNTITLED.MD                          L:     C:     46K FREE    {OA}-? HELP        "
+
+# And at 40 columns, where the free-memory figure and the help hint do not fit
+# and are not missed. Exactly 40 characters.
+STATTXT40 = " UNTITLED.MD     L:    C:               "
+
+# ------------------------------------------------------------------- the files
+MSGSAVING = "-- SAVING --"
+MSGLOADING = "-- LOADING --"
+MSGSAVE = "SAVE AS: "
+MSGOPEN = "OPEN: "
+MSGERR = " PRODOS ERROR $"
+HINTESC = "ESC CANCELS"
+
+# ----------------------------------------------------------------- the editing
+MSGFIND = "FIND: "
+MSGGOTO = "GO TO LINE: "
+MSGNOTFND = " NOT FOUND"
+MSGCOPIED = " LINE COPIED"
+
+# The tail of the word count: one for exactly 1, one for everything else.
+# A language with more number forms than that -- Slovenian has four -- needs
+# the code in src/edit_ops.S changed, not just these two strings.
+WTAIL1 = " WORD"
+WTAIL = " WORDS"
+
+# ------------------------------------------------------------------- the guard
+# Shown when something would throw away unsaved work. It has to name three
+# keys, and the keys themselves are not translated: they are what the writer
+# presses. The 40-column version is a separate string rather than a truncation,
+# because there is no way to shorten the long one that leaves it readable.
+MSGUNSAVED = " UNSAVED CHANGES.  S = SAVE FIRST   D = DISCARD   ESC = CANCEL"
+MSGUNSV40 = " Save first?  S save  D discard  Esc"
+
+# ------------------------------------------------------------------ the splash
+# Centred by measuring the string, so a translation may be any length.
+SPLNAME = "ZipEdit"
+SPLVER = "Version 1.3"
+SPLDATE = "August, 2026"
+SPLGO = "press any key to continue"
+
+# The help hint names a key, so there is one per KEYBOARD rather than one per
+# language alone: a ][+ has no Open Apple key at all. Both are built; the
+# keymap files pick.
+SPLHELPOA = "{OA}-? to get help"
+SPLHELPESC = "Esc-? to get help"

@@ -8,8 +8,40 @@
 #   make clean
 
 VERSION := 1.3
+
+# Which language the editor speaks. Every word it puts on the screen lives in
+# src/lang_$(LANG).S, which is copied to src/lang.S -- the file the three
+# builds actually `put`. Merlin has no way to choose an include at assembly
+# time, so the choice is made here, with a copy.
+#
+#   make            English
+#   make LANG=sl    Slovenian
+# LANG is also the shell's locale variable, and it is virtually always set --
+# so `LANG ?= en` never fires and a plain `make` went looking for
+# src/lang_en_US.UTF-8.S. A value that came from the ENVIRONMENT is a locale
+# and means nothing here; one given on the command line is a real choice, and
+# make ranks a command-line assignment above the environment either way.
+ifeq ($(origin LANG),environment)
+LANG    := en
+endif
+LANG    ?= en
+LANGTXT := lang/$(LANG).txt
+LANGUP  := $(shell echo $(LANG) | tr a-z A-Z)
+# A 40-column source needs the 40-column help pages. The ][+ rule passes --40
+# outright; this covers `make SRC=src/edit40.S`, the 40-column //e.
+ifeq ($(SRC),src/edit40.S)
+HELP40  := --40
+endif
+
+ifeq ($(LANG),en)
+LANGARG :=
+else
+LANGARG := --lang $(LANG)
+endif
+
 SRC     ?= src/edit.S
 NAME    ?= ZIPEDIT.SYSTEM
+NAME2P  := ZIPEDIT2P.SYSTEM
 BUILD   := build
 DOCS    ?= notes
 TOOLS   := tools
@@ -19,16 +51,29 @@ ASMINC  := $(TOOLS)/asminc
 AC      := $(TOOLS)/ac
 VII     := $(TOOLS)/vii.sh
 
+ifeq ($(LANG),en)
 BIN     := $(BUILD)/$(NAME)
+BIN2P   := $(BUILD)/$(NAME2P)
+else
+BIN     := $(BUILD)/$(LANGUP)-$(NAME)
+BIN2P   := $(BUILD)/$(LANGUP)-$(NAME2P)
+endif
+
+# English keeps the plain image name, so every existing command and the whole
+# suite go on meaning what they meant. Another language gets its own, and the
+# two can sit side by side in build/.
+ifeq ($(LANG),en)
 IMAGE   := $(BUILD)/ZIPEDIT.po
+IMG2P   := $(BUILD)/ZIPEDIT2P-REL.po
+else
+IMAGE   := $(BUILD)/ZIPEDIT-$(LANGUP).po
+IMG2P   := $(BUILD)/ZIPEDIT2P-$(LANGUP).po
+endif
 
 # The Apple ][+ build. Same editor, 40 columns, text buffer in main memory,
 # no Open-Apple key. It writes its own SYS name, so it can sit beside the //e
 # build in build/ and on a card without either being mistaken for the other.
 SRC2P   := src/edit2p.S
-NAME2P  := ZIPEDIT2P.SYSTEM
-BIN2P   := $(BUILD)/$(NAME2P)
-IMG2P   := $(BUILD)/ZIPEDIT2P-REL.po
 # On the disk it is ZIPEDIT.SYSTEM, as on the //e: it is the same program and
 # the machine it is for is not the writer's business. It also has to be --
 # a ProDOS filename stops at 15 characters and ZIPEDIT2P.SYSTEM is 16, so it
@@ -37,7 +82,7 @@ IMG2P   := $(BUILD)/ZIPEDIT2P-REL.po
 # builds apart on the card.
 SYS2P   := ZIPEDIT.SYSTEM
 
-.PHONY: all disk run screen test clean tools pull push eject release probe card plaindisk twodisk checkhelp keyprobe two release2p card2p dist
+.PHONY: all disk run screen test clean tools pull push eject release probe card plaindisk twodisk keyprobe two release2p card2p dist
 
 all: $(BIN)
 
@@ -46,7 +91,9 @@ all: $(BIN)
 SOURCES := $(wildcard src/*.S)
 
 # Merlin32 writes its object next to the source, named by the `dsk` directive.
-$(BIN): $(SOURCES) | $(BUILD)
+$(BIN): $(SOURCES) $(LANGTXT) $(TOOLS)/genlang.py $(TOOLS)/genhelp.py | $(BUILD)
+	@python3 $(TOOLS)/genlang.py $(LANGTXT) > src/lang.S
+	@python3 $(TOOLS)/genhelp.py $(HELP40) $(LANGARG) > src/helpdata.S
 	@$(MERLIN) $(ASMINC) $(SRC) > $(BUILD)/merlin32.log 2>&1 || \
 		{ echo "--- Merlin32 failed ---"; cat $(BUILD)/merlin32.log; exit 1; }
 	@grep -iE '^\s+(Error|Warning)' $(BUILD)/merlin32.log && exit 1 || true
@@ -78,17 +125,10 @@ screen:
 
 # SAMPLE.MD is the suite's fixture and lives on the image, so a test that saves
 # can overwrite it. Put a fresh copy back before every run.
-test: $(IMAGE) plaindisk twodisk checkhelp
+test: $(IMAGE) plaindisk twodisk
 	@$(TOOLS)/xfer.sh push $(IMAGE) tests >/dev/null
 	@python3 $(TOOLS)/asciifixtures.py $(IMAGE) >/dev/null
 	@tests/run.sh "$(SECTION)"
-
-# src/help.S is generated but committed, so it can fall behind tools/genhelp.py
-# without anything noticing -- which is how the OA-Delete row went missing from
-# the shipped help screen. This makes that a build failure.
-checkhelp:
-	@python3 $(TOOLS)/genhelp.py --check src/helpdata80.S
-	@python3 $(TOOLS)/genhelp.py --check --40 src/helpdata40.S
 
 # A second image whose editor is patched to draw the original //e's glyphs.
 # Virtual ][ has no unenhanced //e, so this is how that path gets tested.
@@ -120,10 +160,10 @@ eject:
 	@echo "ejected"
 
 pull: eject
-	@$(TOOLS)/xfer.sh pull $(IMAGE) $(DOCS)
+	@XLANG=$(LANG) $(TOOLS)/xfer.sh pull $(IMAGE) $(DOCS)
 
 push:
-	@$(TOOLS)/xfer.sh push $(IMAGE) $(DOCS)
+	@XLANG=$(LANG) $(TOOLS)/xfer.sh push $(IMAGE) $(DOCS)
 
 # A standalone probe disk for real hardware: identifies the ROM and dumps the
 # $40-$5F glyphs, so the character set can be checked on the actual machine
@@ -162,7 +202,9 @@ card: release
 # --- the Apple ][+ ------------------------------------------------------
 two: $(BIN2P)
 
-$(BIN2P): $(SOURCES) | $(BUILD)
+$(BIN2P): $(SOURCES) $(LANGTXT) $(TOOLS)/genlang.py $(TOOLS)/genhelp.py | $(BUILD)
+	@python3 $(TOOLS)/genlang.py $(LANGTXT) > src/lang.S
+	@python3 $(TOOLS)/genhelp.py --40 $(LANGARG) > src/helpdata.S
 	@$(MERLIN) $(ASMINC) $(SRC2P) > $(BUILD)/merlin32-2p.log 2>&1 || \
 		{ echo "--- Merlin32 failed ---"; cat $(BUILD)/merlin32-2p.log; exit 1; }
 	@grep -iE '^\s+(Error|Warning)' $(BUILD)/merlin32-2p.log && exit 1 || true

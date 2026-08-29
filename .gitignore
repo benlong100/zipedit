@@ -17,3 +17,6 @@ notes/
 web assets/
 web/
 tools/mksite.py
+src/lang.S
+src/lang_*.S
+src/helpdata.S

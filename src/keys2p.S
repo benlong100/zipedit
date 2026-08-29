@@ -205,5 +205,4 @@ ESCTBL
 * have. Ctrl-P is the single keystroke here, but Esc-? is the one a hand
 * trained on the //e reaches for, and it is the one worth advertising.
 *--------------------------------------
-SPLHELP      asc   "Esc-? to get help"
-             dfb   $00
+SPLHELP      equ   SPLHELPESC         ; the wording lives in lang_*.S

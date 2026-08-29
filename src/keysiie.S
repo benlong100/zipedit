@@ -129,6 +129,4 @@ KEYTBL
 * on THIS machine, so it belongs with the keymap and not in splash.S, which
 * every build shares. edit40.S is 40 columns but still a //e, and takes this.
 *--------------------------------------
-SPLHELP      dfb   $41,$ad,$bf      ; Open Apple glyph, "-", "?"
-             asc   " to get help"
-             dfb   $00
+SPLHELP      equ   SPLHELPOA         ; the wording lives in lang_*.S

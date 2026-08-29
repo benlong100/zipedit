@@ -144,7 +144,9 @@ NAMEW        equ   32               ; columns for it. FNAME holds a whole
                                     ; too narrow for /VOLUME/FILE.MD and the
                                     ; star fell off the end. The status row is
                                     ; free up to column 37, where L: begins.
-UNTLEN       equ   11               ; length of the UNTITLED.MD placeholder
+*--- UNTLEN, the length of the UNTITLED placeholder, is EQU'd by the
+*    generated src/lang.S: it is a property of that string and has to
+*    follow it into another language.
 PHINTCOL     equ   66               ; where the prompt shows its escape hint
 PMAXLEN      equ   45               ; input length, capped so it cannot run
                                     ; over the hint at PHINTCOL

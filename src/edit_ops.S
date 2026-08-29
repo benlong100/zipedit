@@ -432,10 +432,6 @@ KWORDS       lda   #$00
              sta   STRPTR+1
              jmp   SHOWMSG
 
-WTAIL        asc   " WORDS"
-             dfb   $00
-WTAIL1       asc   " WORD"
-             dfb   $00
 TENLO        dfb   $10,$e8,$64,$0a,$01
 TENHI        dfb   $27,$03,$00,$00,$00
 
@@ -597,14 +593,6 @@ KITALIC      lda   #$aa             ; '*' -- one for italic, two for bold
              ldx   #$01
              jmp   EMPHASIS
 
-MSGFIND      asc   "FIND: "
-             dfb   $00
-MSGGOTO      asc   "GO TO LINE: "
-             dfb   $00
-MSGNOTFND    asc   " NOT FOUND"
-             dfb   $00
-MSGCOPIED    asc   " LINE COPIED"
-             dfb   $00
 
              dum   $1400
 NUMVAL       ds    2                ; parsed line number

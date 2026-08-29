@@ -94,6 +94,19 @@ make a fence. The ][+ spells it `Esc '`, and draws it as an apostrophe because
 that character generator has no glyph for it. `$89` is both Tab and Ctrl-I and dispatches on
 position -- see `docs/design.md`.
 
+## Languages
+
+`make LANG=sl` builds Slovenian; plain `make` builds English and is unchanged.
+The strings live in `lang/<code>.txt` -- one file per language, editable by
+somebody who does not read assembly -- and `tools/genlang.py` and
+`tools/genhelp.py` turn them into `src/lang.S` and `src/helpdata.S` on every
+build. Neither generated file is committed.
+
+The //e has no glyph for `č š ž Č Š Ž`, so they are stored as the codes YUSCII
+gives them and turned back into UTF-8 by `tools/xfer.sh` on the way to the Mac.
+`docs/design.md` §10 has the mapping and the two places it deviates from YUSCII,
+both of which are Markdown collisions.
+
 ## Testing
 
 `tests/run.sh` boots the built image in Virtual ][ and asserts against both the
@@ -140,6 +153,16 @@ detection itself still needs real hardware.
 
 ## Gotchas discovered the hard way
 
+- **`LANG` is the shell's locale variable**, set in nearly every environment,
+  so `LANG ?= en` in a Makefile never fires. `$(origin LANG)` separates a value
+  that came from the environment (a locale, meaningless here) from one given on
+  the command line (a real choice). Without that, a plain `make` went looking
+  for `src/lang_en_US.UTF-8.S`.
+- **The help screen's own markup owns `| = ~ @`.** In `tools/genhelp.py` those
+  are the vertical, the two rules and the Open Apple glyph. Any text passing
+  through it -- a translation especially -- must not contain them literally, or
+  a letter comes out as a length of MouseText. Localised strings travel as
+  sentinels and become screen codes in `encode()`.
 - `reset` in AppleScript is a *warm* reset and will not reboot from disk. Use
   `restart` for a cold boot.
 - `tools/mkdisk.sh` clones the verified ProDOS image rather than formatting a
@@ -160,6 +183,15 @@ detection itself still needs real hardware.
   changing its size, the file and the image are the same length and nothing
   looks wrong until the `toolchain` section compares them. `mkdisk.sh` ejects
   the image first now.
+- **Run the suite with `make test`, never `bash tests/run.sh` directly.** The
+  files the suite opens -- `SAMPLE.MD`, and the `LFONLY.TXT` / `CRLFTXT.TXT` /
+  `HIGHCR.TXT` fixtures `tools/asciifixtures.py` writes -- live ON the image,
+  and `mkdisk.sh` strips it back to `PRODOS` plus the editor. So any rebuild
+  wipes them, and the `test` target exists to put them back before the run.
+  Skipping it gives 14 failures across "text from other machines" and the tab
+  and long-line sections, every one reported as `PRODOS ERROR $46` -- the
+  editor correctly saying the file is not there. It reads like a file-loading
+  regression and is an empty disk. Pass a section with `make test SECTION="..."`.
 - **Only one test run at a time.** There is one front machine, so a second run
   or a stray `boot` steers it out from under the first, and the failures land
   in sections nothing touched. `tests/run.sh` takes a lock.

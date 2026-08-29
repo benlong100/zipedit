@@ -267,13 +267,9 @@ ASKUNSAVED   lda   MODFLAG
              clc
              rts
 
-MSGUNSAVED   asc   " UNSAVED CHANGES.  S = SAVE FIRST   D = DISCARD   ESC = CANCEL"
-             dfb   $00
 
 *--- Sixty-three columns of it will not fit on forty. The keys stay the same
 *    letters, so the habit carries over; only the words are shorter.
-MSGUNSV40    asc   " Save first?  S save  D discard  Esc"
-             dfb   $00
 
 *--------------------------------------
 * KQUIT -- hand control back to ProDOS, but not over unsaved work

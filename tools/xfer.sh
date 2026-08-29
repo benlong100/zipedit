@@ -64,9 +64,18 @@ pull)
         out="$DIR/$(echo "$name" | tr 'A-Z' 'a-z')"
         case "$out" in *.md|*.markdown) ;; *) out="$out.md" ;; esac
         python3 -c '
-import sys
+import sys, os
 raw = open(sys.argv[1],"rb").read()
 text = "".join(chr(b & 0x7F) for b in raw).replace("\r","\n")
+# The //e has no glyph for a caron, so six letters travel as the ASCII codes
+# YUSCII gives them and become themselves again here. This is the whole reason
+# a file written on the Apple arrives properly spelt -- see tools/genlang.py.
+# Only for a language that needs it: doing it to an English file would turn
+# every @ into a Z with a caron.
+if os.environ.get("XLANG") == "sl":
+    for code, letter in (("@","\u017d"), ("^","\u010c"), ("{","\u0161"),
+                         ("~","\u010d"), ("\\","\u0160"), ("|","\u017e")):
+        text = text.replace(code, letter)
 open(sys.argv[2],"w",encoding="utf-8").write(text)
 ' "$DIR/.raw.$$" "$out"
         rm -f "$DIR/.raw.$$"
@@ -99,8 +108,15 @@ push)
         base="$(printf '%s' "$(basename "${f%.*}")" | tr 'a-z' 'A-Z' | tr -c 'A-Z0-9.' '.')"
         name="$(printf '%s' "$base" | cut -c1-12).MD"
         python3 -c '
-import sys
+import sys, os
 text = open(sys.argv[1],encoding="utf-8").read().replace("\n","\r")
+# The reverse of the pull. Done BEFORE the high bit goes on and before
+# non-ASCII is dropped -- otherwise these six letters are silently deleted on
+# the way to the machine, which is how a file loses every word with a caron.
+if os.environ.get("XLANG") == "sl":
+    for letter, code in (("\u017d","@"), ("\u010c","^"), ("\u0161","{"),
+                         ("\u010d","~"), ("\u0160","\\"), ("\u017e","|")):
+        text = text.replace(letter, code)
 sys.stdout.buffer.write(bytes((ord(c) | 0x80) & 0xFF for c in text if ord(c) < 128))
 ' "$f" > "/tmp/.push.$$"
         "$AC" -d "$IMAGE" "$name" 2>/dev/null || true

@@ -1,0 +1,158 @@
+# ZipEdit v slovenščini.
+#
+# TRANSLATED BY A MACHINE AND NOT YET BY A SPEAKER. Written to be corrected:
+# the shape is right, the wording wants a Slovenian eye. Notes on the places
+# most likely to be wrong are marked TODO below.
+#
+# Write real Slovenian here -- š, č, ž and all. The //e has no glyph for any
+# of them, so tools/genlang.py transliterates on the way into the assembler
+# and tools/xfer.sh turns them back into UTF-8 on the way to the Mac. You
+# should never have to think about that; if you find yourself typing a { to
+# mean an š, something has gone wrong and it is a bug in the tools.
+#
+# Rules, same as lang/en.txt: keep the names, mind the trailing spaces inside
+# the quotes, and the two status rows are LAYOUTS whose columns must line up.
+
+# ---------------------------------------------------------------- the document
+# Becomes a real ProDOS filename if the writer saves without naming the file,
+# so: fifteen characters at most, a letter first, and no accented letters --
+# ProDOS would not keep them and the disk is read by other programs.
+UNTITLED = "BREZNASLOVA.MD"
+
+# ------------------------------------------------------------- the cheat sheet
+# Markdown syntax, which does not translate; only the words between the marks
+# do. Under 80 characters or the screen clips it.
+CHEATTXT = "`koda` # H1 ## H2 - seznam 1. št. - [ ] opraviti - [x] končano > citat [link](url)"
+
+# --------------------------------------------------------------- the status row
+# Exactly 80 characters, and the labels must stay at these columns because the
+# numbers are written over the row at fixed positions:
+#   col 38  L:   col 45  C:   col 52  free memory   col 64  the help hint
+# "L:" and "C:" are left as they are: they are read as abbreviations for the
+# line and column numbers beside them, and a longer pair would not fit.
+STATTXT = " BREZNASLOVA.MD                          V:     S:     46K PROSTO  {OA}-? POMOČ       "
+
+STATTXT40 = " BREZNASLOVA.MD     V:    S:               "
+
+# ------------------------------------------------------------------- the files
+MSGSAVING = "-- SHRANJUJEM --"
+MSGLOADING = "-- NALAGAM --"
+MSGSAVE = "SHRANI KOT: "
+MSGOPEN = "ODPRI: "
+MSGERR = " NAPAKA PRODOS $"
+HINTESC = "ESC PREKLIČI"
+
+# ----------------------------------------------------------------- the editing
+MSGFIND = "POIŠČI: "
+MSGGOTO = "NAJDI VRSTICO: "
+MSGNOTFND = " NE NAJDEM"
+MSGCOPIED = " VRSTICA KOPIRANA"
+
+# TODO -- the word count is wrong in Slovenian and the strings cannot fix it.
+# Slovenian counts in four forms: 1 beseda, 2 besedi, 3-4 besede, 5+ besed.
+# The editor has only two, singular and plural, so "2 BESED" and "3 BESED"
+# will both be wrong. Fixing it means changing src/edit_ops.S, not this file.
+# " BESED" is the form used with 5 and above, which is the commonest case.
+WTAIL1 = " BESEDA"
+WTAIL = " BESED"
+
+# ------------------------------------------------------------------- the guard
+# The key letters are NOT translated -- S, D and ESC are the keys the writer
+# presses, and renaming them here would name keys that do nothing. So the
+# Slovenian words are chosen to fit round them: Shrani, Discard -> Zavrzi.
+# TODO: D for "zavrzi" does not carry the mnemonic it does in English.
+MSGUNSAVED = " NESHRANJENE SPREMEMBE.  S = SHRANI   D = ZAVRZI   ESC = PREKLIČI"
+MSGUNSV40 = " Shranim?  S shrani  D zavrzi  Esc"
+
+# ------------------------------------------------------------------ the splash
+# The program's name is not translated.
+SPLNAME = "ZipEdit"
+SPLVER = "Različica 1.3 - avgust 2026"
+SPLDATE = "Ben Long, prevod Janez Starc"
+SPLGO = "pritisnite tipko za nadaljevanje"
+
+SPLHELPOA = "{OA}-? za pomoč"
+SPLHELPESC = "Esc-? za pomoč"
+
+# ------------------------------------------------------------- the help screen
+# HELP "english" = "slovensko". These are read by tools/genhelp.py, which draws
+# the two-page keyboard help; the KEY names on the left of each row (Ctrl-A,
+# OA-S and so on) are never translated, because they are what you press.
+#
+# Column stops are enforced. A description that runs past the border stops the
+# build rather than shipping a mangled screen, so if one of these is refused it
+# needs to be shorter, not the layout wider.
+#
+# TODO: reviewed by nobody who speaks Slovenian. Several of these are the
+# literal English and want a better idiom -- "paint" for extending a selection
+# especially.
+
+HELP "MARKDOWN EDITOR FOR THE APPLE //e  --  KEYBOARD COMMANDS" = "UREJEVALNIK MARKDOWN ZA APPLE //e  --  UKAZI"
+HELP "press any key for more   --   page 1 of 2" = "pritisni tipko za več   --   stran 1 od 2"
+HELP "press any key to return   --   page 2 of 2" = "pritisni tipko za izhod   --   stran 2 od 2"
+
+HELP "MOVING" = "PREMIKANJE"
+HELP "char / line" = "znak / vrstica"
+HELP "word / page" = "beseda / stran"
+HELP "line start" = "začetek vrstice"
+HELP "line end" = "konec vrstice"
+HELP "doc start/end" = "zač./konec dok."
+
+HELP "SELECTING" = "IZBIRANJE"
+HELP "start selecting" = "začni izbirati"
+HELP "paint" = "razširi izbor"
+HELP "cancel" = "prekliči"
+
+HELP "EDITING" = "UREJANJE"
+HELP "delete left" = "briši levo"
+HELP "delete right" = "briši desno"
+HELP "delete to line end" = "briši do kon. vrst."
+HELP "indent two spaces" = "zamik dva presled."
+HELP "reflow paragraph" = "preoblikuj odst."
+HELP "delete word left" = "briši besedo levo"
+
+HELP "MARKDOWN" = "MARKDOWN"
+HELP "**bold** word" = "**krepko** besedo"
+HELP "*italic* word" = "*ležeče* besedo"
+HELP "`code` marker" = "oznaka `koda`"
+
+HELP "CLIPBOARD" = "ODLOŽIŠČE"
+HELP "copy" = "kopiraj"
+HELP "cut" = "izreži"
+HELP "paste" = "prilepi"
+
+HELP "SEARCH" = "ISKANJE"
+HELP "find / again" = "poišči / znova"
+HELP "go to line" = "najdi vrstico"
+HELP "word count" = "štetje besed"
+
+HELP "FILES" = "DATOTEKA"
+HELP "new" = "nova"
+HELP "open" = "odpri"
+HELP "save" = "shrani"
+HELP "save as" = "shrani kot"
+HELP "quit" = "izhod"
+
+HELP "SCREEN" = "ZASLON"
+HELP "cheat sheet" = "pregled ukazov"
+HELP "this help" = "ta pomoč"
+
+# --- and the 40-column pages, which say the same things in less room
+HELP "zipedit -- commands" = "zipedit -- ukazi"
+HELP "any key for more    1 of 2" = "tipka za več     1 od 2"
+HELP "any key to return   2 of 2" = "tipka za izhod   2 od 2"
+HELP "char left/right" = "znak levo/desno"
+HELP "line up/down" = "vrstica gor/dol"
+HELP "line start/end" = "zač./konec vrstice"
+HELP "word or page" = "beseda ali stran"
+HELP "top/end of doc" = "vrh/konec dok."
+HELP "delete left/right" = "briši levo/desno"
+HELP "to end of line" = "briši do kon. vrst."
+HELP "delete word" = "briši besedo"
+HELP "bold / italic" = "krepko / ležeče"
+HELP "indent" = "zamik"
+HELP "reflow para" = "preoblikuj odst."
+HELP "start, arrows paint" = "razširi izbor"
+HELP "find" = "poišči"
+HELP "find again" = "poišči znova"
+HELP "this help, or esc ?" = "ta pomoč, ali esc ?"

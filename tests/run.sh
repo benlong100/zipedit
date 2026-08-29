@@ -13,6 +13,7 @@ IMAGE="${IMAGE:-$ROOT/build/ZIPEDIT.po}"
 BIN="${BIN:-$ROOT/build/ZIPEDIT.SYSTEM}"
 PLAINIMAGE="${PLAINIMAGE:-$ROOT/build/ZIPEDIT-PLAIN.po}"
 TWOIMAGE="${TWOIMAGE:-$ROOT/build/ZIPEDIT2P.po}"
+SLIMAGE="${SLIMAGE:-$ROOT/build/ZIPEDIT-SL.po}"
 
 # One suite at a time. Virtual ][ has exactly one front machine, so a second
 # run -- or a stray boot from another window -- steers the machine out from
@@ -2185,6 +2186,116 @@ else
     bad "four pastes add exactly four clipboards of text" \
         "document holds $PASTE_AFTER characters, expected $PASTE_WANT" \
         "(started at $PASTE_BEFORE, clipboard is $PASTE_N)"
+fi
+fi
+
+#--------------------------------------
+# Another language
+#
+# The editor is built from lang/<code>.txt, and this checks the one thing that
+# machinery is for: the words on screen change and nothing else does.
+#
+# It also checks the part that is easy to get wrong and impossible to see. The
+# //e has no glyph for c, s or z with a caron, so those six letters are stored
+# as the ASCII codes YUSCII gives them and turned back into UTF-8 on the way to
+# the Mac. On SCREEN they are the substitutes -- Razli~ica -- and a test that
+# only read the screen would pass just as happily if the file were spelt that
+# way too. So the round trip is checked against the bytes, not the display.
+#--------------------------------------
+if section "another language"; then
+if [ ! -f "$SLIMAGE" ]; then
+    bad "the Slovenian image exists" "no $SLIMAGE -- run: make LANG=sl disk"
+else
+"$VII" boot "$SLIMAGE" >/dev/null || { echo "boot failed"; exit 1; }
+"$VII" await "ZipEdit" 120 >/dev/null || bad "the Slovenian splash never appeared"
+"$VII" settle 3 >/dev/null
+snapshot
+
+# The name is not translated; everything round it is. ~ is c-with-a-caron.
+# The translator folded the date into the version line and spent the line it
+# freed on a credit, so row 14 is a name rather than a month.
+assert_centred "the version line is Slovenian"   12 "Razli~ica 1.3 - avgust 2026"
+assert_centred "and the translator is credited"  14 "Ben Long, prevod Janez Starc"
+assert_row     "and the prompt"                  21 "pritisnite tipko"
+
+"$VII" text " " >/dev/null
+"$VII" await "BREZNASLOVA.MD" 60 >/dev/null || bad "the Slovenian editor never opened"
+"$VII" caps false >/dev/null
+"$VII" settle 2 >/dev/null
+snapshot
+assert_row "the untitled document has a Slovenian name" 23 "BREZNASLOVA.MD"
+assert_row "and the status row is translated"           23 "PROSTO"
+
+# The labels are translated too -- V: vrstica, S: stolpec -- and this is the
+# assertion that matters, because the numbers are written OVER the row at the
+# columns in src/geom.S. A translation that renames a label may not move it:
+# the first edit that came back had a longer filename pushing both labels three
+# columns right, which genlang.py caught only as a width error. Asserting the
+# label against its digit catches it as what it is.
+assert_row "and its labels are still on their columns" 23 "V:1    S:1"
+
+# The help screen comes from the same language file, through a different
+# generator -- and that generator uses | = ~ and @ as its own box-drawing
+# markup, which is what a caron collided with the first time.
+"$VII" caps true >/dev/null
+"$VII" oa "?" >/dev/null
+"$VII" settle 3 >/dev/null
+snapshot
+assert_row "the help screen is Slovenian"         1 "UREJEVALNIK MARKDOWN"
+assert_row "its sections are translated"          4 "PREMIKANJE"
+assert_row "and a caron is a letter, not a rule"  7 "za~etek vrstice"
+# The rules are on rows 0 and 2, not on a content row -- MouseText $4C reads
+# back as "L". A content row carries only the two verticals, which read as "_".
+if sed -n '1p' "$SCREEN" | grep -q "LLLLLLLLLL"; then
+    ok "the box rule is still drawn"
+else
+    bad "the box rule is still drawn" "row 0: $(sed -n '1p' "$SCREEN")"
+fi
+if [ "$(sed -n '8p' "$SCREEN" | tr -cd '_' | wc -c | tr -d ' ')" = "2" ]; then
+    ok "and a translated row still has both verticals"
+else
+    bad "and a translated row still has both verticals" \
+        "row 7: $(sed -n '8p' "$SCREEN")"
+fi
+"$VII" text " " >/dev/null; "$VII" text " " >/dev/null
+"$VII" caps false >/dev/null; "$VII" settle 2 >/dev/null
+
+# And the bytes. A paragraph of Slovenian pushed to the image and pulled back
+# has to come out the same, which is the promise the substitution rests on.
+SLDIR="$ROOT/build/sltest"
+rm -rf "$SLDIR" && mkdir -p "$SLDIR"
+printf '# Naslov\n\nBesedilo z \305\276, \305\241 in \304\215.\nVelike: \305\275, \305\240, \304\214.\n' > "$SLDIR/proba.md"
+cp "$SLIMAGE" "$ROOT/build/slround.po"
+XLANG=sl "$ROOT/tools/xfer.sh" push "$ROOT/build/slround.po" "$SLDIR" >/dev/null 2>&1
+ondisk="$("$ROOT/tools/ac" -g "$ROOT/build/slround.po" PROBA.MD | python3 -c "
+import sys; print(''.join(chr(b & 0x7f) for b in sys.stdin.buffer.read()), end='')")"
+if [ "${ondisk#*Besedilo z }" != "${ondisk}" ] && [ "${ondisk%%|*}" != "$ondisk" ]; then
+    ok "the disk holds the substitute codes, not UTF-8"
+else
+    bad "the disk holds the substitute codes, not UTF-8" "got: $ondisk"
+fi
+rm -rf "$SLDIR/back" && mkdir -p "$SLDIR/back"
+XLANG=sl "$ROOT/tools/xfer.sh" pull "$ROOT/build/slround.po" "$SLDIR/back" >/dev/null 2>&1
+if diff -q "$SLDIR/proba.md" "$SLDIR/back/proba.md" >/dev/null 2>&1; then
+    ok "and a round trip returns the Slovenian byte for byte"
+else
+    bad "and a round trip returns the Slovenian byte for byte" \
+        "$(diff "$SLDIR/proba.md" "$SLDIR/back/proba.md" 2>&1 | head -4)"
+fi
+
+# The same mapping over an English file would turn every @ into a Z-caron, so
+# it must not run unless it is asked for.
+printf 'mail@example.com and a [link](url)\n' > "$SLDIR/plain.md"
+rm -rf "$SLDIR/back2" && mkdir -p "$SLDIR/back2"
+cp "$ROOT/build/ZIPEDIT.po" "$ROOT/build/enround.po"
+"$ROOT/tools/xfer.sh" push "$ROOT/build/enround.po" "$SLDIR" >/dev/null 2>&1
+"$ROOT/tools/xfer.sh" pull "$ROOT/build/enround.po" "$SLDIR/back2" >/dev/null 2>&1
+if diff -q "$SLDIR/plain.md" "$SLDIR/back2/plain.md" >/dev/null 2>&1; then
+    ok "and an English file is left alone"
+else
+    bad "and an English file is left alone" \
+        "$(diff "$SLDIR/plain.md" "$SLDIR/back2/plain.md" 2>&1 | head -4)"
+fi
 fi
 fi
 

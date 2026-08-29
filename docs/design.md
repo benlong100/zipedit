@@ -1061,3 +1061,88 @@ display to select it.
 3. The keymap table above, and a 40-column help screen from `genhelp.py`.
 4. A second top-level source, so `make SRC=src/edit2p.S` builds it from the
    same everything-else. Two binaries, two disk images, one source tree.
+
+## 10. Localisation — as built
+
+ZipEdit speaks whichever language `make LANG=xx` was given. English is the
+default and is unchanged in every respect; Slovenian is the second language and
+the reason the machinery exists.
+
+**One repository, not a fork.** There are about twenty-five user-visible
+strings in an editor of some 3,700 lines. A separate project would copy all of
+it to change 25, and the copy would then silently miss the next reflow fix. So
+language is another build axis beside the three machines, and every language
+gets every fix.
+
+    lang/en.txt          the strings, in a form a translator can edit
+    lang/sl.txt
+    tools/genlang.py     -> src/lang.S       (generated, not committed)
+    tools/genhelp.py     -> src/helpdata.S   (likewise)
+
+Both generated files are made on every build, which is also how the help screen
+stopped being able to fall behind its own generator: `checkhelp` existed to
+catch a committed file going stale and is gone, because nothing is committed to
+go stale.
+
+### The six letters, and where they live
+
+The Apple //e's character generator is a ROM with 96 printable glyphs and no
+caron among them, and software cannot change it. Slovenian needs six more
+letters than there are codes, so six ASCII characters have to be given up --
+which is exactly what **YUSCII**, the Yugoslav ISO 646 variant, did in 1987.
+
+We follow it except for two letters, and only because this is a Markdown editor
+on this particular keyboard:
+
+| letter | YUSCII | here | why |
+|---|---|---|---|
+| Ž | `@` | `@` | |
+| Č | `^` | `^` | |
+| š | `{` | `{` | |
+| č | `~` | `~` | |
+| **Š** | `[` | `\` | `[` is Markdown's link and its checkbox |
+| **ž** | `` ` `` | `\|` | `` ` `` is Markdown's code marker -- and the //e keyboard has no `` ` `` key at all |
+
+`\` and `|` take the slots YUSCII gives Đ and đ, which Slovenian does not use.
+
+**The screen shows the substitute, the file gets the letter.** `tools/xfer.sh`
+maps these codes to UTF-8 on the way to the Mac and back on the way in, so a
+file written on the //e arrives properly spelt -- `Različica`, not `Razli~ica`.
+That is the same bargain the editor already makes with hard wrap and with the
+][+ drawing lowercase as capitals: the screen is an approximation, the file is
+the truth. Round-tripping a paragraph of Slovenian returns it byte for byte.
+
+The mapping is applied only when `XLANG` names a language that needs it.
+Running it over an English file would turn every `@` into a Ž.
+
+### Two things that bit
+
+**`LANG` is the shell's locale variable.** It is set in essentially every
+environment, so `LANG ?= en` never fired and a plain `make` went looking for
+`src/lang_en_US.UTF-8.S`. A value from the *environment* is a locale and means
+nothing here; one from the command line is a real choice. `$(origin LANG)`
+tells them apart, so `make LANG=sl` still reads the way anybody would expect.
+
+**The help screen already used four of those characters as markup.** In
+`tools/genhelp.py`, `|` is a vertical, `=` and `~` are rules, and `@` is the
+Open Apple glyph in a key name -- so a `č` written as `~` came out as a length
+of MouseText rule in the middle of a word, and `začetek` rendered as `za\etek`.
+The letters travel as sentinels no text can contain and become screen codes at
+the last moment. The route differs; the codes are the same ones `genlang.py`
+uses.
+
+### What still needs a keyboard
+
+`~` and `` ` `` cannot be typed on a //e at all -- that is why OA-`'` exists for
+the backtick. In the Slovenian mapping **č is `~`**, so it needs a binding of
+its own; `\` and `|` are believed typeable but have not been confirmed on
+hardware, and the emulator cannot answer it, having synthesised the backtick
+that turned out not to exist. `make keyprobe` builds a disk that reports what
+each key really sends, and now names the six codes to check.
+
+### What a translation cannot fix
+
+Slovenian counts in four forms -- 1 beseda, 2 besedi, 3-4 besede, 5+ besed --
+and the word count has two, singular and plural. `lang/sl.txt` says so at the
+point where it matters. Fixing it means changing `src/edit_ops.S`; no string
+can.

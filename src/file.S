@@ -607,18 +607,6 @@ KLOAD        jsr   ASKUNSAVED       ; opening replaces the document wholesale
 :err         jmp   SHOWERR
 :quit        rts
 
-HINTESC      asc   "ESC CANCELS"
-             dfb   $00
-MSGSAVING    asc   "-- SAVING --"
-             dfb   $00
-MSGLOADING   asc   "-- LOADING --"
-             dfb   $00
-MSGSAVE      asc   "SAVE AS: "
-             dfb   $00
-MSGOPEN      asc   "OPEN: "
-             dfb   $00
-MSGERR       asc   " PRODOS ERROR $"
-             dfb   $00
 
 *--------------------------------------
 * Mutable storage, declared but not emitted.

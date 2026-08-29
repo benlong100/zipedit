@@ -21,7 +21,8 @@
              put   select
              put   edit_ops
              put   help
-             put   helpdata80
+             put   helpdata        ; the Makefile picks the language
+             put   lang             ; the Makefile picks the language
              put   splash
              put   buffer
              put   display

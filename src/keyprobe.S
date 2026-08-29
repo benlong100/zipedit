@@ -80,6 +80,24 @@ BANNER       asc   "ZIPEDIT KEYBOARD PROBE"
              dfb   $8d
              asc   "READ AS ZIPEDIT READS IT."
              dfb   $8d,$8d
+             asc   "FOR THE SLOVENIAN BUILD, TRY THESE"
+             dfb   $8d
+             asc   "SIX. EACH SHOULD PRINT THE CODE"
+             dfb   $8d
+             asc   "BESIDE IT. ONE THAT PRINTS NOTHING"
+             dfb   $8d
+             asc   "IS A KEY THIS MACHINE HAS NOT GOT,"
+             dfb   $8d
+             asc   "AND THAT LETTER NEEDS A BINDING."
+             dfb   $8d,$8d
+             asc   "  @ C0 = Z-CARON   ^ DE = C-CARON"
+             dfb   $8d
+             asc   "  { FB = S-CARON   ~ FE = C-CARON"
+             dfb   $8d
+             asc   "  \ DC = S-CARON   | FC = Z-CARON"
+             dfb   $8d,$8d
+             asc   "THE BACKTICK E0 IS KNOWN MISSING."
+             dfb   $8d,$8d
              asc   "THE ONE THAT MATTERS:"
              dfb   $8d
              asc   "  CTRL-J  SHOULD BE 8A"

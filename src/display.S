@@ -337,8 +337,6 @@ SHOWNAME     lda   #STATROW
              bne   :loop
              rts
 
-UNTITLED     asc   "UNTITLED.MD"
-             dfb   $00
 
 *--------------------------------------
 * DRAWSTATUS -- render the status line, inverse video
@@ -359,22 +357,11 @@ DRAWSTATUS   lda   GSTATLO          ; whichever width this screen is
 *--------------------------------------
 * Data
 *--------------------------------------
-CHEATTXT     asc   "`code` # H1 ## H2 - list 1. num - [ ] todo - [x] done > quote [link](url) ---"
-             dfb   $00
 
 * Placeholder until the buffer and file layers can supply real values.
-STATTXT
-             hex   A0D5CED4C9D4CCC5C4AECDC4A0A0A0A0A0A0A0A0A0A0A0A0A0A0A0A0A0A0A0A0
-             hex   A0A0A0A0A0A0CCBAA0A0A0A0A0C3BAA0A0A0A0A0B4B6CBA0C6D2C5C5A0A0A0A0
-             hex   41ADBFA0C8C5CCD0A0A0A0A0A0A0A0A0
-             dfb   $00
 
 *--- and at 40 columns: the filename and the position, and nothing else. The
 *    free-memory readout and the help hint do not fit and are not missed.
-STATTXT40
-             hex   A0D5CED4C9D4CCC5C4AECDC4A0A0A0A0A0CCBAA0A0A0A0C3BAA0A0A0A0A0A0A0
-             hex   A0A0A0A0A0A0A0A0
-             dfb   $00
 
 *--- screen row base addresses (the usual non-linear Apple II layout) ---
 ROWLO        dfb   $00,$80,$00,$80,$00,$80,$00,$80
