@@ -60,22 +60,14 @@ always a multiple of 256 and small changes do not show up in it at all.
 Janez Starc actually sent, so the diff between the two files is exactly the set
 of changes he has not seen. There is one — see below.
 
-## Uncommitted: the whole of 1.4
+## 1.4, committed and unreleased
 
-**Eleven modified files, passing, not committed.** This is the first thing to
-deal with on picking the project back up — the work is done and verified and
-exists only in the working tree.
+`16834ce` — twelve files. Committed 2026-09-06; **not pushed, and not tagged or
+released.** The tree is clean apart from `slovenian accents.png`, which is
+untracked and has been left out of two commits now: it looks like a reference
+image rather than source, and Ben has not said either way.
 
-```
-CHANGELOG.md  CLAUDE.md  Makefile  README.md  docs/STATUS.md  docs/design.md
-lang/en.txt  lang/sl.txt  src/edit_ops.S  tests/run.sh  tools/genhelp.py
-```
-
-(`slovenian accents.png` is untracked and was deliberately left out of the
-previous commit — it looked like a reference image rather than source. Ben has
-not said either way.)
-
-Four things are in there: **find wraps**, the **wrap notice** as a localisable
+Four things are in it: **find wraps**, the **wrap notice** as a localisable
 string, the **1.4 version bump**, and the **web address on the help screen**.
 
 ### The help screen carries the URL
