@@ -1,5 +1,86 @@
 # Changelog
 
+## 1.4 — 29 August 2026
+
+**Added: the editor can be built in any language, and ships in Slovenian.**
+
+Every word the editor puts on the screen used to live in the source, spelt in
+the transliteration this machine needs. Translating meant editing assembly, and
+`Poi{~i` is a word nobody can proofread. The strings now live in
+`lang/<code>.txt`, one file per language, and `tools/genlang.py` turns them into
+assembly on every build. `make` is English and is byte-identical to 1.3;
+`make LANG=sl` is Slovenian.
+
+The //e's character generator is a ROM with 96 printable glyphs and no carons
+among them, so the six letters Slovenian needs beyond ASCII travel as the codes
+YUSCII — the Yugoslav ISO 646 variant — gave them, and `tools/xfer.sh` turns
+them back into UTF-8 on the way to the Mac. The screen shows `Razli~ica` and the
+file that reaches the Mac says `Različica`. Two letters deviate from YUSCII on
+purpose: YUSCII puts `Š` on `[` and `ž` on a backtick, which are Markdown's link
+and code markers.
+
+The translation is by Janez Starc, who has had one pass over it. Two strings in
+it are still marked TODO because they are not his.
+
+**Added: find wraps round the end of the document.**
+
+A search that reaches the end now starts again at the beginning rather than
+stopping. The gap splits the document in two, so this is a second pass: the
+first is everything after the cursor, the second everything before it, and
+together they cover the document exactly once. A match found by the second pass
+says `WRAPPED TO THE TOP` on the status row — a cursor that suddenly jumps
+backwards reads as a find that went the wrong way unless the row explains
+itself.
+
+A match straddling the gap — one starting before the cursor and ending after it
+— is invisible to both passes. Reaching it would mean testing for a
+discontinuity on every byte of every compare, and it can only arise when the
+cursor has been parked inside an occurrence by hand: a find always leaves it on
+a match's first character.
+
+**Added: the help screen carries the web address.**
+
+`https://trompingmarmots.com/AppSites/ZipEdit/`, on the last row of page one,
+just above the footer. It costs nothing — that row was already there and blank.
+
+It is on the 80-column screen only. The ][+ page one is already eighteen rows
+of content in an eighteen-row space, and that screen folds case: lowercase
+draws as plain capitals and a capital draws inverse, so `/AppSites/` reads
+correctly only to somebody who knows the convention.
+
+**Fixed: find again never advanced.**
+
+`OA-G` re-found the match the cursor was already sitting on, every time, for
+every pattern. The scan began at `GAPEND`, which is not one past the cursor but
+the character *under* it, so the first comparison it made was against the match
+it had just landed on and the cursor never moved.
+
+`OA-F` and `OA-G` now differ by one byte. A fresh pattern may match the
+character under the cursor — otherwise a document whose first word is the
+pattern reports `NOT FOUND` with the cursor sitting on it — and a repeat may
+not.
+
+The suite had a find test and it passed throughout, because it only ever
+checked that `OA-F` lands on a match and that a missing pattern says so. It
+never pressed `OA-G` twice.
+
+**Fixed: a match lying against the end of the document could not be found.**
+
+The text after the cursor always runs to `$BFFF`, so the last place a pattern
+can start is `$C000` minus its length. The scan stopped one byte short of it,
+which made the final characters of a document unsearchable. Confirmed by
+building 1.3 and watching it report `NOT FOUND` for a pattern 1.4 finds.
+
+**Fixed: the untitled document's name was cut short in another language.**
+
+The length the status row drew it from was an assembly-time constant of 11,
+which is right for `UNTITLED.MD` and was right for the first Slovenian name by
+coincidence. A fourteen-character name showed as `BREZNASLOVA` with the `.MD`
+missing. The length is generated with the string now, and the generator checks
+the name besides: fourteen characters, because the cell after it carries the
+unsaved-changes star, and ProDOS's own rules on top, because it becomes a real
+filename the moment somebody saves without naming the document.
+
 ## 1.3 — 26 August 2026
 
 **Added: a key for the backtick, which no Apple II keyboard can send.**

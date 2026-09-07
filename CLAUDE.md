@@ -81,7 +81,8 @@ generator probe, `src/hello.S` is the minimal toolchain check.
 Arrows move by character and line. OA-up/OA-down page, OA-`<`/OA-`>` jump to
 the start and end of the document. Ctrl-A/Ctrl-E line ends, Ctrl-B bold (`**`),
 Ctrl-I italic (`*`), Ctrl-D delete forward. OA-R reflow, OA-S save, OA-O open,
-OA-C/OA-X/OA-V copy, cut and paste a line. OA-F find, OA-G find again, OA-L go
+OA-C/OA-X/OA-V copy, cut and paste a line. OA-F find, OA-G find again -- both
+wrap round the end of the document, and OA-G always advances -- OA-L go
 to line, OA-W word count, OA-Delete deletes back to the start of the word. OA-N starts a new document and OA-Q quits, both asking first if the document
 is modified. OA-S saves to the document's own file and only prompts when it has
 no name yet; OA-A is save as, which always prompts and adopts the new name.

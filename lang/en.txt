@@ -57,6 +57,12 @@ HINTESC = "ESC CANCELS"
 MSGFIND = "FIND: "
 MSGGOTO = "GO TO LINE: "
 MSGNOTFND = " NOT FOUND"
+
+# Shown when a search ran off the end of the document and found its match by
+# starting again at the top. Without it a cursor that jumps backwards looks
+# like a find that went the wrong way.
+MSGWRAPPED = " WRAPPED TO THE TOP"
+
 MSGCOPIED = " LINE COPIED"
 
 # The tail of the word count: one for exactly 1, one for everything else.
@@ -76,7 +82,7 @@ MSGUNSV40 = " Save first?  S save  D discard  Esc"
 # ------------------------------------------------------------------ the splash
 # Centred by measuring the string, so a translation may be any length.
 SPLNAME = "ZipEdit"
-SPLVER = "Version 1.3"
+SPLVER = "Version 1.4"
 SPLDATE = "August, 2026"
 SPLGO = "press any key to continue"
 

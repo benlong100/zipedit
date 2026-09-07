@@ -1,8 +1,16 @@
 # ZipEdit v slovenščini.
 #
-# TRANSLATED BY A MACHINE AND NOT YET BY A SPEAKER. Written to be corrected:
-# the shape is right, the wording wants a Slovenian eye. Notes on the places
-# most likely to be wrong are marked TODO below.
+# Machine-translated first, then corrected by Janez Starc (August 2026).
+#
+# THREE THINGS IN HERE HAVE NOT BEEN SEEN BY A SPEAKER, and they are the whole
+# reason this file is coming back to you. Each is marked TODO where it sits:
+#
+#   CHEATTXT    "konc." -- shortened by us, not by you, to fit 80 columns
+#   MSGWRAPPED  a new string since your pass, and a guess
+#   WTAIL/WTAIL1 the word count, which cannot be right in Slovenian at all
+#
+# Everything else is yours. Notes on the places most likely to still be wrong
+# are marked TODO below.
 #
 # Write real Slovenian here -- š, č, ž and all. The //e has no glyph for any
 # of them, so tools/genlang.py transliterates on the way into the assembler
@@ -50,6 +58,17 @@ HINTESC = "ESC PREKLIČI"
 MSGFIND = "POIŠČI: "
 MSGGOTO = "NAJDI VRSTICO: "
 MSGNOTFND = " NE NAJDEM"
+
+# Shown when a search ran off the end of the document and found its match by
+# starting again at the top.
+#
+# TODO: a guess, and the one string here nobody has checked at all. It says
+# "continued from the top". The sense wanted is that the search reached the end
+# and resumed at the beginning -- not that anything went wrong, and not that
+# the text was wrapped. If Slovenian has the ordinary word an editor would use
+# for this, it belongs here instead.
+MSGWRAPPED = " NADALJEVANO Z VRHA"
+
 MSGCOPIED = " VRSTICA KOPIRANA"
 
 # TODO -- the word count is wrong in Slovenian and the strings cannot fix it.
@@ -71,7 +90,7 @@ MSGUNSV40 = " Shranim?  S shrani  D zavrzi  Esc"
 # ------------------------------------------------------------------ the splash
 # The program's name is not translated.
 SPLNAME = "ZipEdit"
-SPLVER = "Različica 1.3 - avgust 2026"
+SPLVER = "Različica 1.4 - avgust 2026"
 SPLDATE = "Ben Long, prevod Janez Starc"
 SPLGO = "pritisnite tipko za nadaljevanje"
 
@@ -87,9 +106,11 @@ SPLHELPESC = "Esc-? za pomoč"
 # build rather than shipping a mangled screen, so if one of these is refused it
 # needs to be shorter, not the layout wider.
 #
-# TODO: reviewed by nobody who speaks Slovenian. Several of these are the
-# literal English and want a better idiom -- "paint" for extending a selection
-# especially.
+# These have had your pass and look settled -- "paint" became "razsiri izbor",
+# which is better than the literal English was. Worth a second look only for
+# the abbreviations forced by the column limits: "brisi do kon. vrst.",
+# "zamik dva presled.", "preoblikuj odst.", "zac./konec vrstice", "vrh/konec
+# dok.". Any of them can be reworded as long as it does not get longer.
 
 HELP "MARKDOWN EDITOR FOR THE APPLE //e  --  KEYBOARD COMMANDS" = "UREJEVALNIK MARKDOWN ZA APPLE //e  --  UKAZI"
 HELP "press any key for more   --   page 1 of 2" = "pritisni tipko za več   --   stran 1 od 2"

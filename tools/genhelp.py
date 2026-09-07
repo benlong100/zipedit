@@ -167,10 +167,21 @@ TITLE  = T("MARKDOWN EDITOR FOR THE APPLE //e  --  KEYBOARD COMMANDS")
 FOOT1  = T("press any key for more   --   page 1 of 2")
 FOOT2  = T("press any key to return   --   page 2 of 2")
 
+# Where the program lives, sat on the last content row of page one so that it
+# reads just above the footer. Deliberately NOT through T(): a URL is the same
+# in every language, and putting it in the language files would invite somebody
+# to translate a path that has to match the server exactly.
+#
+# It is on the 80 column page only. The 40 column page one is already 18
+# content rows in an 18 row space, and that screen folds case -- lowercase
+# draws as plain capitals and a capital draws inverse -- so a path like
+# /AppSites/ reads correctly only to somebody who knows that convention.
+URL    = "https://trompingmarmots.com/AppSites/ZipEdit/"
+
 def centre(t):
     return row([((W - len(t)) // 2, t)])
 
-def build(content, foot):
+def build(content, foot, url=None):
     # Every rule is $4C. $5C is NOT a second rule at a different height -- it
     # draws TWO strokes, one at the top of its cell and one at the bottom, so a
     # row of it renders as a double line. That is what put a stray line across
@@ -198,6 +209,9 @@ def build(content, foot):
     out += ["=" * 63 + "|"]                 # 2  rule under the title
     body = [""] + content                   # 3  blank, then the content rows
     body += [""] * (16 - len(body))         # pad out to row 18
+    if url:                                 # ...whose last row carries the URL
+        assert len(url) <= W, f"the URL is {len(url)} wide and the box is {W}"
+        body[-1] = " " * ((W - len(url)) // 2) + url
     out += ["|" + row([(0, b)]) + "|" for b in body]
     out += ["|" + centre(foot) + "|"]       # 19 footer
     out += ["=" * 63]                       # 20 bottom edge
@@ -211,7 +225,7 @@ def encode(line):
     m.update(_SCREEN)
     return bytes(m.get(c, ord(c) + 0x80) for c in line)
 
-pages = [build(page(P1L, P1R), FOOT1), build(page(P2L, P2R), FOOT2)]
+pages = [build(page(P1L, P1R), FOOT1, URL), build(page(P2L, P2R), FOOT2)]
 
 def tables():
     out = []

@@ -7,7 +7,7 @@
 #   make test     run the AppleScript regression suite
 #   make clean
 
-VERSION := 1.3
+VERSION := 1.4
 
 # Which language the editor speaks. Every word it puts on the screen lives in
 # src/lang_$(LANG).S, which is copied to src/lang.S -- the file the three
@@ -224,15 +224,21 @@ card2p: release2p
 
 # --- what gets uploaded -------------------------------------------------
 # Both machines in one archive. The splash screen is checked against VERSION
-# rather than trusted: the number lives in three places -- here, splash.S and
-# the suite's assertion -- and a release whose About box disagrees with its
-# own filename is a bad look that no test would otherwise catch.
+# rather than trusted: the number lives in several places -- here, every
+# language file, and the suite's assertions -- and a release whose About box
+# disagrees with its own filename is a bad look that no test would otherwise
+# catch. The check used to grep src/splash.S, which stopped working silently
+# when localisation moved the string out of it and into lang/<code>.txt: the
+# guard could no longer find the version anywhere and would have failed the
+# next release for the wrong reason.
 DIST    := $(BUILD)/ZipEdit-$(VERSION)
 ZIP     := $(BUILD)/ZipEdit-$(VERSION).zip
 
 dist: release release2p
-	@grep -q 'asc   "Version $(VERSION)"' src/splash.S || \
-		{ echo "src/splash.S does not say Version $(VERSION)" >&2; exit 1; }
+	@grep -q '^SPLVER = "Version $(VERSION)"' lang/en.txt || \
+		{ echo "lang/en.txt does not say Version $(VERSION)" >&2; exit 1; }
+	@grep '^SPLVER' lang/sl.txt | grep -q '$(VERSION)' || \
+		{ echo "lang/sl.txt's SPLVER does not carry $(VERSION)" >&2; exit 1; }
 	@rm -rf $(DIST) $(ZIP)
 	@mkdir -p $(DIST)
 	@cp $(BUILD)/ZIPEDIT-REL.po $(DIST)/ZIPEDIT.po

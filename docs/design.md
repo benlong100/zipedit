@@ -498,7 +498,7 @@ That preserves both behaviours in the contexts where each is actually wanted.
 | **Ctrl-I** | **italic** — wrap in `*` (see collision above) |
 | Tab (in leading whitespace) | indent two spaces |
 | OA-C / OA-X / OA-V | copy line / cut line / paste |
-| OA-F / OA-G | find / find again |
+| OA-F / OA-G | find / find again, both wrapping |
 | OA-L | go to line |
 | OA-R | reflow paragraph |
 | OA-Delete | delete back to the start of the word |

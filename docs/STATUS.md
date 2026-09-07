@@ -3,39 +3,47 @@
 Written 2026-08-29, picking the project back up after a long detour into
 ZipFiler. `docs/design.md` is the design and the reasoning; this is the state.
 
-## Shipped
+## Where the version stands
 
-**1.3 is public and live.**
+**1.3 is what is public. 1.4 is built, passing, and not yet released.**
 
 | | |
 |---|---|
 | repository | <https://github.com/benlong100/zipedit> (public) |
-| release | `v1.3` — `ZipEdit-1.3.zip`, 172K, both machines |
-| website | <https://trompingmarmots.com/AppSites/ZipEdit/> |
-| suite | 301 assertions, 0 failures |
+| last release | `v1.3` — `ZipEdit-1.3.zip`, 172K, both machines |
+| website | <https://trompingmarmots.com/AppSites/ZipEdit/> — still describes 1.3 |
+| in the tree | 1.4: any language, Slovenian, and find wraps |
+| suite | 311 assertions, 0 failures |
 
-1.3 added the backtick key (`OA-'` on the //e, `Esc '` on the ][+), fixed the
-][+ splash naming an Open Apple key that machine has never had, and stopped a
-backtick drawing as a blank on a ][+.
+1.4 is the localisation plus the find work — see `CHANGELOG.md`, which has the
+whole entry. Releasing it means `make dist`, a tag, and a line on the site.
+
+**`make dist` had quietly stopped working and now does again.** It guards the
+release by checking that the splash says the version in the filename, and it
+did that by grepping `src/splash.S` — where the string has not lived since
+localisation moved it into `lang/<code>.txt`. The guard could no longer find a
+version anywhere and would have failed the next release for entirely the wrong
+reason. It checks `lang/en.txt` now, and that `lang/sl.txt` carries the same
+number, since a Slovenian splash a version behind is its own small lie.
 
 Three builds, all from one source tree:
 
-| target | source | size |
-|---|---|---|
-| Enhanced //e, 80 columns | `src/edit.S` | 10,668 |
-| Apple ][+, 40 columns | `src/edit2p.S` | 9,728 |
-| //e at 40 columns | `src/edit40.S` | 9,644 |
+| target | source | 1.3 | 1.4 |
+|---|---|---|---|
+| Enhanced //e, 80 columns | `src/edit.S` | 10,668 | 10,827 |
+| Apple ][+, 40 columns | `src/edit2p.S` | 9,728 | 9,984 |
+| //e at 40 columns | `src/edit40.S` | 9,644 | 9,803 |
 
 `make SRC=src/edit40.S NAME=ZIPEDIT40.SYSTEM` for that last one — it needs
 `NAME` too, and only appears to work without it when nothing needs rebuilding.
 
-## Uncommitted, and this is the first thing to deal with
+The ][+ figure moves in steps of a page: `ds \` in `src/edit2p.S` pads to a
+page boundary so `mainbuf.S` can take the high byte, so that build's size is
+always a multiple of 256 and small changes do not show up in it at all.
 
-**The whole Slovenian localisation is sitting in the working tree.** Twenty
-modified files, plus `lang/` and `tools/genlang.py` untracked. It is finished
-and it passes; it has simply never been committed.
+## The localisation, committed
 
-What it consists of:
+`0683beb` — 26 files, +1243/-607. What had been sitting uncommitted for weeks:
 
 - `lang/en.txt`, `lang/sl.txt` — every user-visible string, one file per
   language, editable by somebody who does not read assembly
@@ -45,10 +53,95 @@ What it consists of:
   generated files, and generating them per build is what retired `checkhelp`
 - `tools/xfer.sh` maps the six Slovenian letters to UTF-8 on the way to the Mac
   and back, gated on `XLANG`
-- `make LANG=sl` builds it; plain `make` is byte-identical to before
 
-`make` → English, unchanged. `make LANG=sl` → `build/SL-ZIPEDIT.SYSTEM`,
-10,703 bytes.
+`make` → English, byte-identical to 1.3. `make LANG=sl` → Slovenian.
+
+`lang/sl-edit.txt` is committed beside `lang/sl.txt` on purpose: it is what
+Janez Starc actually sent, so the diff between the two files is exactly the set
+of changes he has not seen. There is one — see below.
+
+## Uncommitted: the whole of 1.4
+
+**Eleven modified files, passing, not committed.** This is the first thing to
+deal with on picking the project back up — the work is done and verified and
+exists only in the working tree.
+
+```
+CHANGELOG.md  CLAUDE.md  Makefile  README.md  docs/STATUS.md  docs/design.md
+lang/en.txt  lang/sl.txt  src/edit_ops.S  tests/run.sh  tools/genhelp.py
+```
+
+(`slovenian accents.png` is untracked and was deliberately left out of the
+previous commit — it looked like a reference image rather than source. Ben has
+not said either way.)
+
+Four things are in there: **find wraps**, the **wrap notice** as a localisable
+string, the **1.4 version bump**, and the **web address on the help screen**.
+
+### The help screen carries the URL
+
+`https://trompingmarmots.com/AppSites/ZipEdit/`, on the last content row of
+page one so it reads just above the footer. It costs nothing — that row was
+already there and blank, and the binary did not change size.
+
+Deliberately **not** through `T()`: a URL is identical in every language, and
+putting it in the language files would invite somebody to translate a path
+that has to match the server exactly.
+
+**80 columns only.** The 40-column page one is already eighteen content rows in
+an eighteen-row space, and that screen folds case — lowercase draws as plain
+capitals, a capital draws inverse — so `/AppSites/` reads correctly only to
+somebody who knows the convention. `trompingmarmots.com/AppSites/ZipEdit/` is
+37 characters and would fit the width if it is ever wanted there; finding it a
+row is the problem, not the width.
+
+### Find wraps
+
+
+Ben asked for wrap-around on find. Two bugs turned up, both older than the
+request and neither visible to the suite, which only ever checked that OA-F
+lands on a match and that a missing pattern says so:
+
+1. **OA-G never advanced at all.** The scan began at `GAPEND`, which is not one
+   past the cursor but the character *under* it, so after a hit it re-matched
+   at distance zero and the cursor stood still. Every pattern, every time.
+   `FINDFIRST` (OA-F) and `FINDNEXT` (OA-G) now differ by one byte, `FSKIP`:
+   a fresh pattern may match the character under the cursor — otherwise a
+   document whose first word is the pattern reports NOT FOUND with the cursor
+   sitting on it — and a repeat may not.
+2. **A match lying against the end of the document was unfindable.** The text
+   after the cursor always runs to `$BFFF`, so the last legal start is
+   `BUFHI*256-FINDLEN`, and the limit was one short of it. Confirmed by
+   building the committed version and watching it report NOT FOUND for a
+   pattern the new one finds.
+
+The wrap itself is a second pass. The gap splits the document in two, so pass
+one is everything after the cursor (contiguous, `GAPEND` up) and pass two is
+everything before it (contiguous, buffer base up to `GAPBEG`). Together they
+cover the document exactly once.
+
+Two things worth knowing about it:
+
+- **A match straddling the gap is invisible to both passes** — one starting
+  before the cursor and ending after it. Reaching it would mean testing for a
+  discontinuity on every byte of every compare. It can only arise when the
+  cursor has been parked inside an occurrence by hand, because a find always
+  leaves it on a match's first character.
+- **Wrapping backwards costs what OA-`<` costs.** `FMOVEL` walks the gap one
+  character at a time, which is exactly what `KTOP` in `src/scroll.S` does, so
+  a wrap to the top of a long document is as slow as jumping there — no worse,
+  but no better.
+
++128 bytes on the //e build. The ][+ build did not change size at all: `ds \`
+in `src/edit2p.S` pads to a page boundary and there was slack in the last page.
+
+A hit in the second pass says " WRAPPED TO THE TOP" on the status row —
+`MSGWRAPPED`, a proper localisable string in both language files. Without it a
+cursor that jumps backwards reads as a find that went the wrong way. The
+Slovenian is `" NADALJEVANO Z VRHA"` ("continued from the top") and is **my
+guess, checked by nobody** — it is marked TODO in `lang/sl.txt` with a note
+saying what sense is wanted, and it is the second thing to go back to Janez
+alongside the `konč.` edit.
 
 ## The Slovenian, specifically
 
@@ -117,6 +210,28 @@ Three things about it are still worth remembering:
   unenhanced //e, so `make plaindisk` patches an override byte
   (`tools/forceplain.py`) to exercise the drawing. Only the CPU detection
   itself still wants a real machine.
+- **A second Slovenian review round went to Janez Starc on 2026-08-29** —
+  `lang/sl.txt` plus `docs/note-to-janez.md` as the covering note, sent by Ben.
+  **Awaiting his reply.** `lang/sl.txt`'s own header lists the same three
+  things. Two are strings nobody who speaks Slovenian has
+  seen — the `konč.` abbreviation made to get `CHEATTXT` down to 80 characters,
+  and `MSGWRAPPED`, guessed outright — and the third is the word count, which
+  the file cannot fix.
+
+  Two questions go with it. **The discard key**: he flagged that `D = ZAVRZI`
+  carries no mnemonic in Slovenian, and the letters are read by the program but
+  are not fixed — binding `Z` for *zavrzi* is a small code change if he wants
+  it. **His credit line**, which he wrote himself and which now sits on the
+  splash screen.
+
+  Two stale comments in `lang/sl.txt` were corrected before it goes back: the
+  header still said "TRANSLATED BY A MACHINE AND NOT YET BY A SPEAKER", and a
+  TODO still asked for a better idiom than `paint`, which he had already fixed
+  to `razširi izbor` in both places. Sending a file that tells a contributor
+  his work has not been looked at is worth avoiding.
+
+  The file he has says `Različica 1.4`, so a long turnaround means his copy
+  and the tree can drift apart on the version line.
 - **The website screenshots predate 1.3.** Nothing on the page shows a version
   number, so nothing is wrong — worth knowing if any get reshot.
 

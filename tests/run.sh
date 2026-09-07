@@ -431,7 +431,7 @@ if section "splash screen"; then
 "$VII" settle 2 >/dev/null
 snapshot
 assert_centred "the name is centred"                  10 "ZipEdit"
-assert_centred "the version is centred below it"      12 "Version 1.3"
+assert_centred "the version is centred below it"      12 "Version 1.4"
 assert_centred "the date is centred below that"       14 "August, 2026"
 assert_blank   "with a blank line between them"       13
 # The Open Apple is a MouseText glyph, which reads back as "A".
@@ -696,6 +696,75 @@ assert_row "Ctrl-B wraps the whole word from mid-word" 0 "# **Notes** from the A
 fi
 
 #--------------------------------------
+# Find, and the two ends it could not reach.
+#
+# The suite could see neither of these, because it only ever checked that OA-F
+# lands on a match and that a missing pattern says so. It never pressed OA-G
+# twice, and it never looked for anything lying at either end of the buffer.
+#--------------------------------------
+if section "find wraps"; then
+reboot
+
+# OA-G has to ADVANCE. The scan began at GAPEND, which is not one past the
+# cursor but the character UNDER it, so a repeat re-matched where it stood and
+# the cursor never moved -- for every pattern, every time.
+prompt_open F "FIND:"
+"$VII" text "the" >/dev/null; "$VII" settle 2 >/dev/null
+"$VII" line "" >/dev/null; sleep 4
+curline "OA-F lands on the first match"                    0
+# ...and this one did not wrap, so the row must not claim it did
+snapshot
+if grep -q "WRAPPED" "$SCREEN"; then
+    bad "an ordinary find stays quiet" "row 23: $(sed -n '24p' "$SCREEN")"
+else
+    ok "an ordinary find stays quiet"
+fi
+"$VII" caps true >/dev/null
+k oa "G"; "$VII" settle 4 >/dev/null
+curline "and OA-G moves on rather than standing still"     4
+k oa "G"; "$VII" settle 4 >/dev/null
+curline "and goes on again"                                12
+
+# Wrapping: from the end of the document, a phrase that occurs only at the
+# top. Without the second pass this is NOT FOUND.
+k oa ">"; "$VII" settle 6 >/dev/null
+prompt_open F "FIND:"
+"$VII" caps false >/dev/null
+"$VII" text "Notes from" >/dev/null
+"$VII" await "Notes from" 60 >/dev/null
+"$VII" line "" >/dev/null; "$VII" settle 5 >/dev/null
+curline "a search from the end of the document wraps to the top" 0
+snapshot
+assert_row "and the row explains the backwards jump"    23 "WRAPPED TO THE TOP"
+
+# The text after the cursor always runs to $BFFF, so a match lying against the
+# end of the document is the very last thing a forward scan can reach -- and
+# the limit was one byte short of reaching it.
+"$VII" caps true >/dev/null
+k oa ">"; "$VII" settle 6 >/dev/null
+ktext "ZZQ"
+"$VII" settle 3 >/dev/null
+k oa "<"; "$VII" settle 6 >/dev/null
+prompt_open F "FIND:"
+"$VII" text "ZZQ" >/dev/null; "$VII" await "ZZQ" 60 >/dev/null
+"$VII" line "" >/dev/null; "$VII" settle 5 >/dev/null
+curline "a match against the end of the buffer is found"    35
+
+# And a pattern that genuinely is absent still says so, rather than the wrap
+# pass finding something or looping. Caps went on for ZZQ and has to come off
+# again, or this types NOTPRESENTANYWHERE and then waits 60s for the lowercase
+# it will never see.
+prompt_open F "FIND:"
+"$VII" caps false >/dev/null
+"$VII" text "notpresentanywhere" >/dev/null
+"$VII" await "notpresentanywhere" 60 >/dev/null
+"$VII" line "" >/dev/null
+"$VII" await "NOT FOUND" 90 || bad "an absent pattern never reported"
+snapshot
+assert_row "an absent pattern still reports NOT FOUND"     23 "NOT FOUND"
+fi
+
+#--------------------------------------
 # Prompts must hand the status row straight back, whether accepted or
 # cancelled -- otherwise the prompt text sits there until some unrelated key
 # happens to retire it, and you never see where a find or go-to landed.
@@ -865,6 +934,7 @@ assert_row "page one documents OA-Delete"           10 "A-Delete delete word lef
 # The Open Apple is now its own glyph ($41), which Virtual ][ reads back as "A"
 # since they share a code. Verified identical on real hardware.
 assert_row "page one lists selecting"                12 "A-space      start selecting"
+assert_row "page one carries the web address"        18 "https://trompingmarmots.com/AppSites/ZipEdit/"
 assert_row "page one says a key turns the page"      19 "press any key for more"
 assert_row "page one numbers itself"                 19 "page 1 of 2"
 assert_row "page one lists the Tab indent"            8 "indent two spaces"
@@ -1577,7 +1647,7 @@ else
 snapshot
 
 assert_row "the ][+ splash offers Esc-? for help"    20 "ESC-? TO GET HELP"
-assert_row "and still names its version"             12 "VERSION 1.3"
+assert_row "and still names its version"             12 "VERSION 1.4"
 
 # The Open Apple is a MouseText glyph, which reads back as "A" -- so the old
 # hint would surface here as "A-?". Row 20 of the //e build says exactly that
@@ -2214,7 +2284,7 @@ snapshot
 # The name is not translated; everything round it is. ~ is c-with-a-caron.
 # The translator folded the date into the version line and spent the line it
 # freed on a credit, so row 14 is a name rather than a month.
-assert_centred "the version line is Slovenian"   12 "Razli~ica 1.3 - avgust 2026"
+assert_centred "the version line is Slovenian"   12 "Razli~ica 1.4 - avgust 2026"
 assert_centred "and the translator is credited"  14 "Ben Long, prevod Janez Starc"
 assert_row     "and the prompt"                  21 "pritisnite tipko"
 
@@ -2233,6 +2303,18 @@ assert_row "and the status row is translated"           23 "PROSTO"
 # columns right, which genlang.py caught only as a width error. Asserting the
 # label against its digit catches it as what it is.
 assert_row "and its labels are still on their columns" 23 "V:1    S:1"
+
+# A string added after the first translation round, which is the case the
+# machinery exists for: type something, then search for it from BELOW, which
+# is the only way to force the wrap pass and its notice.
+"$VII" caps false >/dev/null
+"$VII" text "abc" >/dev/null; "$VII" settle 2 >/dev/null
+"$VII" oa "F" >/dev/null
+"$VII" await "POI" 30 >/dev/null || bad "the Slovenian find prompt never appeared"
+"$VII" text "abc" >/dev/null
+"$VII" line "" >/dev/null; "$VII" settle 4 >/dev/null
+snapshot
+assert_row "a new string reaches the screen translated" 23 "NADALJEVANO Z VRHA"
 
 # The help screen comes from the same language file, through a different
 # generator -- and that generator uses | = ~ and @ as its own box-drawing
