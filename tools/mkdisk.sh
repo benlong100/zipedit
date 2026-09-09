@@ -58,6 +58,14 @@ tell application "Virtual ]["
 end tell
 EJECT
 
+# The eject only ASKS for the flush. osascript returns before the emulator has
+# finished writing its buffer out, so a `cp` straight afterwards races it and
+# can lose -- the freshly built image is then quietly overwritten by the copy
+# the emulator was holding. On the sister project that is how three separate
+# bugs came to be diagnosed against a binary that was not running, twice in
+# one evening.
+sleep 1
+
 cp "$BASE" "$OUT"
 
 for f in "${STRIP[@]}"; do
@@ -77,6 +85,22 @@ fi
 # clutter the volume and help fragment it. The Floppy Emu needs each image
 # stored contiguously and refuses one that is not.
 xattr -c "$OUT" 2>/dev/null || true
+
+# And prove it. Extracting the SYS file back and comparing is the only thing
+# that actually establishes the image holds the binary just built; every other
+# check is an assumption about what the emulator did with its buffer. The
+# failure this catches is silent -- a refactor that moves code without changing
+# its size leaves the stale image exactly the right length.
+"$AC" -g "$OUT" "$SYS" > /tmp/.mkdisk.$$ 2>/dev/null || true
+if ! cmp -s /tmp/.mkdisk.$$ "$BIN"; then
+    echo "mkdisk: $OUT does NOT carry $BIN" >&2
+    echo "  image: $(wc -c < /tmp/.mkdisk.$$ | tr -d ' ') bytes" >&2
+    echo "  build: $(wc -c < "$BIN" | tr -d ' ') bytes" >&2
+    echo "  Virtual ][ probably flushed a buffered copy over it." >&2
+    rm -f /tmp/.mkdisk.$$
+    exit 1
+fi
+rm -f /tmp/.mkdisk.$$
 
 echo "built $OUT"
 "$AC" -l "$OUT"
