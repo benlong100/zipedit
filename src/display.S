@@ -111,7 +111,9 @@ SETMAXROW    lda   FLAGS
 *--------------------------------------
 * TOGGLECHEAT -- flip the cheat sheet on or off
 *--------------------------------------
-TOGGLECHEAT  lda   FLAGS
+TOGGLECHEAT  lda   #$01             ; the text area changes height, so the row
+             sta   SCRLOST          ; that appears or vanishes wants painting
+             lda   FLAGS
              eor   #FCHEAT
              sta   FLAGS
              jsr   SETMAXROW
@@ -397,6 +399,16 @@ NAMELEN      ds    1                ; SHOWNAME: how many characters it has
 
 *--- This block is full to $143f, where splash.S's SPLI begins, so the high
 *    byte of the last column painted goes in the gap at $1428 instead.
-             dum   $1428            ; $1428-$142f is free; $1422 is buffer.S's
+             dum   $1428            ; $1422 is buffer.S's
 LASTCOLH     ds    1                ; high byte of the last column painted
+             dend
+
+*--- What SHOWCURSOR covered, so HIDECURSOR can put it back. Inverting is not
+*    reversible -- $C8 and $48 both invert to $08, and inverse lowercase
+*    inverts to itself -- so the original byte is kept rather than computed.
+             dum   $142a
+CURSBK       ds    1                ; 0 main, 1 aux -- 80 columns interleave
+CURSCH       ds    1                ; the byte the cursor covered
+CURSOK       ds    1                ; non-zero while the two above mean something
+SCRLOST      ds    1                ; something painted over the text area
              dend

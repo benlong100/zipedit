@@ -104,6 +104,8 @@ PARTIAL      equ   $69              ; handler changed nothing above the cursor
 RSKIP        equ   $6a              ; rows RENDER counts without drawing
 VISLINE      equ   $6b              ; 2 bytes, the first line RENDER draws
 DSTPTR       equ   $6d              ; 2 bytes, main-memory destination for AUXBLK
+CURSAD       equ   $6f              ; 2 bytes, the screen cell the cursor covers.
+                                    ; Zero page because (CURSAD),y puts it back.
 CLIPMAX      equ   1024             ; clipboard capacity
 
 

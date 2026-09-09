@@ -113,7 +113,9 @@ PUTCELL      jsr   INVCHR           ; chrome is inverse on this machine, and
 * With 80STORE on, PAGE2 selects which bank $0400-$07FF reaches for reads as
 * well as writes, so the same switch serves the read-modify-write.
 *--------------------------------------
-SHOWCURSOR   lda   CURSROW
+SHOWCURSOR   lda   #$00
+             sta   CURSOK
+             lda   CURSROW
              cmp   MAXROW
              bcs   :skip            ; cursor scrolled off the text area
              jsr   SETROW
@@ -121,18 +123,53 @@ SHOWCURSOR   lda   CURSROW
              and   #$01
              beq   :aux
              sta   MAINWR           ; odd column
-             jmp   :rd
+             lda   #$00
+             sta   CURSBK
+             beq   :rd              ; always taken
 :aux         sta   AUXWR            ; even column
+             lda   #$01
+             sta   CURSBK
 :rd          lda   CURSCOL
              lsr
              tay
+             tya                    ; where it is, for HIDECURSOR
+             clc
+             adc   SCRPTR
+             sta   CURSAD
+             lda   SCRPTR+1
+             adc   #$00
+             sta   CURSAD+1
              lda   (SCRPTR),y
+             sta   CURSCH           ; and what it was
              and   #$7f             ; strip to plain ASCII
              cmp   #$60
              bcs   :put             ; lowercase inverts to itself
              and   #$3f
 :put         sta   (SCRPTR),y
+             lda   #$01
+             sta   CURSOK
 :skip        rts
+
+*--------------------------------------
+* HIDECURSOR -- put back the cell SHOWCURSOR covered
+*
+* Inverting is not reversible: $C8 and $48 both invert to $08, and inverse
+* lowercase inverts to itself. So this restores the saved byte rather than
+* trying to compute the original back.
+*--------------------------------------
+HIDECURSOR   lda   CURSOK
+             beq   :none
+             lda   CURSBK
+             beq   :main
+             sta   AUXWR
+             bne   :put             ; always taken: CURSBK is 1
+:main        sta   MAINWR
+:put         ldy   #$00
+             lda   CURSCH
+             sta   (CURSAD),y
+             lda   #$00
+             sta   CURSOK
+:none        rts
 
 *--------------------------------------
 * INVCHR -- the inverse of the character in A

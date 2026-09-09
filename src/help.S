@@ -63,7 +63,13 @@ HELPPAGES    equ   2
 *--------------------------------------
 * HELPSHOW -- paint a page, wait for a key, then turn or leave
 *--------------------------------------
-HELPSHOW     lda   #$00
+*--- The help page paints over the whole text area, and the key that leaves it
+*    moves nothing -- so the main loop would decide by the gap that there was
+*    nothing to repaint, which is exactly right for a cursor that moved and
+*    exactly wrong here, and the help screen would stay up.
+HELPSHOW     lda   #$01
+             sta   SCRLOST
+             lda   #$00
              sta   HELPPG
 :page        lda   #$00
              sta   HELPI

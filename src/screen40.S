@@ -166,18 +166,45 @@ FOLDCASE     cmp   #$40
 * this machine's character generator does not have -- it draws as capitals
 * either way, so the cell still visibly inverts.
 *--------------------------------------
-SHOWCURSOR   lda   CURSROW
+SHOWCURSOR   lda   #$00
+             sta   CURSOK
+             lda   CURSROW
              cmp   MAXROW
              bcs   :skip            ; cursor scrolled off the text area
              jsr   SETROW
              ldy   CURSCOL
+             tya                    ; where it is, for HIDECURSOR
+             clc
+             adc   SCRPTR
+             sta   CURSAD
+             lda   SCRPTR+1
+             adc   #$00
+             sta   CURSAD+1
              lda   (SCRPTR),y
+             sta   CURSCH           ; and what it was
              and   #$7f             ; strip to plain ASCII
              cmp   #$60
              bcs   :put             ; lowercase inverts to itself
              and   #$3f
 :put         sta   (SCRPTR),y
+             lda   #$01
+             sta   CURSOK
 :skip        rts
+
+*--------------------------------------
+* HIDECURSOR -- put back the cell SHOWCURSOR covered
+*
+* Inverting is not reversible, so the saved byte goes back rather than being
+* computed. One bank here, so there is no CURSBK to honour.
+*--------------------------------------
+HIDECURSOR   lda   CURSOK
+             beq   :none
+             ldy   #$00
+             lda   CURSCH
+             sta   (CURSAD),y
+             lda   #$00
+             sta   CURSOK
+:none        rts
 
 *--------------------------------------
 * INVCHR -- the inverse of the character in A

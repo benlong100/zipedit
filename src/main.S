@@ -99,10 +99,26 @@ MAINLOOP     jsr   SCROLLFIX
 :keys        lda   #$00
              sta   FASTDRAW
              sta   PARTIAL
+             sta   SCRLOST
              lda   CURLNO
              sta   OLDLINE
              lda   CURLNO+1
              sta   OLDLINE+1
+
+*--- The size of the gap, which is the one thing that says whether the BUFFER
+*    changed. Moving the cursor slides both edges together and leaves it
+*    alone; an insert or a delete cannot help but alter it. So the redraw
+*    below can tell "only the cursor moved" without a single handler having to
+*    declare it, which is the difference between fixing this in one place and
+*    fixing it in thirty.
+             lda   GAPEND
+             sec
+             sbc   GAPBEG
+             sta   OLDGAP
+             lda   GAPEND+1
+             sbc   GAPBEG+1
+             sta   OLDGAP+1
+
              lda   SCROLLTOP
              sta   OLDTOP
              lda   SCROLLTOP+1
@@ -175,10 +191,60 @@ MAINLOOP     jsr   SCROLLFIX
              jsr   SCROLLFIX
              jsr   STATUPD
 
+*--- NOTHING BUT THE CURSOR MOVED?
+*
+*    Then the screen is already right everywhere except two cells: the one the
+*    cursor was on, and the one it is on now. Lifting it off one and putting
+*    it on the other is two writes, against RENDER walking the buffer and
+*    repainting twenty-two rows -- which is what an up or down arrow used to
+*    cost, because the existing one-row gate below tests CURLNO and a vertical
+*    move always fails it.
+*
+*    CURSROW and CURSCOL can be computed rather than rendered: the line and
+*    column are both maintained, and SCROLLTOP has not moved or we would not
+*    be here.
+             lda   SELACT           ; a selection is a painted region
+             ora   OLDSEL
+             bne   :notmove
+             lda   SCROLLTOP
+             cmp   OLDTOP
+             bne   :notmove
+             lda   SCROLLTOP+1
+             cmp   OLDTOP+1
+             bne   :notmove
+             lda   MSGSHOWN         ; a message owns a row; let REDRAW have it
+             bne   :notmove
+             lda   SCRLOST          ; something painted over the text area
+             bne   :notmove
+             lda   FLOWOWED         ; a reflow still owed will move text
+             bne   :notmove
+
+             lda   GAPEND           ; the buffer itself unchanged?
+             sec
+             sbc   GAPBEG
+             sta   TMPA
+             lda   GAPEND+1
+             sbc   GAPBEG+1
+             cmp   OLDGAP+1
+             bne   :notmove
+             lda   TMPA
+             cmp   OLDGAP
+             bne   :notmove
+
+             jsr   HIDECURSOR
+             lda   CURLNO
+             sec
+             sbc   SCROLLTOP
+             sta   CURSROW
+             lda   CCOL             ; wrapped, so a line never passes the
+             sta   CURSCOL          ; margin and one byte is enough
+             jsr   SHOWCURSOR
+             jmp   :keys
+
 *--- one row is enough only if the handler opted in AND nothing structural
 *    moved. Anything else -- a wrap, a newline, a scroll, a file load -- falls
 *    through to the full redraw.
-             lda   SELACT           ; a selection spans rows: repaint the lot
+:notmove     lda   SELACT           ; a selection spans rows: repaint the lot
              ora   OLDSEL
              bne   :full
              lda   FASTDRAW
@@ -306,9 +372,13 @@ HOMECURSOR   jsr   GAPLEFT
              sta   CCOL+1
              rts
 
-*--- $1428 is display.S's LASTCOLH; $1429-$142f is otherwise free.
+*--- $1428 is display.S's LASTCOLH, $142a-$142d its cursor-save state.
              dum   $1429
 FLOWOWED     ds    1                ; a reflow was put off and is still owed
+             dend
+
+             dum   $142e
+OLDGAP       ds    2                ; gap size before the keystroke
              dend
 
 *--------------------------------------
