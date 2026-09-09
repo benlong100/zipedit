@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.4 — 29 August 2026
+## 1.4 — 9 September 2026
 
 **Added: the editor can be built in any language, and ships in Slovenian.**
 
@@ -71,6 +71,24 @@ can start is `$C000` minus its length. The scan stopped one byte short of it,
 which made the final characters of a document unsearchable. Confirmed by
 building 1.3 and watching it report `NOT FOUND` for a pattern 1.4 finds.
 
+**Fixed: every relative filename failed when the editor was launched from
+BASIC.**
+
+Starting ZipEdit with `-ZIPEDIT.SYSTEM` from the `]` prompt gave `PRODOS ERROR
+$40` for any name typed at the open or save prompt. ProDOS sets a prefix when
+it boots and launches the first `.SYSTEM` file on a disk, so booting the ZipEdit
+disk always worked and this went unnoticed through three releases. BASIC.SYSTEM
+sets one for itself and leaves none behind for a `SYS` file it launches.
+
+`$40` is *invalid pathname syntax*, which on screen cannot be told apart from
+having mistyped the name — so the hunt goes to the typo first, and the problem
+is not there.
+
+The editor now asks for the prefix at startup and, finding none, builds one
+from the volume name of the device in `$BF30`: the last device ProDOS touched,
+which at startup is the one the editor was launched from and so the one its
+files are on.
+
 **Fixed: the untitled document's name was cut short in another language.**
 
 The length the status row drew it from was an assembly-time constant of 11,
@@ -80,6 +98,23 @@ missing. The length is generated with the string now, and the generator checks
 the name besides: fourteen characters, because the cell after it carries the
 unsaved-changes star, and ProDOS's own rules on top, because it becomes a real
 filename the moment somebody saves without naming the document.
+
+**Changed: moving the cursor up or down is about a third faster.**
+
+The one-row redraw was reached only when the cursor stayed on the same line, so
+left and right arrows took it and every vertical move — both arrows and both
+page keys — repainted the whole text area instead. Moving the cursor now
+repaints the two cells that actually changed: the one it left and the one it
+arrived on.
+
+About 310ms to about 200ms per up arrow on a 200-line document at 1MHz. The
+redraw was never the whole cost — walking back through a wrapped line is the
+rest of it, and that is untouched.
+
+Knowing when this is safe is the interesting half. Rather than have thirty
+movement handlers each declare themselves, the main loop watches the size of
+the gap: moving the cursor slides both its edges together and leaves the size
+identical, while an insert or a delete cannot help but change it.
 
 ## 1.3 — 26 August 2026
 

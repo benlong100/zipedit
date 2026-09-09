@@ -12,11 +12,12 @@ ZipFiler. `docs/design.md` is the design and the reasoning; this is the state.
 | repository | <https://github.com/benlong100/zipedit> (public) |
 | last release | `v1.3` — `ZipEdit-1.3.zip`, 172K, both machines |
 | website | <https://trompingmarmots.com/AppSites/ZipEdit/> — still describes 1.3 |
-| in the tree | 1.4: any language, Slovenian, and find wraps |
-| suite | 311 assertions, 0 failures |
+| in the tree | 1.4: any language, Slovenian, find wraps, and the prefix fix |
+| suite | 315 assertions, 0 failures |
 
-1.4 is the localisation plus the find work — see `CHANGELOG.md`, which has the
-whole entry. Releasing it means `make dist`, a tag, and a line on the site.
+1.4 is the localisation, the find work, and the prefix fix — see `CHANGELOG.md`,
+which has the whole entry. Releasing it means `make dist`, a tag, and a line on
+the site.
 
 **`make dist` had quietly stopped working and now does again.** It guards the
 release by checking that the splash says the version in the filename, and it
@@ -62,13 +63,46 @@ of changes he has not seen. There is one — see below.
 
 ## 1.4, committed and unreleased
 
-`16834ce` — twelve files. Committed 2026-09-06; **not pushed, and not tagged or
-released.** The tree is clean apart from `slovenian accents.png`, which is
-untracked and has been left out of two commits now: it looks like a reference
-image rather than source, and Ben has not said either way.
+`16834ce` and three more since — **pushed, but not tagged or released.** The
+tree is clean apart from `slovenian accents.png`, which stays untracked: Ben
+has now said to leave it that way.
 
-Four things are in it: **find wraps**, the **wrap notice** as a localisable
-string, the **1.4 version bump**, and the **web address on the help screen**.
+Seven things are in it. Four came with the version bump on 2026-09-06: **find
+wraps**, the **wrap notice** as a localisable string, the **1.4 version bump**
+itself, and the **web address on the help screen**. Three arrived on
+2026-09-09, ported from ApplesIDE once that project had found them:
+
+- **The prefix fix** — the one that matters to a user, and the reason the date
+  on the changelog entry moved. See below.
+- **Cursor movement repaints two cells instead of the screen**, about a third
+  faster per vertical arrow.
+- **`mkdisk.sh` proves the image it built** carries the binary just built,
+  rather than assuming the emulator flushed when asked. Toolchain only, and
+  deliberately not in the changelog.
+
+**The version number did not move, and should not.** 1.4 has never been
+released — 1.3 is what is public — so this work belongs in 1.4 rather than in a
+1.5 the public would meet with 1.4 missing from in front of it.
+
+The one thing to weigh against that: Janez has a build labelled `Različica 1.4`
+that predates all of this, so the label now names two different binaries. His
+was always a pre-release copy and already lacked his own later edits.
+
+### Launched from BASIC, every filename failed
+
+`-ZIPEDIT.SYSTEM` from the `]` prompt gave `PRODOS ERROR $40` on any name typed
+at the open or save prompt. ProDOS sets a prefix when it boots and launches the
+first `.SYSTEM` file, so booting the disk always worked and nothing noticed
+through three releases; BASIC.SYSTEM sets one for itself and leaves none behind
+for a `SYS` file it launches.
+
+`$40` is *invalid pathname syntax*, indistinguishable on screen from a typo,
+which is where the hunt goes and where the problem is not.
+
+`SETPFX` asks for the prefix at startup and, finding none, builds `/VOLUME/`
+from the device in `$BF30`. The suite section that covers it drives the whole
+path — dispatcher, BASIC.SYSTEM, relaunch, open — and was **verified to fail
+with the fix commented out**, on the `$40` it exists to catch.
 
 ### The help screen carries the URL
 
