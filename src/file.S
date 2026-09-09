@@ -65,6 +65,16 @@ PARMTPL
 
              dfb   $01              ; DESTROY
              da    FNAME
+
+             dfb   $01              ; GET_PREFIX
+             da    PFXBUF
+
+             dfb   $01              ; SET_PREFIX
+             da    PFXBUF
+
+             dfb   $02              ; ON_LINE
+             dfb   $00              ; unit number, filled in per call
+             da    ONLBUF
 PARMEND
 
 *--------------------------------------
@@ -105,6 +115,74 @@ DESTROYF     jsr   MLI
              da    DESTPARM
              sta   MLIERR
              rts
+
+GETPFXF      jsr   MLI
+             dfb   $c7
+             da    GETPPARM
+             sta   MLIERR
+             rts
+
+SETPFXF      jsr   MLI
+             dfb   $c6
+             da    SETPPARM
+             sta   MLIERR
+             rts
+
+ONLINEF      jsr   MLI
+             dfb   $c5
+             da    ONLPARM
+             sta   MLIERR
+             rts
+
+*--------------------------------------
+* SETPFX -- make sure there IS a prefix
+*
+* ProDOS sets one when it boots and launches the first .SYSTEM file, so a disk
+* that boots straight into the editor is fine. BASIC.SYSTEM leaves none behind
+* when it launches a SYS file with -NAME: the prefix reads back empty, and
+* every relative pathname then fails with $40, invalid pathname syntax. On
+* screen that is indistinguishable from having mistyped the filename, which is
+* where the hunt goes first and where the problem is not.
+*
+* Confirmed on this editor before it was fixed: boot the release disk, OA-Q to
+* the dispatcher, run BASIC.SYSTEM, `-ZIPEDIT.SYSTEM` from the ] prompt, then
+* open SAMPLE.MD. PRODOS ERROR $40, with BASIC's own prefix still reading
+* /ZIPEDIT/ a moment earlier.
+*
+* $BF30 is DEVNUM, the last device ProDOS touched. At startup that is the one
+* the editor was launched from, which is the volume its files are on.
+*--------------------------------------
+SETPFX       jsr   GETPFXF
+             bcs   :derive
+             lda   PFXBUF           ; a length of zero means no prefix
+             bne   :done
+
+:derive      lda   $bf30
+             sta   ONLPARM+1
+             jsr   ONLINEF
+             bcs   :done            ; nothing on line: leave well alone
+             lda   ONLBUF
+             and   #$0f             ; the low nibble is the name length
+             beq   :done
+             sta   TMPA
+
+             lda   #'/'             ; ProDOS pathnames are LOW ascii
+             sta   PFXBUF+1
+             ldy   #$00
+:copy        cpy   TMPA
+             beq   :tail
+             lda   ONLBUF+1,y
+             sta   PFXBUF+2,y
+             iny
+             bne   :copy
+:tail        lda   #'/'
+             sta   PFXBUF+2,y
+             tya
+             clc
+             adc   #$02             ; the two slashes
+             sta   PFXBUF
+             jsr   SETPFXF
+:done        rts
 
 *--------------------------------------
 * SAVEFILE -- write the buffer to the file named in FNAME
@@ -634,5 +712,10 @@ WRITEPARM    ds    8
 CLOSEPARM    ds    2
 CREATEPARM   ds    12
 DESTPARM     ds    3
+GETPPARM     ds    3
+SETPPARM     ds    3
+ONLPARM      ds    4                ; +1 is the unit number
 MLIERR       ds    1
+PFXBUF       ds    64               ; a prefix, length-prefixed and low ASCII
+ONLBUF       ds    16               ; ON_LINE: length in the low nibble of [0]
              dend

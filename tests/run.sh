@@ -14,6 +14,7 @@ BIN="${BIN:-$ROOT/build/ZIPEDIT.SYSTEM}"
 PLAINIMAGE="${PLAINIMAGE:-$ROOT/build/ZIPEDIT-PLAIN.po}"
 TWOIMAGE="${TWOIMAGE:-$ROOT/build/ZIPEDIT2P.po}"
 SLIMAGE="${SLIMAGE:-$ROOT/build/ZIPEDIT-SL.po}"
+RELIMAGE="${RELIMAGE:-$ROOT/build/ZIPEDIT-REL.po}"
 
 # One suite at a time. Virtual ][ has exactly one front machine, so a second
 # run -- or a stray boot from another window -- steers the machine out from
@@ -2271,6 +2272,66 @@ fi
 # the Mac. On SCREEN they are the substitutes -- Razli~ica -- and a test that
 # only read the screen would pass just as happily if the file were spelt that
 # way too. So the round trip is checked against the bytes, not the display.
+#--------------------------------------
+# Launched from BASIC rather than booted.
+#
+# ProDOS sets a prefix when it boots and launches the first .SYSTEM file, so a
+# disk that boots straight into the editor is fine and this went unnoticed for
+# four releases. BASIC.SYSTEM leaves NONE behind when it launches a SYS file
+# with -NAME, and every relative pathname then fails with $40 -- invalid
+# pathname syntax, which on screen is indistinguishable from having mistyped
+# the filename.
+#
+# Needs BASIC.SYSTEM, so it runs against the release image rather than the
+# build one, which mkdisk strips back to PRODOS plus the editor.
+#--------------------------------------
+if section "launched from BASIC"; then
+if [ ! -f "$RELIMAGE" ]; then
+    bad "the release image exists" "no $RELIMAGE -- run: make release"
+else
+"$VII" boot "$RELIMAGE" >/dev/null || { echo "boot failed"; exit 1; }
+"$VII" await "ZipEdit" 120 >/dev/null || bad "the splash never appeared"
+"$VII" text " " >/dev/null
+"$VII" await "UNTITLED.MD" 60 >/dev/null || bad "the editor never opened"
+
+# Out to the dispatcher, down one entry to BASIC.SYSTEM, and run it.
+"$VII" caps true >/dev/null
+"$VII" oa "Q" >/dev/null
+if "$VII" await "BASIC.SYSTEM" 60 >/dev/null; then
+    ok "OA-Q reaches the dispatcher"
+else
+    bad "OA-Q reaches the dispatcher" "no file list appeared"
+fi
+"$VII" key "down arrow" >/dev/null
+"$VII" settle 2 >/dev/null
+"$VII" line "" >/dev/null
+if "$VII" await "PRODOS BASIC" 90 >/dev/null; then
+    ok "and BASIC.SYSTEM starts from it"
+else
+    bad "and BASIC.SYSTEM starts from it" "never reached the ] prompt"
+fi
+
+# Back into the editor the way a user would, and open a RELATIVE name.
+"$VII" line "-ZIPEDIT.SYSTEM" >/dev/null
+"$VII" await "ZipEdit" 120 >/dev/null || bad "the editor never relaunched"
+"$VII" text " " >/dev/null
+"$VII" await "UNTITLED.MD" 60 >/dev/null || bad "the relaunched editor never opened"
+"$VII" oa "O" >/dev/null
+"$VII" await "OPEN:" 30 >/dev/null || bad "no open prompt after the relaunch"
+"$VII" text "SAMPLE.MD" >/dev/null
+"$VII" line "" >/dev/null
+"$VII" settle 6 >/dev/null
+snapshot
+"$VII" caps false >/dev/null
+assert_row "a relative name opens after launching from BASIC" 0 "Notes from the Apple"
+if "$VII" screen | grep -q "ERROR \$40"; then
+    bad "with no invalid-pathname error" "PRODOS ERROR \$40 -- the prefix is empty again"
+else
+    ok "with no invalid-pathname error"
+fi
+fi
+fi
+
 #--------------------------------------
 if section "another language"; then
 if [ ! -f "$SLIMAGE" ]; then

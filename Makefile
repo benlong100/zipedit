@@ -82,7 +82,7 @@ SRC2P   := src/edit2p.S
 # builds apart on the card.
 SYS2P   := ZIPEDIT.SYSTEM
 
-.PHONY: all disk run screen test clean tools pull push eject release probe card plaindisk twodisk keyprobe two release2p card2p dist
+.PHONY: all disk run screen test clean tools pull push eject release relimage probe card plaindisk twodisk keyprobe two release2p card2p dist
 
 all: $(BIN)
 
@@ -125,13 +125,21 @@ screen:
 
 # SAMPLE.MD is the suite's fixture and lives on the image, so a test that saves
 # can overwrite it. Put a fresh copy back before every run.
-test: $(IMAGE) plaindisk twodisk
+# The release image is in here because one section needs BASIC.SYSTEM: the
+# prefix a SYS file inherits differs depending on what launched it, and only a
+# disk carrying BASIC can exercise the case that used to fail.
+test: $(IMAGE) plaindisk twodisk relimage
 	@$(TOOLS)/xfer.sh push $(IMAGE) tests >/dev/null
+	@$(TOOLS)/xfer.sh push $(RELIMG) tests >/dev/null
 	@python3 $(TOOLS)/asciifixtures.py $(IMAGE) >/dev/null
 	@tests/run.sh "$(SECTION)"
 
+relimage:
+	@RELEASE=1 VOL=ZIPEDIT $(TOOLS)/mkdisk.sh $(RELIMG) $(BIN) >/dev/null
+
 # A second image whose editor is patched to draw the original //e's glyphs.
 # Virtual ][ has no unenhanced //e, so this is how that path gets tested.
+RELIMG    := $(BUILD)/ZIPEDIT-REL.po
 PLAINBIN  := $(BUILD)/ZIPEDIT-PLAIN.SYSTEM
 PLAINIMG  := $(BUILD)/ZIPEDIT-PLAIN.po
 
@@ -189,9 +197,9 @@ keyprobe:
 
 # A disk to hand to real hardware: editor + ProDOS + BASIC.SYSTEM, no test files.
 release: $(BIN)
-	@RELEASE=1 VOL=ZIPEDIT $(TOOLS)/mkdisk.sh $(BUILD)/ZIPEDIT-REL.po $(BIN)
+	@RELEASE=1 VOL=ZIPEDIT $(TOOLS)/mkdisk.sh $(RELIMG) $(BIN)
 	@echo
-	@echo "release image: $(BUILD)/ZIPEDIT-REL.po"
+	@echo "release image: $(RELIMG)"
 	@echo "  built from $(SRC) -> $(NAME), $$(stat -f%z $(BIN)) bytes"
 	@echo "  (src/edit.S is the 80-column //e; edit2p.S is the ][+)"
 

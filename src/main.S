@@ -28,6 +28,7 @@ START        lda   #$00             ; nothing remembered about the viewport yet
              jsr   AUXFILL
              jsr   INSTSTUB         ; aux read stub into the stack page
              jsr   INITFILE         ; ProDOS parameter blocks into RAM
+             jsr   SETPFX           ; ...and a prefix, if nobody left one
              jsr   SELINIT
              lda   #$00
              sta   GOALCOL
