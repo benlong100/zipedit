@@ -17,8 +17,10 @@
 
 # ---------------------------------------------------------------- the document
 # The name a document has before it is saved. It becomes a real filename if
-# the writer saves without naming it, so ProDOS's rules apply: up to fifteen
-# characters, a letter first, letters digits and full stops only.
+# the writer saves without naming it, so ProDOS's rules apply: a letter first,
+# letters digits and full stops only. Fourteen characters at most -- ProDOS
+# would allow fifteen, but the cell after the name on the status row carries
+# the unsaved-changes star.
 UNTITLED = "UNTITLED.MD"
 
 # ------------------------------------------------------------- the cheat sheet

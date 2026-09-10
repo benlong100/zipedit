@@ -23,7 +23,8 @@
 
 # ---------------------------------------------------------------- the document
 # Becomes a real ProDOS filename if the writer saves without naming the file,
-# so: fifteen characters at most, a letter first, and no accented letters --
+# so: fourteen characters at most -- the cell after it on the status row
+# carries the unsaved-changes star -- a letter first, and no accented letters --
 # ProDOS would not keep them and the disk is read by other programs.
 UNTITLED = "BREZNASLOVA.MD"
 
@@ -31,6 +32,12 @@ UNTITLED = "BREZNASLOVA.MD"
 # Markdown syntax, which does not translate; only the words between the marks
 # do. EXACTLY 80 characters at most -- the row is 80 wide and anything longer is
 # simply cut off at the edge, mid-word.
+#
+# TODO: "konc." is OURS, not yours. Your line was 82 characters and the row is
+# 80, so "koncano" was shortened to fit -- the only place we have changed your
+# Slovenian. It was picked only because the line already abbreviates "st." the
+# same way. If those two characters are better spent elsewhere, move them:
+# anything at or under 80 builds.
 CHEATTXT = "`koda` # H1 ## H2 - seznam 1. št. - [ ] opraviti - [x] konč. > citat [link](url)"
 
 # --------------------------------------------------------------- the status row
