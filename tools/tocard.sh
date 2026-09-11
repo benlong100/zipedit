@@ -43,6 +43,29 @@ echo "==> clearing macOS metadata from $DEST"
 rm -rf "$DEST/.Spotlight-V100" "$DEST/.fseventsd" "$DEST/.Trashes" 2>/dev/null || true
 find "$DEST" -name '._*' -delete 2>/dev/null || true
 
+# THE HOLES THOSE DELETIONS JUST MADE ARE THE PROBLEM.
+#
+# macOS's FAT driver allocates from the first free cluster, and the directories
+# removed above sat near the front of the volume. Freeing them leaves a scatter
+# of small gaps exactly where the next write will go -- so purging the metadata
+# and then copying, which is what this script used to do, is a reliable way to
+# land the image in pieces. On a card that is almost entirely free.
+#
+# Clusters are typically 8KB, so a 140K floppy image needs eighteen in a row. A
+# freed directory is one or two. Hence: fill the gaps with a scratch file
+# first, copy the image into the clean space beyond them, then take the filler
+# away again. The image has already been placed by then and does not move.
+#
+# It leaves the card better than it found it, too: the space the filler
+# vacates is one large contiguous hole rather than a scatter of small ones.
+FILLER="$DEST/.contiguous.tmp"
+FILLMB="${FILLMB:-32}"
+echo "==> filling fragmented free space (${FILLMB}MB scratch file)"
+rm -f "$FILLER" 2>/dev/null || true
+dd if=/dev/zero of="$FILLER" bs=1m count="$FILLMB" 2>/dev/null || \
+    echo "    (could not write the filler; the copy may fragment)" >&2
+sync
+
 for img in "${IMAGES[@]}"; do
     name="$(basename "$img")"
     echo "==> $name"
@@ -56,7 +79,16 @@ done
 find "$DEST" -name '._*' -delete 2>/dev/null || true
 sync
 
-# Every image on the card, not just the ones we wrote. Copying leaves earlier
+rm -f "$FILLER" 2>/dev/null || true    # the images are placed; let the space go
+sync
+
+# Every image on the card, not just the ones we wrote. The pattern below has to
+# cover hard-disk images as well as floppies: a card holding a 32MB .hdv would
+# otherwise be reported as holding one fewer image than it does. Nothing is
+# lost, but a listing that quietly omits a file is worse than no listing,
+# because it is read as a statement that the file is gone.
+#
+# Copying leaves earlier
 # images in place -- they are somebody's data as far as this script knows -- so
 # a renamed build quietly leaves its predecessor behind, and the Floppy Emu
 # lists both. That is confusing enough to be worth naming out loud rather than
@@ -72,7 +104,8 @@ while IFS= read -r f; do
     done
     [ "$mark" = "   " ] && stray=$((stray + 1))
     printf "  %s%-28s %6s KB\n" "$mark" "$name" "$(( $(stat -f%z "$f") / 1024 ))"
-done < <(find "$DEST" -maxdepth 1 \( -iname '*.po' -o -iname '*.dsk' -o -iname '*.2mg' \) | sort)
+done < <(find "$DEST" -maxdepth 1 \( -iname '*.po' -o -iname '*.dsk' -o -iname '*.2mg' \
+                                      -o -iname '*.hdv' -o -iname '*.2img' \) | sort)
 echo "  ** = written by this run"
 if [ "$stray" -gt 0 ]; then
     echo
