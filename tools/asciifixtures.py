@@ -33,6 +33,17 @@ files = {
     # FIRST character.
     "LONGLINE.TXT": (b"**Bold** " + b"alpha bravo charlie delta echo foxtrot "
                      * 9 + b"\nsecond line.\n"),
+
+    # DEEP ENOUGH TO BE SLOW. RENDER used to count from byte zero on every
+    # keystroke that had a selection up, so the cost grew with how far down
+    # the document you were. A short fixture cannot show that: the walk is
+    # over before it is noticeable. This one is ten kilobytes, which is where
+    # a real document was reported from -- at that depth the editor missed
+    # nine keypresses in ten, because the //e keyboard has no buffer and
+    # anything arriving mid-redraw is gone.
+    "DEEPDOC.TXT": ("\n".join(
+        f"Paragraph {n}. Alpha bravo charlie delta echo foxtrot golf hotel."
+        for n in range(1, 141)) + "\n").encode("ascii"),
 }
 
 for name, data in files.items():

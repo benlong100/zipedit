@@ -156,6 +156,7 @@ reboot() {
 # wait for it to actually appear.
 ktext() { "$VII" text "$1" >/dev/null; "$VII" await "$1" 180 || bad "typing '$1' never completed"; }
 
+linenum() { "$VII" screen-raw | sed -n '24p' | cut -c41-44 | tr -d ' '; }
 SCREEN="$TMP/screen.txt"
 snapshot() { "$VII" screen-raw > "$SCREEN"; }
 
@@ -1117,6 +1118,145 @@ for i in 1 2 3 4; do "$VII" key "right arrow" >/dev/null; sleep 0.25; done
 "$VII" key esc >/dev/null; sleep 2; snapshot
 assert_row "Esc leaves the text alone"                   0 "Qotes from the Apple"
 assert_sel "Esc cancels selecting entirely"             0 0
+fi
+
+#--------------------------------------
+# A selection whose start is ABOVE the viewport.
+#
+# RENDER caches where the top visible line begins so it need not count down
+# from byte zero, and that cache used to be refused whenever a selection was
+# up: the bounds are logical positions and RPOS counts them one byte at a
+# time. So every keystroke with a selection walked the whole document above
+# the viewport, and the deeper in you were the worse it got. Measured at line
+# 111 of a nine-kilobyte document: ten down-arrows took 11.2s with a selection
+# up and 2.9s without the restriction -- about 1.1s of lag per keypress.
+#
+# By the time the cache is consulted the address is behind the gap and the
+# text before the gap is contiguous, so the logical position is a subtraction
+# rather than a count. SELPRIME then settles INSEL on arrival -- SELTEST
+# cannot, because it only fires where RPOS lands exactly on a bound and a walk
+# starting partway down never lands on one.
+#
+# THE FAILURE THIS CATCHES IS SILENT: get INSEL wrong and the selection simply
+# does not draw, while every other selection test still passes because they
+# select near the top where the slow path runs anyway.
+#--------------------------------------
+if section "selection above the viewport"; then
+reboot
+"$VII" caps true >/dev/null; "$VII" oa "<" >/dev/null; "$VII" caps false >/dev/null
+"$VII" settle 4 >/dev/null
+"$VII" caps true >/dev/null; "$VII" oa " " >/dev/null; "$VII" caps false >/dev/null
+"$VII" settle 3 >/dev/null
+for _i in $(seq 1 30); do "$VII" key "down arrow" >/dev/null; done
+"$VII" settle 8 >/dev/null
+snapshot
+
+if [ "$(scrolltop)" -gt 0 ]; then
+    ok "the view scrolled past the anchor"
+else
+    bad "the view scrolled past the anchor" "SCROLLTOP=$(scrolltop)"
+fi
+
+
+# Read the text page out of BOTH banks -- 80-column text interleaves, even
+# cells in aux and odd in main -- and check the drawn cells are inverse.
+# Inverse screen codes are below $80; ordinary high-ASCII text is $A0 and up.
+"$VII" dump 0x0400 0x400 1 "$TMP/selaux.bin" >/dev/null
+"$VII" dump 0x0400 0x400 0 "$TMP/selmain.bin" >/dev/null
+if python3 - "$TMP/selaux.bin" "$TMP/selmain.bin" <<'PYEOF'
+import sys
+aux = open(sys.argv[1],'rb').read(); main = open(sys.argv[2],'rb').read()
+bad = []
+checked = 0
+for r in (0, 1, 2, 3, 4):
+    off = (r % 8) * 0x80 + (r // 8) * 0x28
+    cells = []
+    for c in range(40):
+        cells.append(aux[off+c]); cells.append(main[off+c])
+    while cells and cells[-1] in (0xA0, 0x20):   # trailing blanks, either ink
+        cells.pop()
+    if not cells:
+        continue
+    checked += 1
+    plain = [b for b in cells if b >= 0x80]
+    if plain:
+        bad.append(f"row {r}: {len(plain)} of {len(cells)} cells not inverse")
+if not checked:
+    # every row blank means this proved nothing -- say so rather than pass
+    print("no drawn cells on rows 0-4 at all"); sys.exit(1)
+if bad:
+    print('; '.join(bad)); sys.exit(1)
+sys.exit(0)
+PYEOF
+then
+    ok "every drawn cell above the anchor is selected"
+else
+    bad "every drawn cell above the anchor is selected" "the selection did not paint"
+fi
+# AND THE COST ITSELF. The old code was correct, only slow, so no correctness
+# assertion can tell the two apart -- this one has to measure.
+#
+# Ten down-arrows go in as one burst, deep inside a nine-kilobyte document with
+# a selection up, and the clock runs until the cursor has actually ARRIVED ten
+# lines down. Timing to a known end state matters: an earlier version of this
+# waited for the screen to "stop changing", which gives up early whenever a
+# redraw takes longer than a poll, and it reported keystrokes as dropped that
+# were merely still queued. Nothing is dropped -- Virtual ][ queues them. What
+# the writer feels is the lag.
+#
+# Measured at line 111: 11.2s before the cache was allowed to work with a
+# selection up, 2.9s after. The threshold sits well between.
+"$VII" caps true >/dev/null; "$VII" oa "O" >/dev/null; "$VII" caps false >/dev/null
+"$VII" await "OPEN:" 30 >/dev/null || bad "no open prompt for the deep document"
+"$VII" text "DEEPDOC.TXT" >/dev/null; "$VII" line "" >/dev/null
+"$VII" await "Paragraph 1." 240 >/dev/null || bad "DEEPDOC.TXT never loaded"
+"$VII" settle 8 >/dev/null
+"$VII" caps true >/dev/null; "$VII" oa ">" >/dev/null; "$VII" caps false >/dev/null
+"$VII" settle 15 >/dev/null
+for _i in $(seq 1 30); do "$VII" key "up arrow" >/dev/null; done
+"$VII" settle 15 >/dev/null
+
+# Esc FIRST. OA-Space is a latch, not a fresh start, and it was left on by the
+# SAMPLE.MD half of this section -- pressing it again turned selecting OFF, and
+# the burst below then measured ordinary cursor movement, which takes the fast
+# path whatever this test is trying to prove. It passed either way and proved
+# nothing until SELMODE was read out of the machine and found to be zero.
+"$VII" key esc >/dev/null
+"$VII" settle 4 >/dev/null
+"$VII" caps true >/dev/null; "$VII" oa " " >/dev/null; "$VII" caps false >/dev/null
+"$VII" settle 8 >/dev/null
+
+# AT 1MHz, DELIBERATELY. The suite runs the emulator flat out, where the whole
+# difference disappears. The machine is put back afterwards.
+"$VII" speed regular >/dev/null
+"$VII" settle 4 >/dev/null
+
+before="$(linenum)"; target=$(( before + 10 ))
+t0=$(python3 -c 'import time;print(time.time())')
+osascript >/dev/null <<'ASEOF'
+tell application "Virtual ]["
+  tell (last machine)
+    repeat 10 times
+      type key down arrow
+    end repeat
+  end tell
+end tell
+ASEOF
+for _i in $(seq 1 300); do
+    [ "$(linenum)" = "$target" ] && break
+done
+t1=$(python3 -c 'import time;print(time.time())')
+"$VII" speed maximum >/dev/null
+took=$(python3 -c "print(f'{$t1-$t0:.1f}')")
+if [ "$(linenum)" != "$target" ]; then
+    bad "ten arrows land at depth" "cursor reached $(linenum), wanted $target"
+elif python3 -c "import sys; sys.exit(0 if $took < 6.0 else 1)"; then
+    ok "ten arrows land in under six seconds at depth (${took}s)"
+else
+    bad "ten arrows land in under six seconds at depth" \
+        "took ${took}s -- the redraw is walking the document again"
+fi
+
 fi
 
 #--------------------------------------

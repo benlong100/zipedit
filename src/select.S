@@ -310,6 +310,37 @@ COPYSEL      lda   SELACT
 * boundaries rather than comparing magnitudes: the walk only ever moves
 * forwards, and a low-byte mismatch settles it in four cycles.
 *--------------------------------------
+*--------------------------------------
+* SELPRIME -- is RPOS inside the selection? Sets INSEL to say so.
+*
+* SELTEST only flips INSEL where RPOS lands EXACTLY on a bound, which is right
+* for a walk that reads every byte from zero and useless for one that starts
+* partway down. RENDER's fast path does exactly that, so it asks this once on
+* arrival and SELTEST keeps it right from there.
+*--------------------------------------
+SELPRIME     lda   #$00
+             sta   INSEL
+
+             lda   RPOS+1           ; RPOS >= SELLO?
+             cmp   SELLO+1
+             bcc   :done
+             bne   :hi
+             lda   RPOS
+             cmp   SELLO
+             bcc   :done
+
+:hi          lda   RPOS+1           ; and RPOS < SELHI?
+             cmp   SELHI+1
+             bcc   :in
+             bne   :done
+             lda   RPOS
+             cmp   SELHI
+             bcs   :done
+
+:in          lda   #$01
+             sta   INSEL
+:done        rts
+
 SELTEST      lda   RPOS
              cmp   SELLO
              bne   :hi

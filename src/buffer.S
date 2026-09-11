@@ -306,16 +306,26 @@ RENDER       lda   #$00
 *    byte above the viewport read through a banked load, before one character
 *    is drawn. Remembering the address turns that into nothing.
 *
-*    Three things have to hold. The remembered line has to be the one being
-*    asked for; there must be no selection, whose bounds are logical positions
-*    that only come out right if every byte is counted; and the address has to
-*    still be behind the gap. That last one is what makes the rest safe --
-*    editing happens at the gap, so bytes before it never move, and an address
-*    below GAPBEG means the text there is exactly where it was left. Move the
-*    cursor above the top line and the bytes shuffle across the gap, GAPBEG
-*    drops below the address, and this falls back to counting.
-             lda   SELACT
-             bne   :count
+*    Two things have to hold. The remembered line has to be the one being asked
+*    for, and the address has to still be behind the gap. That second one is
+*    what makes the rest safe -- editing happens at the gap, so bytes before it
+*    never move, and an address below GAPBEG means the text there is exactly
+*    where it was left. Move the cursor above the top line and the bytes
+*    shuffle across the gap, GAPBEG drops below the address, and this falls
+*    back to counting.
+*
+*    A SELECTION USED TO DISQUALIFY IT, because the selection bounds are
+*    logical positions and RPOS counts them from zero, one byte at a time. But
+*    the guard above has already proved TOPADDR is behind the gap, and the text
+*    before the gap is contiguous from the buffer base -- so the logical
+*    position of TOPADDR is TOPADDR minus that base, with nothing to count.
+*    SELPRIME then decides INSEL on arrival, which SELTEST cannot do because it
+*    only fires where RPOS lands exactly on a bound.
+*
+*    What that was costing: with a selection up, every keystroke walked the
+*    whole document above the viewport. Ten down-arrows at line 111 of a nine
+*    kilobyte document took 11.2 seconds before this and 2.9 after -- about
+*    1.1s of lag on every keypress, against 0.29s.
              lda   TOPOK
              beq   :count
              lda   GAPBEG+1         ; TOPADDR <= GAPBEG?
@@ -335,6 +345,17 @@ RENDER       lda   #$00
              sta   LINENO
              lda   SCROLLTOP+1
              sta   LINENO+1
+
+*--- and this far along, logically. Exact, because TOPADDR is behind the gap.
+             lda   TOPADDR
+             sta   RPOS
+             lda   TOPADDR+1
+             sec
+             sbc   #BUFLO
+             sta   RPOS+1
+             lda   SELACT
+             beq   :count
+             jsr   SELPRIME
 :count
 
 *--- Drawing starts RSKIP rows down the viewport, and the rows above that are
