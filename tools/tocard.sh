@@ -43,23 +43,50 @@ echo "==> clearing macOS metadata from $DEST"
 rm -rf "$DEST/.Spotlight-V100" "$DEST/.fseventsd" "$DEST/.Trashes" 2>/dev/null || true
 find "$DEST" -name '._*' -delete 2>/dev/null || true
 
-# THE HOLES THOSE DELETIONS JUST MADE ARE THE PROBLEM.
+# THE HOLES THOSE DELETIONS JUST MADE ARE THE PROBLEM, AND THE BIGGEST OF THEM
+# IS THE OLD COPY OF THE IMAGE ITSELF.
 #
-# macOS's FAT driver allocates from the first free cluster, and the directories
-# removed above sat near the front of the volume. Freeing them leaves a scatter
-# of small gaps exactly where the next write will go -- so purging the metadata
-# and then copying, which is what this script used to do, is a reliable way to
-# land the image in pieces. On a card that is almost entirely free.
+# macOS's FAT driver allocates from the first free cluster, so a hole near the
+# front of the volume is where the next write goes. Clearing the metadata above
+# leaves a scatter of small ones; deleting the previous image leaves eighteen
+# clusters' worth in exactly the shape the previous image had.
 #
-# Clusters are typically 8KB, so a 140K floppy image needs eighteen in a row. A
-# freed directory is one or two. Hence: fill the gaps with a scratch file
-# first, copy the image into the clean space beyond them, then take the filler
-# away again. The image has already been placed by then and does not move.
+# THE ORDER HERE IS THE WHOLE FIX. An earlier version wrote the filler first
+# and deleted the old image afterwards, inside the copy loop -- so the filler
+# covered the metadata holes, the delete then opened up the old image's
+# clusters, and the copy dropped straight back into them. Fragmented exactly as
+# before, every time, on a card that is 99.8% free. It appeared to work once,
+# on a card that had never held the image.
 #
-# It leaves the card better than it found it, too: the space the filler
-# vacates is one large contiguous hole rather than a scatter of small ones.
+# So: delete everything we are about to write FIRST, then fill what that left,
+# then copy into the clean space beyond it, then take the filler away. The
+# image is placed by then and does not move.
+#
+# HOW THIS WAS ESTABLISHED, because it took three bad guesses first: read the
+# card's own FAT with tools/fatchain.py. A real card showed
+#
+#     ZIPEDIT-REL.po   clusters 8227..8244
+#     ZIPFILER.po      clusters 8248..8249     <- a two-cluster hole
+#     APPLESIDE.po     clusters 8250..8267
+#     ZIPFILER.po      clusters 8268..8283
+#
+# -- the new copy had gone straight back into the shape the old one left. That
+# is the whole mechanism, and it is self-perpetuating: once an image is
+# fragmented, deleting it reopens exactly those clusters and the next copy
+# takes them again. It never recovers on its own, which is why it happened
+# every single time rather than now and then.
+#
+# THE FILLER ALSO HAS TO BE BIG ENOUGH. At 32MB it covered 4096 clusters and
+# reached fifteen clusters past the fragmentation on that card -- true by luck
+# rather than by design. 128MB is four times the distance the damage ran.
+echo "==> removing previous copies"
+for img in "${IMAGES[@]}"; do
+    rm -f "$DEST/$(basename "$img")" 2>/dev/null || true
+done
+sync
+
 FILLER="$DEST/.contiguous.tmp"
-FILLMB="${FILLMB:-32}"
+FILLMB="${FILLMB:-128}"
 echo "==> filling fragmented free space (${FILLMB}MB scratch file)"
 rm -f "$FILLER" 2>/dev/null || true
 dd if=/dev/zero of="$FILLER" bs=1m count="$FILLMB" 2>/dev/null || \
@@ -69,8 +96,6 @@ sync
 for img in "${IMAGES[@]}"; do
     name="$(basename "$img")"
     echo "==> $name"
-    rm -f "$DEST/$name"            # remove first: overwriting can reuse a hole
-    sync
     cp -X "$img" "$DEST/$name"    # -X: no extended attributes, so no ._ sidecar
     xattr -c "$DEST/$name" 2>/dev/null || true
     printf '    %s bytes\n' "$(stat -f%z "$DEST/$name")"
