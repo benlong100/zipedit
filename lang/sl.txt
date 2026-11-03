@@ -147,8 +147,8 @@ HELP "reflow paragraph" = "preoblikuj odst."
 HELP "delete word left" = "briši besedo levo"
 
 HELP "MARKDOWN" = "MARKDOWN"
-HELP "**bold** word" = "**krepko** besedo"
-HELP "*italic* word" = "*ležeče* besedo"
+HELP "**bold** word" = "**krepko** bese."
+HELP "*italic* word" = "*ležeče* bese."
 HELP "`code` marker" = "oznaka `koda`"
 
 HELP "CLIPBOARD" = "ODLOŽIŠČE"
