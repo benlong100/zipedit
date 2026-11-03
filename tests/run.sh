@@ -620,10 +620,17 @@ else
     bad "Ctrl-H is the left arrow (so help cannot live there)" "column went $C1 -> $C2"
 fi
 
+# At the start of a line with a letter under the cursor, $89 is italic: the
+# opening word of a paragraph was out of its reach until 1.5, and this test
+# used to assert exactly that as correct. Without a letter there it indents.
 k ctrl A
 k ctrl I
 snapshot
-assert_row "\$89 indents inside leading whitespace"   0 "  draft: # **NXotes**"
+assert_row "\$89 italicises a letter at a line start" 0 "*draft*: # **NXotes**"
+k ctrl A
+k ctrl I
+snapshot
+assert_row "\$89 indents with no letter under it"     0 "  *draft*: # **NXotes**"
 
 # At the end of a long line the markers land past column 80 and are clipped
 # from the display, so this one has to be checked in the buffer itself.
@@ -644,7 +651,7 @@ k ctrl A
 ktext "zz"
 k key "left arrow"
 snapshot
-assert_row "text accumulates correctly before delete" 0 "zz  draft:"
+assert_row "text accumulates correctly before delete" 0 "zz  *draft*:"
 fi
 
 #--------------------------------------
@@ -1796,6 +1803,13 @@ arrows right 3
 "$VII" caps true >/dev/null; k oa "X"; "$VII" caps false >/dev/null
 doc_is "but not the line break the cursor sits on"     "|
 two"
+
+# A list marker is not a letter, so $89 on one still indents: nesting a list.
+new_doc
+ktext "- item"
+k ctrl A
+k ctrl I
+doc_is "\$89 on a list marker indents it"             "  |- item"
 fi
 
 #--------------------------------------

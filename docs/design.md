@@ -479,8 +479,16 @@ dispatched positionally:
 
 - typed within a line's **leading whitespace** → indent two spaces
 - typed **anywhere else** → italic
+- **unless a letter is under the cursor** → italic, even at the start of a line
 
 That preserves both behaviours in the contexts where each is actually wanted.
+The third rule came in 1.5, after Ctrl-I on a paragraph's first word indented
+the line on real hardware: the cursor's own character counts as leading
+whitespace's last position, so the opening word of every line was out of
+italic's reach. A letter is `$C0` and up, which also takes in the six codes
+Slovenian uses for its carons; list markers, digits, `#`, `>` and spaces are
+all below it, so nesting a list item still indents. A line that opens on a
+letter is indented with the space bar.
 
 ### Keymap
 
@@ -496,7 +504,7 @@ That preserves both behaviours in the contexts where each is actually wanted.
 | Ctrl-Y | delete to end of line |
 | **Ctrl-B** | **bold** — wrap in `**` |
 | **Ctrl-I** | **italic** — wrap in `*` (see collision above) |
-| Tab (in leading whitespace) | indent two spaces |
+| Tab (in leading whitespace, not on a letter) | indent two spaces |
 | OA-C / OA-X / OA-V | copy line / cut line / paste |
 | OA-F / OA-G | find / find again, both wrapping |
 | OA-L | go to line |

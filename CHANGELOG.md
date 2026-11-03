@@ -38,6 +38,17 @@ to the next one.
 This also means `OA-Space` (`Ctrl-T` on the ][+) selects the character under
 the cursor straight away, so typing right after it replaces that character.
 
+**Fixed: `Ctrl-I` on the first word of a line indented it.**
+
+Tab and `Ctrl-I` are the same key code on an Apple II, so the editor has always
+decided between them by position: Tab in a line's leading whitespace, italic
+anywhere else. The first character of a line counted as leading whitespace, so
+`Ctrl-I` on a paragraph's opening word pushed the line two spaces right instead
+of italicising it. A letter under the cursor now means italic wherever it is.
+On a space, a blank line, or a list marker such as `-`, `*` or `1.`, the key
+still indents, so nesting a list works as before. To indent a line that starts
+with a letter, type two spaces. Found on a real //e.
+
 ## 1.4 — 18 October 2026
 
 **Added: the editor can be built in any language, and ships in Slovenian.**

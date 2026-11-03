@@ -8,7 +8,8 @@
 *
 * The Tab / Ctrl-I collision: the //e keyboard encoder maps both to $89 and
 * software cannot tell them apart. So $89 is dispatched positionally -- indent
-* when the cursor sits in a line's leading whitespace, italic anywhere else.
+* when the cursor sits in a line's leading whitespace and not on a letter,
+* italic anywhere else. See KTABITAL.
 *--------------------------------------
 
 *--------------------------------------
@@ -491,11 +492,23 @@ INLEAD       lda   GAPBEG
 * KTABITAL -- $89 is both Tab and Ctrl-I. Indent in leading whitespace,
 *             italic anywhere else -- and always italic with a selection,
 *             which can perfectly well begin at the start of a line.
+*
+* Leading whitespace includes the first character of a line, so on its own
+* that test made Ctrl-I on a paragraph's opening word indent it. The character
+* under the cursor settles it: a letter there wants italic. Letters are $C0
+* and up, and so are the six codes Slovenian spends on its carons (@ ^ { ~ \ |),
+* while the things a line is indented in front of -- a list's - * + or digit,
+* a # or >, a space -- are all below. Indenting a line that opens on a letter
+* is two presses of the space bar, which is all Tab ever typed.
 *--------------------------------------
 KTABITAL     jsr   HASSEL
              bcc   :italic
              jsr   INLEAD
+             bcc   :italic
+             jsr   PEEKFWD          ; carry set at the end of the document
              bcs   :indent
+             cmp   #$c0             ; a letter under the cursor
+             bcc   :indent
 :italic      jmp   KITALIC          ; too far for a relative branch
 *--- indent two spaces
 :indent      lda   #$a0
