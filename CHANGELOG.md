@@ -1,5 +1,43 @@
 # Changelog
 
+## Unreleased
+
+**Changed: bold and italic toggle, and apply to a selection.**
+
+`Ctrl-B` and `Ctrl-I` used to wrap the word at the cursor in another pair of
+markers however many it already had, so a second press made `****word****`
+instead of taking the bold off. They toggle now. Bold and italic share the
+asterisk, so the editor reads what a word carries off the runs of markers at
+its two ends: `*word*` is italic, `**word**` bold, `***word***` both. Each key
+takes its own markers off when they are there and adds them when they are not,
+so italic on `***word***` leaves `**word**`.
+
+With a selection, both keys act on the selection rather than on the word at
+the cursor. Markers just outside the selection count, so selecting `word`
+inside `**word**` finds the bold, and the selection stays on the same text
+afterwards so another key can toggle again. On a selection, `Tab`/`Ctrl-I` is
+always italic, even where it would otherwise indent.
+
+A word's closing `. , ; : ! ? ) "` and opening `( "` now stay outside the
+markers, which gives `*word*.` rather than `*word.*`. Without that, emphasis
+typed on the Mac could never toggle off, because `**word**.` does not end in a
+marker.
+
+Both were reported from a real //e.
+
+**Changed: a selection includes the character under the cursor.**
+
+The cursor is a block sitting on a character, but a selection used to stop just
+before it. Selecting forwards therefore looked one character short, and the
+block sat on a letter that a cut was going to leave behind. Both ends are
+inclusive now: the selection is every character from where selecting began to
+where the cursor is, in either direction. A line break under the cursor is
+still left out, so selecting to the end of a line and cutting does not join it
+to the next one.
+
+This also means `OA-Space` (`Ctrl-T` on the ][+) selects the character under
+the cursor straight away, so typing right after it replaces that character.
+
 ## 1.4 — 18 October 2026
 
 **Added: the editor can be built in any language, and ships in Slovenian.**

@@ -284,7 +284,6 @@ GAPLQ        jsr   ATSTART
 * at line 1. See the note in main.S.
 *--------------------------------------
 RENDER       lda   #$00
-             sta   AUXPTR
              sta   CURROW
              sta   CURCOL
              sta   CURSROW
@@ -297,7 +296,12 @@ RENDER       lda   #$00
              lda   SELACT
              beq   :nosel
              jsr   SELBOUNDS
-:nosel
+*--- AUXPTR only after SELBOUNDS, whose SELEND reads the buffer through it.
+*    Zeroed before the call, the low byte came back as GAPEND's: the walk then
+*    began part way into a page, stepped over the gap without ever landing on
+*    GAPBEG, and drew the $E5 poison filling it as a line of E.
+:nosel       lda   #$00
+             sta   AUXPTR
              lda   #BUFLO
              sta   AUXPTR+1
 

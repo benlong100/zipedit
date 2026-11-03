@@ -489,11 +489,14 @@ INLEAD       lda   GAPBEG
 
 *--------------------------------------
 * KTABITAL -- $89 is both Tab and Ctrl-I. Indent in leading whitespace,
-*             italic anywhere else.
+*             italic anywhere else -- and always italic with a selection,
+*             which can perfectly well begin at the start of a line.
 *--------------------------------------
-KTABITAL     jsr   INLEAD
+KTABITAL     jsr   HASSEL
+             bcc   :italic
+             jsr   INLEAD
              bcs   :indent
-             jmp   KITALIC          ; too far for a relative branch
+:italic      jmp   KITALIC          ; too far for a relative branch
 *--- indent two spaces
 :indent      lda   #$a0
              jsr   INSCHR

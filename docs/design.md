@@ -651,27 +651,46 @@ data corruption three separate times while it was being built.
 - **The clipboard is line based, not selection based.** With hard wrap a line
   is a natural unit and it needs no selection UI at all. Mark-and-region
   selection can be added later without changing the clipboard itself.
-- **Emphasis does not toggle off.** Applying `Ctrl-B` to already-bold text
-  wraps it again rather than unwrapping it.
+- ~~Emphasis does not toggle off.~~ **Fixed.** See below.
 - ~~Full redraw per keystroke.~~ **Fixed.** See §4a.
 
-### Emphasis insertion — as built
+### Emphasis — as built
 
-`Ctrl-B` (`**`) and `Ctrl-I` (`*`) share one routine:
+`Ctrl-B` (`**`) and `Ctrl-I` (`*`) share one routine, `EMPHASIS`, and both
+toggle.
 
-1. If the cursor is inside a word, run to the end of it first, so emphasis
-   takes the whole word rather than the half behind the cursor.
-2. Walk back to the start of that word, insert the opening marker, walk forward
-   over the word, insert the closing marker.
-3. With no word under the cursor, insert both markers and sit between them —
-   which is what you want when reaching for emphasis before typing.
+1. **Find the span.** With a selection, the span is the selection, widened
+   over any markers touching either end. Otherwise, if the cursor is inside a
+   word, run to the end of it first, so emphasis takes the whole word rather
+   than the half behind the cursor. The span is that word less a closing
+   `. , ; : ! ? ) "` and an opening `( "`, which stay outside the markers. A
+   word made only of punctuation keeps all of it.
+2. **Read what it carries.** Count the marker runs at the span's two ends and
+   take the shorter, n. Bold is on when n ≥ 2 and italic when n is odd, so
+   `*x*`, `**x**` and `***x***` are italic, bold and both. A span made only of
+   markers is split evenly between the ends and counts as emphasis with nothing
+   in it yet. A run of 16 or more is not emphasis.
+3. **Toggle.** Take the key's markers off each end if its effect is on,
+   otherwise put them on. One asterisk is as good as another, so every edit is
+   made at the span's outer edges and nothing has to find the inner end of a
+   run. An insert that would not fit in the gap does nothing at all, so the
+   editor never walks back over a marker it failed to insert.
+4. **Place the cursor.** After a selection, the selection covers the same
+   text, markers outside, and keeps its direction. After an empty span the
+   cursor sits between the markers, which is what you want when reaching for
+   emphasis before typing. Anywhere else it lands after the word and its
+   punctuation.
 
 Marker characters count as word characters, so applying italic to `**bold**`
-produces `***bold***` rather than something malformed — bold and italic share
+produces `***bold***` rather than something malformed. Bold and italic share
 the asterisk, and three is the correct Markdown for both.
 
+`$89` is Tab in leading whitespace, but a selection makes it italic wherever
+the selection starts. A selection beginning at column 0 is ordinary, and
+indenting it instead would be a surprise.
+
 **A trap worth recording:** none of these loops can count in `X`. `INSCHR`
-reaches `PUTAUX`, which does a `TAX`, and `GAPLEFT`/`GAPRIGHT` do the same, so
+sets `MODFLAG` through `X`, and `GAPLEFT`/`GAPRIGHT` `TAX` the byte they read, so
 any counter in `X` is destroyed on the first iteration. They all count in
 memory.
 
@@ -705,6 +724,30 @@ single block move.
 
 The anchor is a *logical offset*, not an aux address: an address stops meaning
 the same byte as soon as the gap moves past it.
+
+**Both ends are inclusive.** The cursor is a block drawn *on* a character, and
+the anchor is where the cursor stood when selecting began, so the selection is
+every character from one to the other, including the two it starts and ends on.
+It used to stop short of whichever end was further on, which in a forward
+selection left the character under the cursor out. The run looked one
+character short, because the block sat on a letter that was not going to be cut.
+
+`SELRANGE` still measures the half-open run between the two offsets. `SELEND`
+says whether the character at the far end belongs too. It does not when that
+is a line break or the end of the document: neither is drawn, and a cut that
+took the break would join two lines without the newline ever looking selected.
+`SELBOUNDS` adds it for the renderer. `SELGRAB` adds it for everything that
+consumes a selection: cut, copy, delete, typing or pasting over it, and
+emphasis.
+
+That keeps the selection contiguous. A backward selection's extra character is
+one more byte after the gap. A forward selection's is the byte just past the
+gap, on the wrong side of it, so `SELGRAB` steps the cursor over that byte and
+the whole run sits before the gap again. Deleting does not care where the
+cursor was left, but copying does, so `COPYSEL` steps it back.
+
+A consequence: `OA-Space` on a character selects that character at once, and
+typing then replaces it.
 
 `DELSEL` is built from repeated `DELBACK`/`DELFWD` rather than by moving a gap
 edge directly. Moving the edge would be O(1), but `CURLNO` and `CCOL` are

@@ -124,6 +124,12 @@ OA-Space latches selection mode, the arrows paint, Esc cancels. Because the gap
 is at the cursor, a selection is always contiguous in aux — before the gap or
 after it, never split.
 
+The anchor and cursor are both INCLUSIVE, except for a line break or the end of
+the document. `SELRANGE` measures only the half-open run, so anything that
+consumes a selection calls `SELGRAB`, which adds the far character. For a
+forward selection it does that by stepping the cursor right one byte, which
+keeps the run contiguous. See `docs/design.md` §5a.
+
 **Do not try shift-arrow again.** `$C063` is widely documented as the //e's
 shift-key input but does not track the shift key on real hardware, and Virtual
 ][ reads it as permanently held.

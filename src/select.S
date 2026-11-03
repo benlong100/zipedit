@@ -12,6 +12,15 @@
 *
 * OA-Space latches a selection mode; the arrows then paint and Esc cancels.
 *
+* The cursor is a block ON a character, and the anchor is where it stood when
+* selecting began, so the selection is every character from one to the other
+* INCLUSIVE. SELRANGE measures the half-open run between the two offsets, which
+* stops short of whichever end is further on; SELEND says whether the character
+* there belongs too, and SELGRAB folds it in for anything about to consume the
+* selection. It still leaves the run contiguous: a selection ending at the
+* cursor has one more byte, the one just past the gap, and stepping the cursor
+* over it puts that byte back before the gap with the rest.
+*
 * Shift-arrow was tried and abandoned. $C063 is widely documented as the //e's
 * shift-key input, but on real hardware it does not change with the shift key,
 * so there is nothing to read. Detection was calibrated against a startup
@@ -45,6 +54,35 @@ GETPOS       lda   GAPBEG
              sec
              sbc   #BUFLO
              sta   LPOS+1
+             rts
+
+*--------------------------------------
+* SELHERE -- anchor the selection at the cursor
+*--------------------------------------
+SELHERE      jsr   GETPOS
+             lda   LPOS
+             sta   SELANC
+             lda   LPOS+1
+             sta   SELANC+1
+             rts
+
+*--------------------------------------
+* HASSEL -- carry clear if something is selected. SELLEN and SELDIR are left
+*           as SELRANGE set them, without the far character: SELGRAB adds it.
+*
+* SELACT alone does not say so: latching the mode on a line break selects
+* nothing until an arrow moves.
+*--------------------------------------
+HASSEL       lda   SELACT
+             beq   :no
+             jsr   SELRANGE
+             lda   SELLEN
+             ora   SELLEN+1
+             bne   :yes
+             jmp   SELEND           ; only the character under the cursor
+:yes         clc
+             rts
+:no          sec
              rts
 
 *--------------------------------------
@@ -167,7 +205,7 @@ SELBOUNDS    jsr   SELRANGE
              sta   SELHI
              lda   LPOS+1
              sta   SELHI+1
-             rts
+             jmp   :far
 :after       lda   LPOS             ; after the gap: [cursor, cursor+len)
              sta   SELLO
              lda   LPOS+1
@@ -179,7 +217,70 @@ SELBOUNDS    jsr   SELRANGE
              lda   LPOS+1
              adc   SELLEN+1
              sta   SELHI+1
+:far         jsr   SELEND           ; and the character at the far end
+             bcs   :done
+             inc   SELHI
+             bne   :done
+             inc   SELHI+1
+:done        rts
+
+*--------------------------------------
+* SELEND -- carry clear if a character sits at the selection's far end, the
+*           one SELRANGE stops short of. Takes SELRANGE's SELLEN and SELDIR.
+*
+* Reads the buffer through AUXPTR, so a caller walking it with AUXPTR has to
+* set that afterwards -- RENDER does.
+*
+* A line break there does not count, and nor does the end of the document.
+* Neither is drawn, so a break taken in would join two lines by cutting a
+* newline nobody saw selected.
+*--------------------------------------
+SELEND       lda   SELDIR
+             bne   :anchor
+             lda   GAPEND           ; before the gap: the cursor's own
+             sta   AUXPTR
+             lda   GAPEND+1
+             jmp   :hi
+:anchor      lda   GAPEND           ; after it: the anchor's, SELLEN on
+             clc
+             adc   SELLEN
+             sta   AUXPTR
+             lda   GAPEND+1
+             adc   SELLEN+1
+:hi          sta   AUXPTR+1
+             cmp   #BUFHI           ; past the end of the document
+             bcs   :none
+             ldy   #$00
+             jsr   AUXRD
+             cmp   #TEXTLO
+             bcc   :none
+             clc
              rts
+:none        sec
+             rts
+
+*--------------------------------------
+* SELGRAB -- SELRANGE for anything about to consume the selection: SELLEN and
+*            SELDIR describe all of it, far character included, as one run
+*            before or after the gap.
+*
+* A selection ending at the cursor takes the character under it by stepping
+* the cursor over that character. SELSTEP says it did, for COPYSEL, which has
+* to put the cursor back; anything deleting the selection need not care.
+*--------------------------------------
+SELGRAB      jsr   SELRANGE
+             lda   #$00
+             sta   SELSTEP
+             jsr   SELEND
+             bcs   :done
+             lda   SELDIR
+             bne   :grow            ; after the gap: one more byte of it
+             jsr   GAPRIGHT
+             inc   SELSTEP
+:grow        inc   SELLEN
+             bne   :done
+             inc   SELLEN+1
+:done        rts
 
 *--------------------------------------
 * DECLEN -- 16-bit decrement of SELLEN, Z set when it reaches zero
@@ -202,7 +303,7 @@ DELSEL       lda   SELACT
              bne   :go
              sec
              rts
-:go          jsr   SELRANGE
+:go          jsr   SELGRAB
              lda   SELLEN
              ora   SELLEN+1
              beq   :clr
@@ -226,7 +327,7 @@ COPYSEL      lda   SELACT
              bne   :go
              sec
              rts
-:go          jsr   SELRANGE
+:go          jsr   SELGRAB
              lda   SELLEN
              ora   SELLEN+1
              bne   :size
@@ -300,7 +401,10 @@ COPYSEL      lda   SELACT
              bcs   :chunk
              dec   SELLEN+1
              jmp   :chunk
-:done        clc
+:done        lda   SELSTEP          ; copying leaves the cursor where it was
+             beq   :stay
+             jsr   GAPLEFT
+:stay        clc
              rts
 
 *--------------------------------------
@@ -358,3 +462,7 @@ SELTEST      lda   RPOS
              lda   #$00
              sta   INSEL
 :done        rts
+
+             dum   $14f0            ; $14e1-$14ef is edit_ops.S's EMPHASIS
+SELSTEP      ds    1                ; SELGRAB stepped the cursor right
+             dend
