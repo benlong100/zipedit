@@ -1197,19 +1197,40 @@ caron among them, and software cannot change it. Slovenian needs six more
 letters than there are codes, so six ASCII characters have to be given up --
 which is exactly what **YUSCII**, the Yugoslav ISO 646 variant, did in 1987.
 
-We follow it except for two letters, and only because this is a Markdown editor
-on this particular keyboard:
+We follow it exactly. Slovenian Apple IIs were built with it -- a Yugoslav //e
+or //c has a character ROM that draws `[` as Š and a keyboard whose Š key sends
+`[` -- so on those machines the letters are simply right, on screen and under
+the fingers.
 
-| letter | YUSCII | here | why |
+| letter | code | letter | code |
 |---|---|---|---|
-| Ž | `@` | `@` | |
-| Č | `^` | `^` | |
-| š | `{` | `{` | |
-| č | `~` | `~` | |
-| **Š** | `[` | `\` | `[` is Markdown's link and its checkbox |
-| **ž** | `` ` `` | `\|` | `` ` `` is Markdown's code marker -- and the //e keyboard has no `` ` `` key at all |
+| Ž | `@` | ž | `` ` `` |
+| Š | `[` | š | `{` |
+| Č | `^` | č | `~` |
 
-`\` and `|` take the slots YUSCII gives Đ and đ, which Slovenian does not use.
+Two of those codes are Markdown's: `[` opens a link or a checkbox and `` ` ``
+marks code. So in a YUSCII language **Markdown's characters move instead**, into
+the slots YUSCII gives Đ and đ, which Slovenian does not use:
+
+| Markdown | stored as | on a YUSCII screen | typed with |
+|---|---|---|---|
+| `[` | `\` | Đ | the `\` (Đ) key |
+| `` ` `` | `\|` | đ | OA-`'`, as in English |
+
+`tools/xfer.sh` undoes both on the way to the Mac. The cost is that `\` and
+`|` cannot be written in a Slovenian document at all -- no Markdown table
+borders, no backslash escapes -- and a push warns if a file contains either.
+The strings follow the same rule, so the Slovenian cheat sheet offers `\link]`:
+the key that actually makes a link.
+
+**1.4 did it the other way round**, and it was wrong. It kept four letters on
+their YUSCII codes and moved Š and ž to `\` and `|`, so that Markdown's
+characters stayed where an English keyboard has them. On a Slovenian machine
+that put Đ and đ on the screen where Š and ž belonged and ignored the
+machine's own Š and ž keys. Janez Starc, who writes on a YUSCII //e and //c,
+pointed it out; 1.5 follows him. Files on the Mac are unaffected -- they are
+UTF-8 either way -- but a Slovenian file saved on an Apple disk by 1.4 keeps
+its Š and ž as `\` and `|`, which 1.5 reads as Markdown's `[` and `` ` ``.
 
 **The screen shows the substitute, the file gets the letter.** `tools/xfer.sh`
 maps these codes to UTF-8 on the way to the Mac and back on the way in, so a
@@ -1239,11 +1260,12 @@ uses.
 
 ### What still needs a keyboard
 
-`~` and `` ` `` cannot be typed on a //e at all -- that is why OA-`'` exists for
-the backtick. In the Slovenian mapping **č is `~`**, so it needs a binding of
-its own; `\` and `|` are believed typeable but have not been confirmed on
-hardware, and the emulator cannot answer it, having synthesised the backtick
-that turned out not to exist. `make keyprobe` builds a disk that reports what
+`~` and `` ` `` cannot be typed on a US //e at all -- that is why OA-`'` exists
+for the backtick. A YUSCII keyboard has keys for č and ž, which is where those
+codes come from on the machines Slovenian is actually written on; on a US //e,
+**č (`~`) and ž (`` ` ``) still need a binding of their own**. OA-`'` types
+Markdown's backtick in every language -- the `BACKTICK` byte comes out of
+`tools/genlang.py`, `$e0` in English and `$fc` in Slovenian. `make keyprobe` builds a disk that reports what
 each key really sends, and now names the six codes to check.
 
 ### Keys the prompt names

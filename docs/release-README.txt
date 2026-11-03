@@ -40,12 +40,17 @@ THE SLOVENIAN DISKS
   Slovenian: the splash, the status row, both pages of help, every
   prompt and every message.
 
-  The //e's character generator has no glyphs for c-caron, s-caron or
-  z-caron, so on screen they appear as ~ { } and their capitals as ^ [
-  ]. This is the YUSCII convention, and it is only how they are drawn:
-  xfer.sh turns them into proper UTF-8 on the way to your Mac, so a
-  file that reads Razli~ica on the Apple reads Razlicica -- with the
-  caron -- everywhere else. Run it with XLANG=sl to get that.
+  The letters follow YUSCII, the Yugoslav standard, so on a Slovenian
+  Apple //e or //c with a YUSCII character ROM they appear as themselves
+  and its keyboard types them. On a US machine they appear as the
+  characters YUSCII gives them: c-caron, s-caron and z-caron as ~ { `
+  and their capitals as ^ [ @. Either way xfer.sh turns them into
+  proper UTF-8 on the way to your Mac. Run it with XLANG=sl.
+
+  Because [ and ` are letters here, Markdown's own [ and ` are typed
+  with the \ key (D-stroke on a YUSCII keyboard) and with OA-', and
+  arrive on the Mac as [ and `. The \ and | characters cannot be used
+  in a Slovenian document.
 
   One known limit: Slovenian counts words in four forms and the editor
   has room for two. It says BESEDA for one and BESED for the rest, so

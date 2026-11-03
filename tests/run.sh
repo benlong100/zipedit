@@ -2733,16 +2733,22 @@ fi
 # has to come out the same, which is the promise the substitution rests on.
 SLDIR="$ROOT/build/sltest"
 rm -rf "$SLDIR" && mkdir -p "$SLDIR"
-printf '# Naslov\n\nBesedilo z \305\276, \305\241 in \304\215.\nVelike: \305\275, \305\240, \304\214.\n' > "$SLDIR/proba.md"
+printf '# Naslov\n\nBesedilo z \305\276, \305\241 in \304\215.\nVelike: \305\275, \305\240, \304\214.\n[povezava](url) in `koda`.\n' > "$SLDIR/proba.md"
 cp "$SLIMAGE" "$ROOT/build/slround.po"
 XLANG=sl "$ROOT/tools/xfer.sh" push "$ROOT/build/slround.po" "$SLDIR" >/dev/null 2>&1
 ondisk="$("$ROOT/tools/ac" -g "$ROOT/build/slround.po" PROBA.MD | python3 -c "
 import sys; print(''.join(chr(b & 0x7f) for b in sys.stdin.buffer.read()), end='')")"
-if [ "${ondisk#*Besedilo z }" != "${ondisk}" ] && [ "${ondisk%%|*}" != "$ondisk" ]; then
-    ok "the disk holds the substitute codes, not UTF-8"
-else
-    bad "the disk holds the substitute codes, not UTF-8" "got: $ondisk"
-fi
+# YUSCII exactly, as a Slovenian //e draws and types it: z s c are ` { ~ and
+# Z S C are @ [ ^. Markdown's own [ and ` are therefore kept in the slots for
+# Dj and dj, \ and |.
+case "$ondisk" in
+*'Besedilo z `, { in ~.'*'Velike: @, [, ^.'*) ok "the disk holds the YUSCII codes, not UTF-8" ;;
+*) bad "the disk holds the YUSCII codes, not UTF-8" "got: $ondisk" ;;
+esac
+case "$ondisk" in
+*'\povezava](url) in |koda|.'*) ok "and Markdown's [ and \` move to \\ and |" ;;
+*) bad "and Markdown's [ and \` move to \\ and |" "got: $ondisk" ;;
+esac
 rm -rf "$SLDIR/back" && mkdir -p "$SLDIR/back"
 XLANG=sl "$ROOT/tools/xfer.sh" pull "$ROOT/build/slround.po" "$SLDIR/back" >/dev/null 2>&1
 if diff -q "$SLDIR/proba.md" "$SLDIR/back/proba.md" >/dev/null 2>&1; then

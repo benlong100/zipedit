@@ -105,8 +105,11 @@ build. Neither generated file is committed.
 
 The //e has no glyph for `č š ž Č Š Ž`, so they are stored as the codes YUSCII
 gives them and turned back into UTF-8 by `tools/xfer.sh` on the way to the Mac.
-`docs/design.md` §10 has the mapping and the two places it deviates from YUSCII,
-both of which are Markdown collisions.
+It is YUSCII exactly, as a Slovenian //e draws and types it, so Š is `[` and ž is
+`` ` ``; Markdown's own `[` and `` ` `` move to `\` and `|` (Đ and đ) instead.
+`docs/design.md` §10 has the tables. The mapping lives in four places that must
+agree: `genlang.py`, `genhelp.py`, `xfer.sh` (both directions), and the
+`BACKTICK` byte genlang emits.
 
 ## Testing
 

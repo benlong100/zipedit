@@ -49,6 +49,29 @@ On a space, a blank line, or a list marker such as `-`, `*` or `1.`, the key
 still indents, so nesting a list works as before. To indent a line that starts
 with a letter, type two spaces. Found on a real //e.
 
+**Changed: Slovenian follows YUSCII exactly.**
+
+The six Slovenian letters are stored as the codes YUSCII, the Yugoslav
+standard, gives them. 1.4 followed it for four and moved Š and ž to `\` and
+`|`, to keep Markdown's `[` and `` ` `` where an English keyboard has them. On a
+Slovenian //e or //c, whose character ROM draws `[` as Š and whose Š key sends
+`[`, that showed Đ and đ where Š and ž belonged. Now Š is `[` and ž is `` ` ``,
+as the machine expects.
+
+Markdown's two characters move instead, into the slots YUSCII gives Đ and đ: a
+link's `[` is typed with the `\` (Đ) key, and `OA-'` types a backtick as it
+always has. `xfer.sh` turns both back into `[` and `` ` `` on the way to the
+Mac. `\` and `|` cannot appear in a Slovenian document, and `xfer.sh push`
+warns if one does.
+
+Files already on the Mac are unaffected. A Slovenian file saved to an Apple
+disk by 1.4 has its Š and ž as `\` and `|`, which 1.5 reads as `[` and `` ` ``.
+English is unchanged, byte for byte.
+
+The help screen says **krepko** bese. and *ležeče* bese.
+
+Both from Janez Starc, who writes on a YUSCII //e and //c.
+
 ## 1.4 — 18 October 2026
 
 **Added: the editor can be built in any language, and ships in Slovenian.**

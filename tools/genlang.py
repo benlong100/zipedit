@@ -16,26 +16,43 @@ carons among them, and it cannot be changed from software. Slovenian needs six
 more letters than there are codes, so six ASCII characters are given up --
 which is what YUSCII, the Yugoslav ISO 646 variant, did in the first place.
 
-We follow YUSCII except for two letters, and only because this is a Markdown
-editor on this particular keyboard:
+We follow YUSCII exactly, because Slovenian Apple IIs really were built with
+it: a Yugoslav //e or //c has a character ROM that draws [ as Š and a keyboard
+whose Š key sends [. Anything else would put the wrong letter on that machine's
+screen and ignore its own keys.
 
-    letter  YUSCII  here   why
-    Ž       @       @      unchanged
-    Č       ^       ^      unchanged
-    š       {       {      unchanged
-    č       ~       ~      unchanged
-    Š       [       \\      [ is Markdown's link and checkbox
-    ž       `       |      ` is Markdown's code marker, and the //e
-                           keyboard has no ` key at all
+    letter  code        letter  code
+    Ž       @           ž       `
+    Š       [           š       {
+    Č       ^           č       ~
 
-\\ and | take the slots YUSCII gives Đ and đ, which Slovenian does not use.
-tools/xfer.sh turns these back into real UTF-8 on the way to the Mac, so the
-file that leaves the machine is properly spelt.
+Two of those codes are Markdown's: [ opens a link or a checkbox, and ` marks
+code. So in a YUSCII language the Markdown characters move instead, into the
+slots YUSCII gives Đ and đ, which Slovenian does not use:
+
+    Markdown  stored as   on a YUSCII screen
+    [         \           Đ
+    `         |           đ
+
+tools/xfer.sh undoes both on the way to the Mac, so the file that leaves the
+machine has real letters and real Markdown. The cost is that \ and | cannot be
+written in a Slovenian document at all.
+
+1.4 did it the other way round -- YUSCII for four letters, Š and ž moved to \
+and | -- which kept Markdown's characters where an English keyboard has them and
+was wrong on every Slovenian machine. Janez Starc, who writes on a YUSCII //e
+and //c, put it right for 1.5.
 """
 import pathlib, re, sys
 
 # what the editor stores, before bit 7 is set
-XLAT = {"Ž": "@", "Č": "^", "š": "{", "č": "~", "Š": "\\", "ž": "|"}
+XLAT = {"Ž": "@", "Č": "^", "š": "{", "č": "~", "Š": "[", "ž": "`"}
+
+# Languages written in YUSCII, and where Markdown's own two characters go in
+# them. Applied to the strings as well as to files, so a cheat sheet offering
+# "[link]" shows the key that actually makes one.
+YUSCII = {"sl"}
+MDLAT = {"[": "\\", "`": "|"}
 
 # Fields written over the status row at fixed columns from src/geom.S. A label
 # that runs long does not push the next one along, it overwrites it -- so the
@@ -73,6 +90,7 @@ def parse(path):
 
 def encode(text, key, path):
     """The string as a list of ('asc', str) and ('dfb', int) pieces."""
+    md = MDLAT if path.stem in YUSCII else {}
     out, buf = [], ""
     i = 0
     while i < len(text):
@@ -87,6 +105,8 @@ def encode(text, key, path):
             ch = text[i]
             if ch in XLAT:
                 ch = XLAT[ch]
+            elif ch in md:                # elif: a letter's code is not moved again
+                ch = md[ch]
             if ch == '"':
                 sys.exit(f'{path}: {key} contains a double quote, which the '
                          f'assembler uses to delimit the string')
@@ -173,7 +193,7 @@ def main(argv):
         "* Edit the language file and rebuild. The letters this machine has no",
         "* glyph for are transliterated on the way here; tools/xfer.sh turns",
         "* them back into UTF-8 on the way to the Mac. See genlang.py for the",
-        "* mapping and why two of the letters do not follow YUSCII.",
+        "* mapping, and where Markdown's [ and ` go in a YUSCII language.",
         "*" + "-" * 37,
         "",
     ]
@@ -198,6 +218,11 @@ def main(argv):
             # belongs with it -- not in equates.S, where it cannot follow a
             # translation.
             out.append(f"{'UNTLEN'.ljust(12)} equ   {width(pieces)}")
+
+    # OA-' types Markdown's code marker, which is wherever this language keeps
+    # it: ` in English, the đ slot in a YUSCII language, where ` is ž.
+    tick = ord(MDLAT["`"] if path.stem in YUSCII else "`") | 0x80
+    out += ["", f"{'BACKTICK'.ljust(12)} equ   ${tick:02x}"]
     print("\n".join(out))
 
 if __name__ == "__main__":
