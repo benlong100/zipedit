@@ -476,9 +476,10 @@ KWORDS       lda   #$00
              inc   AUXPTR+1
 :back        jmp   :loop
 
-*--- render the total as decimal, left aligned, into the message buffer.
+*--- render WHEAD, the total as decimal, and the tail into the message buffer.
 *    Pick the tail first: the formatter consumes WCNT as it divides, so the
-*    total is gone by the time the word itself has to be chosen.
+*    total is gone by the time the word itself has to be chosen. A language
+*    whose plurals do not fit two tails puts a label in WHEAD instead.
 :count       lda   #<WTAIL
              sta   STRPTR
              lda   #>WTAIL
@@ -493,10 +494,13 @@ KWORDS       lda   #$00
              lda   #>WTAIL1
              sta   STRPTR+1
 
-:fmt         lda   #$a0             ; messages open with a space
-             sta   WBUF
-             lda   #$01
-             sta   WIDX
+:fmt         ldy   #$00             ; the head, its opening space included
+:head        lda   WHEAD,y
+             beq   :hdone
+             sta   WBUF,y
+             iny
+             bne   :head
+:hdone       sty   WIDX
              lda   #$00
              sta   WLEAD
              ldy   #$00
@@ -1168,8 +1172,14 @@ INWORD       ds    1                ; non-zero while inside a word
 WDIG         ds    1                ; KWORDS: digit being emitted
 WLEAD        ds    1                ; non-zero once a digit has been emitted
 WIDX         ds    1                ; write position in WBUF
-WBUF         ds    16               ; " 1234 WORDS" and its terminator
 GRABPRE      ds    1                ; GRABLINE: characters taken before the gap
+             dend
+
+*--- The word count's message. Beside file.S's buffers rather than in the
+*    block above, because a label-first language needs room: WHEAD's twenty,
+*    five digits, a tail and the terminator. $0800-$1243 is file.S's.
+             dum   $1300
+WBUF         ds    40               ; " 1234 WORDS", or " NAJDENE BESEDE: 1234"
              dend
 
              dum   $14e1            ; $14bf-$14e0 is keyboard.S's ring

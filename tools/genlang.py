@@ -16,43 +16,40 @@ carons among them, and it cannot be changed from software. Slovenian needs six
 more letters than there are codes, so six ASCII characters are given up --
 which is what YUSCII, the Yugoslav ISO 646 variant, did in the first place.
 
-We follow YUSCII exactly, because Slovenian Apple IIs really were built with
-it: a Yugoslav //e or //c has a character ROM that draws [ as Š and a keyboard
-whose Š key sends [. Anything else would put the wrong letter on that machine's
-screen and ignore its own keys.
+We follow YUSCII exactly, all ten letters, because Slovenian Apple IIs really
+were built with it: a Yugoslav //e or //c has a character ROM that draws [ as
+Š and a keyboard whose Š key sends [. A file written this way is plain YUSCII
+text, which any YUSCII tool can read -- not only tools/xfer.sh.
 
-    letter  code        letter  code
-    Ž       @           ž       `
-    Š       [           š       {
-    Č       ^           č       ~
+    letter  code    letter  code
+    Ž       @       ž       `
+    Š       [       š       {
+    Č       ^       č       ~
+    Ć       ]       ć       }
+    Đ       \\       đ       |
 
-Two of those codes are Markdown's: [ opens a link or a checkbox, and ` marks
-code. So in a YUSCII language the Markdown characters move instead, into the
-slots YUSCII gives Đ and đ, which Slovenian does not use:
+Slovenian itself uses six; Ć and Đ are there for names, Đoković among them.
 
-    Markdown  stored as   on a YUSCII screen
-    [         \           Đ
-    `         |           đ
+So in a YUSCII language those ten codes are letters, and Markdown's [ and `
+are not available: no links, checkboxes or code spans. Bold, italic, headings,
+lists and quotes do not use them and all still work. A string here that
+contains one of the ten characters literally would show as a letter on the
+machine, so it is refused.
 
-tools/xfer.sh undoes both on the way to the Mac, so the file that leaves the
-machine has real letters and real Markdown. The cost is that \ and | cannot be
-written in a Slovenian document at all.
-
-1.4 did it the other way round -- YUSCII for four letters, Š and ž moved to \
-and | -- which kept Markdown's characters where an English keyboard has them and
-was wrong on every Slovenian machine. Janez Starc, who writes on a YUSCII //e
-and //c, put it right for 1.5.
+1.4 moved Š and ž off YUSCII to keep Markdown's characters, and a 1.5 beta
+moved Markdown's into the Đ/đ slots instead. Janez Starc, who writes on a
+YUSCII //e and //c and moves files without our script, showed that both made
+files that were neither proper YUSCII nor proper Markdown anywhere else.
 """
 import pathlib, re, sys
 
 # what the editor stores, before bit 7 is set
-XLAT = {"Ž": "@", "Č": "^", "š": "{", "č": "~", "Š": "[", "ž": "`"}
+XLAT = {"Ž": "@", "Š": "[", "Č": "^", "Ć": "]", "Đ": "\\",
+        "ž": "`", "š": "{", "č": "~", "ć": "}", "đ": "|"}
 
-# Languages written in YUSCII, and where Markdown's own two characters go in
-# them. Applied to the strings as well as to files, so a cheat sheet offering
-# "[link]" shows the key that actually makes one.
+# Languages written in YUSCII, where the ten codes above are letters.
 YUSCII = {"sl"}
-MDLAT = {"[": "\\", "`": "|"}
+YCODES = set(XLAT.values())
 
 # Fields written over the status row at fixed columns from src/geom.S. A label
 # that runs long does not push the next one along, it overwrites it -- so the
@@ -90,7 +87,15 @@ def parse(path):
 
 def encode(text, key, path):
     """The string as a list of ('asc', str) and ('dfb', int) pieces."""
-    md = MDLAT if path.stem in YUSCII else {}
+    if path.stem in YUSCII:
+        bare = text
+        for tok in TOKENS:                # {OA} is a glyph, not two braces
+            bare = bare.replace(tok, "")
+        clash = sorted(set(bare) & YCODES)
+        if clash:
+            sys.exit(f"{path}: {key} contains {' '.join(clash)}, which this "
+                     f"language's machines draw as a letter. Write the letter, "
+                     f"or leave the character out.")
     out, buf = [], ""
     i = 0
     while i < len(text):
@@ -105,8 +110,6 @@ def encode(text, key, path):
             ch = text[i]
             if ch in XLAT:
                 ch = XLAT[ch]
-            elif ch in md:                # elif: a letter's code is not moved again
-                ch = md[ch]
             if ch == '"':
                 sys.exit(f'{path}: {key} contains a double quote, which the '
                          f'assembler uses to delimit the string')
@@ -183,6 +186,13 @@ def main(argv):
                          f"listened for another:\n  {named} = "
                          f"\"{entries.get(named, '')}\"")
 
+    # The word count is built in a 40-byte buffer: the head, five digits, the
+    # tail and a terminator. Twenty for the head leaves the tail plenty.
+    for key, most in (("WHEAD", 20), ("WTAIL", 12), ("WTAIL1", 12)):
+        if len(entries.get(key, "")) > most:
+            sys.exit(f"{path}: {key} is {len(entries[key])} characters and the "
+                     f"word count has room for {most}")
+
     # The header stays plain ASCII on purpose: this file is fed to Merlin32,
     # and the very characters this tool exists to translate are the ones an
     # assembler comment cannot be trusted to carry.
@@ -193,7 +203,7 @@ def main(argv):
         "* Edit the language file and rebuild. The letters this machine has no",
         "* glyph for are transliterated on the way here; tools/xfer.sh turns",
         "* them back into UTF-8 on the way to the Mac. See genlang.py for the",
-        "* mapping, and where Markdown's [ and ` go in a YUSCII language.",
+        "* mapping.",
         "*" + "-" * 37,
         "",
     ]
@@ -211,7 +221,7 @@ def main(argv):
             else:
                 out.append(f"{label} dfb   ${val:02x}")
             label = " " * 12
-        out.append(f"{' ' * 12} dfb   $00")
+        out.append(f"{label} dfb   $00")      # an empty string is just this, labelled
         if key == "UNTITLED":
             # display.S draws the placeholder from a length rather than from
             # the terminator, so the length is a property of the string and
@@ -219,10 +229,6 @@ def main(argv):
             # translation.
             out.append(f"{'UNTLEN'.ljust(12)} equ   {width(pieces)}")
 
-    # OA-' types Markdown's code marker, which is wherever this language keeps
-    # it: ` in English, the đ slot in a YUSCII language, where ` is ž.
-    tick = ord(MDLAT["`"] if path.stem in YUSCII else "`") | 0x80
-    out += ["", f"{'BACKTICK'.ljust(12)} equ   ${tick:02x}"]
     print("\n".join(out))
 
 if __name__ == "__main__":

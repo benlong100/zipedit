@@ -67,9 +67,12 @@ MSGWRAPPED = " WRAPPED TO THE TOP"
 
 MSGCOPIED = " LINE COPIED"
 
-# The tail of the word count: one for exactly 1, one for everything else.
-# A language with more number forms than that -- Slovenian has four -- needs
-# the code in src/edit_ops.S changed, not just these two strings.
+# The word count is WHEAD, the number, then a tail: WTAIL1 for exactly 1,
+# WTAIL for everything else. A language with more number forms than that --
+# Slovenian has four -- can put a label in WHEAD and leave both tails empty,
+# so "FOUND WORDS: 5" needs no plural at all. WHEAD opens with the space every
+# message starts with, and is at most 20 characters.
+WHEAD = " "
 WTAIL1 = " WORD"
 WTAIL = " WORDS"
 

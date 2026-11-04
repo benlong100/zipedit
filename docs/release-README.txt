@@ -44,18 +44,16 @@ THE SLOVENIAN DISKS
   Apple //e or //c with a YUSCII character ROM they appear as themselves
   and its keyboard types them. On a US machine they appear as the
   characters YUSCII gives them: c-caron, s-caron and z-caron as ~ { `
-  and their capitals as ^ [ @. Either way xfer.sh turns them into
-  proper UTF-8 on the way to your Mac. Run it with XLANG=sl.
+  and their capitals as ^ [ @. Files are plain YUSCII text, which any
+  YUSCII converter can read; xfer.sh with XLANG=sl turns them into
+  UTF-8 on the way to your Mac.
 
-  Because [ and ` are letters here, Markdown's own [ and ` are typed
-  with the \ key (D-stroke on a YUSCII keyboard) and with OA-', and
-  arrive on the Mac as [ and `. The \ and | characters cannot be used
-  in a Slovenian document.
+  Because [ ] and ` are letters in YUSCII, a Slovenian document has no
+  Markdown links, checkboxes or code. Bold, italic, headings, lists and
+  quotes all work.
 
-  One known limit: Slovenian counts words in four forms and the editor
-  has room for two. It says BESEDA for one and BESED for the rest, so
-  one word and five or more are right, and two, three and four are
-  not. Fixing it means changing the editor, not the translation.
+  The word count reads NAJDENE BESEDE: 12, label first, so it needs no
+  plural form.
 
 
 RUNNING IT

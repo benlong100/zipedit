@@ -73,15 +73,12 @@ text = "".join(chr(b & 0x7F) for b in raw).replace("\r","\n")
 # Only for a language that needs it: doing it to an English file would turn
 # every @ into a Z with a caron.
 #
-# YUSCII, exactly, since 1.5: a Slovenian Apple draws [ as Sh and ` as zh, so
-# the Markdown [ and ` live in the Dj and dj slots, \\ and |, and come back
-# from there. One translate() rather than a chain of replace()s, because the
-# two maps share characters: [ becomes Sh at the same moment \\ becomes [.
+# YUSCII, all ten letters, since 1.5 -- the six Slovenian ones and Dj and Cj
+# for names. The file is then plain YUSCII, which other tools can read too.
 if os.environ.get("XLANG") == "sl":
     text = text.translate(str.maketrans({
-        "@": "\u017d", "[": "\u0160", "^": "\u010c",
-        "`": "\u017e", "{": "\u0161", "~": "\u010d",
-        "\\": "[", "|": "`"}))
+        "@": "\u017d", "[": "\u0160", "^": "\u010c", "]": "\u0106", "\\": "\u0110",
+        "`": "\u017e", "{": "\u0161", "~": "\u010d", "}": "\u0107", "|": "\u0111"}))
 open(sys.argv[2],"w",encoding="utf-8").write(text)
 ' "$DIR/.raw.$$" "$out"
         rm -f "$DIR/.raw.$$"
@@ -120,20 +117,17 @@ text = open(sys.argv[1],encoding="utf-8").read().replace("\n","\r")
 # non-ASCII is dropped -- otherwise these six letters are silently deleted on
 # the way to the machine, which is how a file loses every word with a caron.
 #
-# \\ and | have no place in a Slovenian document -- they are where the Markdown
-# [ and ` are kept -- so one on the Mac would come back as the wrong
-# character. Say so rather than change the text without a word.
+# In YUSCII the ten codes are letters, so a [ or @ on the Mac -- a Markdown
+# link, an email address -- comes back as one. Say so rather than change the
+# text without a word.
 if os.environ.get("XLANG") == "sl":
-    lost = sorted(set(text) & {"\\", "|"})
+    lost = sorted(set(text) & set("@[\\]^`{|}~"))
     if lost:
-        back = {"\\": "[", "|": "`"}
         sys.stderr.write("  warning: %s contains %s, which a Slovenian document "
-                         "cannot hold; it will come back as %s\n" % (sys.argv[1],
-                         " ".join(lost), " ".join(back[c] for c in lost)))
+                         "reads as letters\n" % (sys.argv[1], " ".join(lost)))
     text = text.translate(str.maketrans({
-        "\u017d": "@", "\u0160": "[", "\u010c": "^",
-        "\u017e": "`", "\u0161": "{", "\u010d": "~",
-        "[": "\\", "`": "|"}))
+        "\u017d": "@", "\u0160": "[", "\u010c": "^", "\u0106": "]", "\u0110": "\\",
+        "\u017e": "`", "\u0161": "{", "\u010d": "~", "\u0107": "}", "\u0111": "|"}))
 sys.stdout.buffer.write(bytes((ord(c) | 0x80) & 0xFF for c in text if ord(c) < 128))
 ' "$f" > "/tmp/.push.$$"
         "$AC" -d "$IMAGE" "$name" 2>/dev/null || true

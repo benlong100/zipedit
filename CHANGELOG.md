@@ -51,26 +51,31 @@ with a letter, type two spaces. Found on a real //e.
 
 **Changed: Slovenian follows YUSCII exactly.**
 
-The six Slovenian letters are stored as the codes YUSCII, the Yugoslav
-standard, gives them. 1.4 followed it for four and moved Š and ž to `\` and
-`|`, to keep Markdown's `[` and `` ` `` where an English keyboard has them. On a
-Slovenian //e or //c, whose character ROM draws `[` as Š and whose Š key sends
-`[`, that showed Đ and đ where Š and ž belonged. Now Š is `[` and ž is `` ` ``,
-as the machine expects.
+The Slovenian letters are stored as the codes YUSCII, the Yugoslav standard,
+gives them -- all ten, so Ć and Đ are there for names as well as the six
+Slovenian letters. On a Slovenian //e or //c, whose character ROM draws `[` as
+Š and whose keyboard types it, they appear and type as themselves, and a file
+is plain YUSCII text that any YUSCII tool can read. 1.4 had moved Š and ž to
+`\` and `|`, which showed Đ and đ in their place on those machines.
 
-Markdown's two characters move instead, into the slots YUSCII gives Đ and đ: a
-link's `[` is typed with the `\` (Đ) key, and `OA-'` types a backtick as it
-always has. `xfer.sh` turns both back into `[` and `` ` `` on the way to the
-Mac. `\` and `|` cannot appear in a Slovenian document, and `xfer.sh push`
-warns if one does.
+The cost is Markdown's links, checkboxes and code spans, whose `[ ]` and
+`` ` `` are letters in YUSCII. Bold, italic, headings, lists and quotes all
+work, and the Slovenian cheat sheet now offers only those. `xfer.sh push` warns
+about a file that contains one of the ten characters. A Slovenian file saved to
+an Apple disk by 1.4 has its Š and ž as `\` and `|`, which now read as Đ and đ;
+files already on the Mac are unaffected.
 
-Files already on the Mac are unaffected. A Slovenian file saved to an Apple
-disk by 1.4 has its Š and ž as `\` and `|`, which 1.5 reads as `[` and `` ` ``.
-English is unchanged, byte for byte.
+**Changed: the Slovenian word count puts its label first.**
+
+`NAJDENE BESEDE: 12` rather than a number followed by a word, so none of
+Slovenian's four number forms -- *beseda*, *besedi*, *besede*, *besed* -- is
+ever needed. Any language can do the same: the word count now has a label
+before the number as well as a word after it, and English, which uses only the
+word after, is unchanged.
 
 The help screen says **krepko** bese. and *ležeče* bese.
 
-Both from Janez Starc, who writes on a YUSCII //e and //c.
+All three from Janez Starc, who writes on a YUSCII //e and //c.
 
 ## 1.4 — 18 October 2026
 

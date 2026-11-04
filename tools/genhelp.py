@@ -45,18 +45,18 @@ if _LANG and _LANG != "en":
 # them into screen codes at the last moment. The screen codes are the YUSCII
 # ones from tools/genlang.py; only the route is different.
 _XLAT = {"Ž": "\x11", "Č": "\x12", "š": "\x13",
-         "č": "\x14", "Š": "\x15", "ž": "\x16"}
+         "č": "\x14", "Š": "\x15", "ž": "\x16",
+         "Đ": "\x17", "đ": "\x18", "Ć": "\x19", "ć": "\x1a"}
 
 # sentinel -> the byte that goes on the screen (the YUSCII code, bit 7 set)
 _SCREEN = {"\x11": 0xC0, "\x12": 0xDE, "\x13": 0xFB,
            "\x14": 0xFE, "\x15": 0xDB, "\x16": 0xE0,
-           "\x17": 0xDC, "\x18": 0xFC}
+           "\x17": 0xDC, "\x18": 0xFC, "\x19": 0xDD, "\x1a": 0xFD}
 
-# In a YUSCII language Markdown's [ and ` are the codes for Š and ž, so they
-# move to the slots for Đ and đ -- see tools/genlang.py. They travel as
-# sentinels too, because | is this file's own vertical rule.
-_MDLAT = {"[": "\x17", "`": "\x18"}
+# In a YUSCII language these draw as letters, so a translation must not use
+# them literally -- and four of them are this file's own markup besides.
 _YUSCII = {"sl"}
+_YCODES = set("@[\\]^`{|}~")
 
 def T(text):
     if not _LANG or _LANG == "en":
@@ -65,9 +65,10 @@ def T(text):
         _MISSED.append(text)
         return text
     out = _MAP[text]
-    if _LANG in _YUSCII:                 # before the letters, so none is moved twice
-        for _k, _v in _MDLAT.items():
-            out = out.replace(_k, _v)
+    if _LANG in _YUSCII and set(out) & _YCODES:
+        sys.exit(f"lang/{_LANG}.txt: the help text {out!r} contains "
+                 f"{' '.join(sorted(set(out) & _YCODES))}, which this "
+                 f"language's machines draw as a letter")
     for _k, _v in _XLAT.items():
         out = out.replace(_k, _v)
     return out

@@ -7,9 +7,10 @@
 # about, two came back answered -- he rewrote CHEATTXT outright and gave
 # MSGWRAPPED an ordinary phrase -- and he moved the discard key besides.
 #
-# ONE IS STILL OPEN, and it is marked TODO where it sits:
-#
-#   WTAIL/WTAIL1 the word count, which no string in this file can make right
+# 1.5 made two changes he asked for after the YUSCII beta: the letters are
+# YUSCII exactly, so [ ] ` cannot appear here (they are Š Ć ž -- the build
+# refuses them), and the word count puts its label first. Two strings are new
+# and want his eye, marked CHECK where they sit.
 #
 # Write real Slovenian here -- š, č, ž and all. The //e has no glyph for any
 # of them, so tools/genlang.py transliterates on the way into the assembler
@@ -34,7 +35,10 @@ UNTITLED = "BREZNASLOVA.MD"
 #
 # Rewritten by Janez on his second pass, after the first ran to 82 characters
 # and lost "(url)" off the edge. His line is 70, so there are ten in hand.
-CHEATTXT = "`koda` #H1 ##H2 naslovi 1. št. [ ] ali [x] opravilo > citat [link] url"
+# CHECK -- rewritten for 1.5 without code, checkboxes and links, which use [ ]
+# and ` -- in YUSCII those are letters. Words are all Janez's own from
+# elsewhere in this file.
+CHEATTXT = "#H1 ##H2 naslovi   1. št.   > citat   **krepko**   *ležeče*"
 
 # --------------------------------------------------------------- the status row
 # Exactly 80 characters, and the labels must stay at these columns because the
@@ -72,13 +76,12 @@ MSGWRAPPED = " NADALJUJEM IZ VRHA"
 
 MSGCOPIED = " VRSTICA KOPIRANA"
 
-# TODO -- the word count is wrong in Slovenian and the strings cannot fix it.
-# Slovenian counts in four forms: 1 beseda, 2 besedi, 3-4 besede, 5+ besed.
-# The editor has only two, singular and plural, so "2 BESED" and "3 BESED"
-# will both be wrong. Fixing it means changing src/edit_ops.S, not this file.
-# " BESED" is the form used with 5 and above, which is the commonest case.
-WTAIL1 = " BESEDA"
-WTAIL = " BESED"
+# The label goes first and the number after it, Janez's suggestion: a label
+# needs no grammatical number, so the four Slovenian forms (beseda, besedi,
+# besede, besed) never arise. The tails are empty.
+WHEAD = " NAJDENE BESEDE: "
+WTAIL1 = ""
+WTAIL = ""
 
 # ------------------------------------------------------------------- the guard
 # The key letters ARE translated, and they are two lines below. This used to
@@ -149,7 +152,9 @@ HELP "delete word left" = "briši besedo levo"
 HELP "MARKDOWN" = "MARKDOWN"
 HELP "**bold** word" = "**krepko** bese."
 HELP "*italic* word" = "*ležeče* bese."
-HELP "`code` marker" = "oznaka `koda`"
+# CHECK -- OA-' types ` and in YUSCII that is ž, so on a keyboard without a ž
+# key this is how to get one.
+HELP "`code` marker" = "črka ž"
 
 HELP "CLIPBOARD" = "ODLOŽIŠČE"
 HELP "copy" = "kopiraj"

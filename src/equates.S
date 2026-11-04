@@ -137,8 +137,7 @@ TEXTLO       equ   $a0              ; below this is a break, not text
 *    everywhere else: the buffer holds it, files carry it, and the //e draws it
 *    -- the cheat sheet has shown `code` since it was written. Only the way in
 *    was missing, so the fix is a key, not a translation on the way to disk.
-*    BACKTICK, the byte it types, is generated into lang.S by genlang.py: it
-*    is $e0 in English and $fc in a YUSCII language, where $e0 is z-caron.
+BACKTICK     equ   $e0              ; `, the Markdown code marker
 LNDIG        equ   40               ; status column of the line number digits
 CLDIG        equ   47               ; status column of the column digits
 NAMECOL      equ   1                ; status column of the filename

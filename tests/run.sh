@@ -2663,6 +2663,19 @@ assert_row "and the status row is translated"           23 "PROSTO"
 # label against its digit catches it as what it is.
 assert_row "and its labels are still on their columns" 23 "V:1    S:1"
 
+# The word count puts its label first, Janez's suggestion, so Slovenian's four
+# number forms never arise: the same words serve 0, 1, 2 and 5. Typed and then
+# deleted again, so what follows starts from the same empty document.
+"$VII" caps true >/dev/null; k oa "W"; "$VII" caps false >/dev/null
+"$VII" settle 2 >/dev/null; snapshot
+assert_row "the Slovenian word count leads with its label" 23 " NAJDENE BESEDE: 0"
+ktext "ena dva"
+"$VII" caps true >/dev/null; k oa "W"; "$VII" caps false >/dev/null
+"$VII" settle 2 >/dev/null; snapshot
+assert_row "and needs no plural for two"           23 " NAJDENE BESEDE: 2"
+for i in 1 2 3 4 5 6 7; do "$VII" del >/dev/null; done
+"$VII" settle 2 >/dev/null
+
 # A string added after the first translation round, which is the case the
 # machinery exists for: type something, then search for it from BELOW, which
 # is the only way to force the wrap pass and its notice.
@@ -2733,21 +2746,17 @@ fi
 # has to come out the same, which is the promise the substitution rests on.
 SLDIR="$ROOT/build/sltest"
 rm -rf "$SLDIR" && mkdir -p "$SLDIR"
-printf '# Naslov\n\nBesedilo z \305\276, \305\241 in \304\215.\nVelike: \305\275, \305\240, \304\214.\n[povezava](url) in `koda`.\n' > "$SLDIR/proba.md"
+printf '# Naslov\n\nBesedilo z \305\276, \305\241 in \304\215.\nVelike: \305\275, \305\240, \304\214.\nImena: \304\220okovi\304\207, \304\221 in \304\206.\n' > "$SLDIR/proba.md"
 cp "$SLIMAGE" "$ROOT/build/slround.po"
 XLANG=sl "$ROOT/tools/xfer.sh" push "$ROOT/build/slround.po" "$SLDIR" >/dev/null 2>&1
 ondisk="$("$ROOT/tools/ac" -g "$ROOT/build/slround.po" PROBA.MD | python3 -c "
 import sys; print(''.join(chr(b & 0x7f) for b in sys.stdin.buffer.read()), end='')")"
-# YUSCII exactly, as a Slovenian //e draws and types it: z s c are ` { ~ and
-# Z S C are @ [ ^. Markdown's own [ and ` are therefore kept in the slots for
-# Dj and dj, \ and |.
+# YUSCII exactly, all ten letters, as a Slovenian //e draws and types them:
+# z s c are ` { ~ and Z S C are @ [ ^, and the Dj and Cj of names are \ | ] }.
 case "$ondisk" in
-*'Besedilo z `, { in ~.'*'Velike: @, [, ^.'*) ok "the disk holds the YUSCII codes, not UTF-8" ;;
+*'Besedilo z `, { in ~.'*'Velike: @, [, ^.'*'Imena: \okovi}, | in ].'*)
+    ok "the disk holds the YUSCII codes, not UTF-8" ;;
 *) bad "the disk holds the YUSCII codes, not UTF-8" "got: $ondisk" ;;
-esac
-case "$ondisk" in
-*'\povezava](url) in |koda|.'*) ok "and Markdown's [ and \` move to \\ and |" ;;
-*) bad "and Markdown's [ and \` move to \\ and |" "got: $ondisk" ;;
 esac
 rm -rf "$SLDIR/back" && mkdir -p "$SLDIR/back"
 XLANG=sl "$ROOT/tools/xfer.sh" pull "$ROOT/build/slround.po" "$SLDIR/back" >/dev/null 2>&1
