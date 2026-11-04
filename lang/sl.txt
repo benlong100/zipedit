@@ -9,8 +9,9 @@
 #
 # 1.5 made two changes he asked for after the YUSCII beta: the letters are
 # YUSCII exactly, so [ ] ` cannot appear here (they are Š Ć ž -- the build
-# refuses them), and the word count puts its label first. Two strings are new
-# and want his eye, marked CHECK where they sit.
+# refuses them), and the word count puts its label first. He then asked for
+# ŠTEVILO BESED as the label, OA-H rather than OA-? as the help key -- ? needs
+# Shift on a YU keyboard and OA-H opens help too -- and no OA-' row in help.
 #
 # Write real Slovenian here -- š, č, ž and all. The //e has no glyph for any
 # of them, so tools/genlang.py transliterates on the way into the assembler
@@ -35,9 +36,8 @@ UNTITLED = "BREZNASLOVA.MD"
 #
 # Rewritten by Janez on his second pass, after the first ran to 82 characters
 # and lost "(url)" off the edge. His line is 70, so there are ten in hand.
-# CHECK -- rewritten for 1.5 without code, checkboxes and links, which use [ ]
-# and ` -- in YUSCII those are letters. Words are all Janez's own from
-# elsewhere in this file.
+# Rewritten for 1.5 without code, checkboxes and links, which use [ ] and ` --
+# in YUSCII those are letters. Janez approved it.
 CHEATTXT = "#H1 ##H2 naslovi   1. št.   > citat   **krepko**   *ležeče*"
 
 # --------------------------------------------------------------- the status row
@@ -49,7 +49,7 @@ CHEATTXT = "#H1 ##H2 naslovi   1. št.   > citat   **krepko**   *ležeče*"
 # they must stay two characters and stay on those columns. A longer filename
 # does not push them along; it eats the padding in front of them, and the
 # digits land wherever geom.S says regardless.
-STATTXT = " BREZNASLOVA.MD                       V:     S:     46K PROSTO  {OA}-? POMOČ       "
+STATTXT = " BREZNASLOVA.MD                       V:     S:     46K PROSTO  {OA}-H POMOČ       "
 
 STATTXT40 = " BREZNASLOVA.MD  V:    S:               "
 
@@ -79,7 +79,7 @@ MSGCOPIED = " VRSTICA KOPIRANA"
 # The label goes first and the number after it, Janez's suggestion: a label
 # needs no grammatical number, so the four Slovenian forms (beseda, besedi,
 # besede, besed) never arise. The tails are empty.
-WHEAD = " NAJDENE BESEDE: "
+WHEAD = " ŠTEVILO BESED: "
 WTAIL1 = ""
 WTAIL = ""
 
@@ -107,7 +107,7 @@ SPLVER = "Različica 1.4"
 SPLDATE = "Ben Long, prevod Janez Starc"
 SPLGO = "pritisnite tipko za nadaljevanje"
 
-SPLHELPOA = "{OA}-? za pomoč"
+SPLHELPOA = "{OA}-H za pomoč"
 SPLHELPESC = "Esc-? za pomoč"
 
 # ------------------------------------------------------------- the help screen
@@ -152,9 +152,9 @@ HELP "delete word left" = "briši besedo levo"
 HELP "MARKDOWN" = "MARKDOWN"
 HELP "**bold** word" = "**krepko** bese."
 HELP "*italic* word" = "*ležeče* bese."
-# CHECK -- OA-' types ` and in YUSCII that is ž, so on a keyboard without a ž
-# key this is how to get one.
-HELP "`code` marker" = "črka ž"
+# Left out: OA-' types `, which in YUSCII is ž, and a YU keyboard has its own
+# key for that. An empty translation drops the row.
+HELP "`code` marker" = ""
 
 HELP "CLIPBOARD" = "ODLOŽIŠČE"
 HELP "copy" = "kopiraj"
@@ -175,6 +175,9 @@ HELP "quit" = "izhod"
 
 HELP "SCREEN" = "ZASLON"
 HELP "cheat sheet" = "pregled ukazov"
+# A key label, not a description: ? needs Shift on a YU keyboard, and OA-H
+# opens help as well, so the help screen names that one.
+HELP "@-?" = "@-H"
 HELP "this help" = "ta pomoč"
 
 # --- and the 40-column pages, which say the same things in less room

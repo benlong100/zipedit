@@ -1179,7 +1179,7 @@ GRABPRE      ds    1                ; GRABLINE: characters taken before the gap
 *    block above, because a label-first language needs room: WHEAD's twenty,
 *    five digits, a tail and the terminator. $0800-$1243 is file.S's.
              dum   $1300
-WBUF         ds    40               ; " 1234 WORDS", or " NAJDENE BESEDE: 1234"
+WBUF         ds    40               ; " 1234 WORDS", or " STEVILO BESED: 1234"
              dend
 
              dum   $14e1            ; $14bf-$14e0 is keyboard.S's ring

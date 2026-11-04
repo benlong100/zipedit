@@ -67,15 +67,23 @@ files already on the Mac are unaffected.
 
 **Changed: the Slovenian word count puts its label first.**
 
-`NAJDENE BESEDE: 12` rather than a number followed by a word, so none of
+`ŠTEVILO BESED: 12` rather than a number followed by a word, so none of
 Slovenian's four number forms -- *beseda*, *besedi*, *besede*, *besed* -- is
 ever needed. Any language can do the same: the word count now has a label
 before the number as well as a word after it, and English, which uses only the
 word after, is unchanged.
 
+**Changed: Slovenian names `OA-H` for help.**
+
+`?` needs Shift on a YU keyboard, and `OA-H` has always opened help as well,
+so the Slovenian splash, status row and help screen offer `OA-H`. The help
+screen also leaves out `OA-'`, which in YUSCII types ž, a letter the keyboard
+has its own key for. A language file can now drop a help row by translating
+it to nothing, and relabel a key.
+
 The help screen says **krepko** bese. and *ležeče* bese.
 
-All three from Janez Starc, who writes on a YUSCII //e and //c.
+All of these from Janez Starc, who writes on a YUSCII //e and //c.
 
 ## 1.4 — 18 October 2026
 

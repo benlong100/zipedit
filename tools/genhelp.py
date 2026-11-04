@@ -112,9 +112,23 @@ def row(cells, width=None):
         buf[col:end] = list(text)
     return "".join(buf)
 
+# A language can leave a row out by translating it to "" -- Slovenian drops
+# OA-', which types a letter there rather than Markdown's code marker. At 80
+# columns the row stays as a blank so the two columns' headers keep level; at
+# 40 it closes up.
+OMIT = object()
+
+def K(key):
+    """A key's label, which a language may change: HELP "@-?" = "@-H"."""
+    if not _LANG or _LANG == "en":
+        return key
+    return _MAP.get(key, key)
+
 def entry(key, desc, side):
+    if desc == "":
+        return OMIT
     k, d = (LK, LD) if side == "L" else (RK, RD)
-    return [(k, key), (d, desc)]
+    return [(k, K(key)), (d, desc)]
 
 def header(text, side):
     return [((LH if side == "L" else RH), text)]
@@ -125,8 +139,8 @@ def page(left, right):
     lines = []
     for i in range(max(len(left), len(right))):
         cells = []
-        if i < len(left) and left[i]:   cells += left[i]
-        if i < len(right) and right[i]: cells += right[i]
+        if i < len(left) and left[i] and left[i] is not OMIT:    cells += left[i]
+        if i < len(right) and right[i] and right[i] is not OMIT: cells += right[i]
         lines.append(row(cells))
     return lines
 
@@ -275,7 +289,9 @@ W40 = 40
 K40, D40 = 2, 14          # key column, description column
 
 def e40(key, desc):
-    return [(K40, key), (D40, desc)]
+    if desc == "":
+        return OMIT
+    return [(K40, K(key)), (D40, desc)]
 
 def h40(text):
     return [(0, text)]
@@ -332,6 +348,8 @@ def centre40(t):
 def build40(content, foot):
     out = [centre40(TITLE40), row([], W40)]
     for line in content:
+        if line is OMIT:
+            continue
         out.append(row(line or [], W40))
     while len(out) < 20:
         out.append(row([], W40))

@@ -2654,6 +2654,7 @@ assert_row     "and the prompt"                  21 "pritisnite tipko"
 snapshot
 assert_row "the untitled document has a Slovenian name" 23 "BREZNASLOVA.MD"
 assert_row "and the status row is translated"           23 "PROSTO"
+assert_row "and offers OA-H for help"                   23 "A-H POMO^"
 
 # The labels are translated too -- V: vrstica, S: stolpec -- and this is the
 # assertion that matters, because the numbers are written OVER the row at the
@@ -2668,11 +2669,11 @@ assert_row "and its labels are still on their columns" 23 "V:1    S:1"
 # deleted again, so what follows starts from the same empty document.
 "$VII" caps true >/dev/null; k oa "W"; "$VII" caps false >/dev/null
 "$VII" settle 2 >/dev/null; snapshot
-assert_row "the Slovenian word count leads with its label" 23 " NAJDENE BESEDE: 0"
+assert_row "the Slovenian word count leads with its label" 23 " [TEVILO BESED: 0"
 ktext "ena dva"
 "$VII" caps true >/dev/null; k oa "W"; "$VII" caps false >/dev/null
 "$VII" settle 2 >/dev/null; snapshot
-assert_row "and needs no plural for two"           23 " NAJDENE BESEDE: 2"
+assert_row "and needs no plural for two"           23 " [TEVILO BESED: 2"
 for i in 1 2 3 4 5 6 7; do "$VII" del >/dev/null; done
 "$VII" settle 2 >/dev/null
 
@@ -2691,11 +2692,13 @@ assert_row "a new string reaches the screen translated" 23 "NADALJUJEM IZ VRHA"
 # The help screen comes from the same language file, through a different
 # generator -- and that generator uses | = ~ and @ as its own box-drawing
 # markup, which is what a caron collided with the first time.
+# Opened with OA-H, the key the Slovenian build names: ? needs Shift on a YU
+# keyboard.
 "$VII" caps true >/dev/null
-"$VII" oa "?" >/dev/null
+"$VII" oa "H" >/dev/null
 "$VII" settle 3 >/dev/null
 snapshot
-assert_row "the help screen is Slovenian"         1 "UREJEVALNIK MARKDOWN"
+assert_row "OA-H opens the Slovenian help screen"  1 "UREJEVALNIK MARKDOWN"
 assert_row "its sections are translated"          4 "PREMIKANJE"
 assert_row "and a caron is a letter, not a rule"  7 "za~etek vrstice"
 # The rules are on rows 0 and 2, not on a content row -- MouseText $4C reads
@@ -2711,7 +2714,14 @@ else
     bad "and a translated row still has both verticals" \
         "row 7: $(sed -n '8p' "$SCREEN")"
 fi
-"$VII" text " " >/dev/null; "$VII" text " " >/dev/null
+# Page two: help names OA-H, and has no OA-' row -- in YUSCII that key types
+# a letter the keyboard already has, so the language file leaves it out.
+"$VII" text " " >/dev/null; "$VII" settle 3 >/dev/null; snapshot
+if grep -q "A-H .*ta pomo" "$SCREEN"; then ok "page two names OA-H for help"
+else bad "page two names OA-H for help" "$(grep -i 'pomo' "$SCREEN")"; fi
+if grep -q "A-'" "$SCREEN"; then bad "and has no OA-' row" "$(grep "A-'" "$SCREEN")"
+else ok "and has no OA-' row"; fi
+"$VII" text " " >/dev/null
 "$VII" caps false >/dev/null; "$VII" settle 2 >/dev/null
 
 # THE GUARD NAMES A KEY, AND THE KEY HAS TO BE THE ONE IT NAMES. English

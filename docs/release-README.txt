@@ -52,8 +52,9 @@ THE SLOVENIAN DISKS
   Markdown links, checkboxes or code. Bold, italic, headings, lists and
   quotes all work.
 
-  The word count reads NAJDENE BESEDE: 12, label first, so it needs no
-  plural form.
+  The word count reads STEVILO BESED: 12 (with an S-caron), label
+  first, so it needs no plural form. Help is on OA-H, since ? needs
+  Shift on a YU keyboard.
 
 
 RUNNING IT
