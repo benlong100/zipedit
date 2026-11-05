@@ -942,7 +942,7 @@ assert_row "page one keeps a gap before the border"   7 "delete to line end "
 assert_row "page one documents OA-Delete"           10 "A-Delete delete word left"
 # The Open Apple is now its own glyph ($41), which Virtual ][ reads back as "A"
 # since they share a code. Verified identical on real hardware.
-assert_row "page one lists selecting"                12 "A-space      start selecting"
+assert_row "page one lists selecting"                12 "A-space   start selecting"
 assert_row "page one carries the web address"        18 "https://trompingmarmots.com/AppSites/ZipEdit/"
 assert_row "page one says a key turns the page"      19 "press any key for more"
 assert_row "page one numbers itself"                 19 "page 1 of 2"
@@ -2721,6 +2721,9 @@ if grep -q "A-H .*ta pomo" "$SCREEN"; then ok "page two names OA-H for help"
 else bad "page two names OA-H for help" "$(grep -i 'pomo' "$SCREEN")"; fi
 if grep -q "A-'" "$SCREEN"; then bad "and has no OA-' row" "$(grep "A-'" "$SCREEN")"
 else ok "and has no OA-' row"; fi
+# The descriptions start at column 13, which leaves room for the whole word.
+if grep -q '\*\*krepko\*\* besedilo' "$SCREEN"; then ok "and spells besedilo out in full"
+else bad "and spells besedilo out in full" "$(grep -i 'krepko' "$SCREEN")"; fi
 "$VII" text " " >/dev/null
 "$VII" caps false >/dev/null; "$VII" settle 2 >/dev/null
 

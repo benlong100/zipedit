@@ -150,8 +150,8 @@ HELP "reflow paragraph" = "preoblikuj odst."
 HELP "delete word left" = "briši besedo levo"
 
 HELP "MARKDOWN" = "MARKDOWN"
-HELP "**bold** word" = "**krepko** bese."
-HELP "*italic* word" = "*ležeče* bese."
+HELP "**bold** word" = "**krepko** besedilo"
+HELP "*italic* word" = "*ležeče* besedilo"
 # Left out: OA-' types `, which in YUSCII is ž, and a YU keyboard has its own
 # key for that. An empty translation drops the row.
 HELP "`code` marker" = ""

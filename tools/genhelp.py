@@ -74,7 +74,7 @@ def T(text):
     return out
 
 W = 62            # interior width, between the two verticals
-LH, LK, LD = 1, 3, 16     # left header / key / description columns
+LH, LK, LD = 1, 3, 13     # left header / key / description columns
 RH, RK, RD = 32, 34, 43   # right header / key / description columns
 
 def row(cells, width=None):

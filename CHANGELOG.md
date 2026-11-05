@@ -81,7 +81,9 @@ screen also leaves out `OA-'`, which in YUSCII types ž, a letter the keyboard
 has its own key for. A language file can now drop a help row by translating
 it to nothing, and relabel a key.
 
-The help screen says **krepko** bese. and *ležeče* bese.
+The help screen says **krepko** besedilo and *ležeče* besedilo. To make room,
+the help's left-hand descriptions start three columns further left, in every
+language.
 
 All of these from Janez Starc, who writes on a YUSCII //e and //c.
 
