@@ -103,7 +103,7 @@ KEYDISCARD = "Z"
 # ------------------------------------------------------------------ the splash
 # The program's name is not translated.
 SPLNAME = "ZipEdit"
-SPLVER = "Različica 1.4"
+SPLVER = "Različica 1.5"
 SPLDATE = "Ben Long, prevod Janez Starc"
 SPLGO = "pritisnite tipko za nadaljevanje"
 

@@ -433,8 +433,8 @@ if section "splash screen"; then
 "$VII" settle 2 >/dev/null
 snapshot
 assert_centred "the name is centred"                  10 "ZipEdit"
-assert_centred "the version is centred below it"      12 "Version 1.4"
-assert_centred "the date is centred below that"       14 "October, 2026"
+assert_centred "the version is centred below it"      12 "Version 1.5"
+assert_centred "the date is centred below that"       14 "November, 2026"
 assert_blank   "with a blank line between them"       13
 # The Open Apple is a MouseText glyph, which reads back as "A".
 assert_centred "the help hint is centred"             20 "A-? to get help"
@@ -1944,7 +1944,7 @@ else
 snapshot
 
 assert_row "the ][+ splash offers Esc-? for help"    20 "ESC-? TO GET HELP"
-assert_row "and still names its version"             12 "VERSION 1.4"
+assert_row "and still names its version"             12 "VERSION 1.5"
 
 # The Open Apple is a MouseText glyph, which reads back as "A" -- so the old
 # hint would surface here as "A-?". Row 20 of the //e build says exactly that
@@ -2643,7 +2643,7 @@ snapshot
 # keeps the month in SPLDATE -- but the line that holds the month in English
 # holds the translator's credit here, which is what he spent it on. So row 14
 # is a name rather than a month, in this language only.
-assert_centred "the version line is Slovenian"   12 "Razli~ica 1.4"
+assert_centred "the version line is Slovenian"   12 "Razli~ica 1.5"
 assert_centred "and the translator is credited"  14 "Ben Long, prevod Janez Starc"
 assert_row     "and the prompt"                  21 "pritisnite tipko"
 

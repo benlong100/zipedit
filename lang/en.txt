@@ -102,8 +102,8 @@ KEYDISCARD = "D"
 # ------------------------------------------------------------------ the splash
 # Centred by measuring the string, so a translation may be any length.
 SPLNAME = "ZipEdit"
-SPLVER = "Version 1.4"
-SPLDATE = "October, 2026"
+SPLVER = "Version 1.5"
+SPLDATE = "November, 2026"
 SPLGO = "press any key to continue"
 
 # The help hint names a key, so there is one per KEYBOARD rather than one per

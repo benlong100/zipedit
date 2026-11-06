@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.5 — 6 November 2026
 
 **Changed: bold and italic toggle, and apply to a selection.**
 
@@ -23,7 +23,8 @@ markers, which gives `*word*.` rather than `*word.*`. Without that, emphasis
 typed on the Mac could never toggle off, because `**word**.` does not end in a
 marker.
 
-Both were reported from a real //e.
+Both were reported from a real //e, and both are the work of
+[ptimmons](https://github.com/ptimmons) ([#3](https://github.com/benlong100/zipedit/pull/3)).
 
 **Changed: a selection includes the character under the cursor.**
 

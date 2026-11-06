@@ -7,7 +7,7 @@
 #   make test     run the AppleScript regression suite
 #   make clean
 
-VERSION := 1.4
+VERSION := 1.5
 
 # Which language the editor speaks. Every word it puts on the screen lives in
 # src/lang_$(LANG).S, which is copied to src/lang.S -- the file the three

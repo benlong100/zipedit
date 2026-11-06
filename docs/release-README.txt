@@ -1,6 +1,6 @@
 ZipEdit @VERSION@
 A Markdown editor for the Apple II
-October 2026
+November 2026
 
 
 WHAT IS IN THIS FOLDER
