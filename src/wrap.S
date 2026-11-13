@@ -369,6 +369,7 @@ RTFASTGO     lda   #$01
              jsr   PUTAUX
              lda   #$01
              sta   MODFLAG
+             sta   EDITED           ; same length, different text
              lda   RFP              ; it counts as a space, and as the break
              sta   RFSP             ; this line used to end at
              sta   RFBRK
@@ -420,6 +421,7 @@ RTFASTGO     lda   #$01
              jsr   PUTAUX
              lda   #$01
              sta   MODFLAG
+             sta   EDITED           ; same length, different text
 
 *--- the new line starts after that space, so the byte just counted stands
 *    RFP-RFSP characters into it

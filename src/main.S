@@ -101,6 +101,7 @@ MAINLOOP     jsr   SCROLLFIX
              sta   FASTDRAW
              sta   PARTIAL
              sta   SCRLOST
+             sta   EDITED
              lda   CURLNO
              sta   OLDLINE
              lda   CURLNO+1
@@ -220,6 +221,14 @@ MAINLOOP     jsr   SCROLLFIX
              lda   FLOWOWED         ; a reflow still owed will move text
              bne   :notmove
 
+*--- The gap's size alone cannot say the text is unchanged. A reflow trades a
+*    space for a SOFTCR and a SOFTCR for a space and leaves the length exactly
+*    as it was -- so OA-R on a paragraph that needed only its breaks moved
+*    walked the cursor to the paragraph's end and left the old text on screen.
+*    EDITED is set wherever the buffer is written, so it catches that; the
+*    size test stays as a second opinion.
+             lda   EDITED           ; anything written to the buffer?
+             bne   :notmove
              lda   GAPEND           ; the buffer itself unchanged?
              sec
              sbc   GAPBEG
@@ -380,6 +389,10 @@ FLOWOWED     ds    1                ; a reflow was put off and is still owed
 
              dum   $142e
 OLDGAP       ds    2                ; gap size before the keystroke
+             dend
+
+             dum   $14f1            ; $14f0 is select.S's SELSTEP
+EDITED       ds    1                ; this keystroke wrote to the buffer
              dend
 
 *--------------------------------------

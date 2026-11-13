@@ -1021,6 +1021,37 @@ if grep -q "## How it writes" "$SCREEN"; then
 else
     bad "reflow stopped at the paragraph boundary" "the following heading was consumed"
 fi
+
+# A reflow that only MOVES breaks. Deleting a selection leaves a short line;
+# OA-R pulls words up from below, trading SOFTCRs for spaces one for one, so
+# the buffer comes out exactly the length it went in. The main loop used to
+# read an unchanged gap as "only the cursor moved", walk the cursor to the end
+# of the paragraph and leave the old text on screen until something else
+# repainted it -- opening help showed the reflow had happened all along. So
+# the screen straight after OA-R must match a forced full repaint.
+reboot_empty
+"$VII" text "alpha bravo charlie delta echo foxtrot golf hotel india juliet kilo lima mike november oscar papa quebec romeo sierra tango uniform victor whiskey xray yankee zulu one two three four five six seven" >/dev/null
+"$VII" settle 4 >/dev/null
+"$VII" oa "<" >/dev/null; "$VII" settle 2 >/dev/null
+for i in 1 2 3 4 5 6; do k key "right arrow"; done
+"$VII" caps true >/dev/null; "$VII" oa " " >/dev/null; "$VII" caps false >/dev/null
+for i in 1 2 3 4 5 6 7 8 9 10 11 12 13; do k key "right arrow"; done
+"$VII" del >/dev/null; "$VII" settle 2 >/dev/null
+snapshot
+assert_row "deleting the selection leaves a short line" 0 "alpha delta echo"
+ROW1=$(sed -n '2p' "$SCREEN")
+"$VII" caps true >/dev/null; "$VII" oa "R" >/dev/null; "$VII" caps false >/dev/null
+"$VII" settle 3 >/dev/null; snapshot
+AFTER=$(sed -n '1,4p' "$SCREEN")
+"$VII" caps true >/dev/null; "$VII" oa "H" >/dev/null; "$VII" settle 2 >/dev/null
+"$VII" text " " >/dev/null; "$VII" settle 2 >/dev/null
+"$VII" text " " >/dev/null; "$VII" caps false >/dev/null; "$VII" settle 3 >/dev/null
+snapshot
+FULL=$(sed -n '1,4p' "$SCREEN")
+if [ "$(sed -n '2p' "$SCREEN")" != "$ROW1" ]; then ok "OA-R pulled words up from the line below"
+else bad "OA-R pulled words up from the line below" "row 1 unchanged: $ROW1"; fi
+if [ "$AFTER" = "$FULL" ]; then ok "and the screen shows it without another repaint"
+else bad "and the screen shows it without another repaint" "after OA-R: $(printf '%s' "$AFTER" | head -2 | tr '\n' '|')" "repainted:  $(printf '%s' "$FULL" | head -2 | tr '\n' '|')"; fi
 fi
 
 #--------------------------------------
