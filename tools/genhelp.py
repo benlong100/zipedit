@@ -51,7 +51,14 @@ _XLAT = {"Ž": "\x11", "Č": "\x12", "š": "\x13",
 # sentinel -> the byte that goes on the screen (the YUSCII code, bit 7 set)
 _SCREEN = {"\x11": 0xC0, "\x12": 0xDE, "\x13": 0xFB,
            "\x14": 0xFE, "\x15": 0xDB, "\x16": 0xE0,
-           "\x17": 0xDC, "\x18": 0xFC, "\x19": 0xDD, "\x1a": 0xFD}
+           "\x17": 0xDC, "\x18": 0xFC, "\x19": 0xDD, "\x1a": 0xFD,
+           "\x1e": 0x5E}
+
+# A ^ that must stay a ^. On a ][+ drawing YUSCII as letters, $DE is C-caron
+# and comes out as C -- which turned "esc ^" into "esc C" on the very row that
+# documents the key. $5E is the same ^ to screen40.S's FOLDCASE, which lifts
+# $40-$7F by $80 on the way out, and YULETTER, which runs first, leaves it be.
+CARET = "\x1e"
 
 # In a YUSCII language these draw as letters, so a translation must not use
 # them literally -- and four of them are this file's own markup besides.
@@ -301,7 +308,7 @@ P1_40 = [
     e40("arrows", T("char left/right")),
     e40("ctrl-j k", T("line up/down")),
     e40("ctrl-a e", T("line start/end")),
-    e40("esc + key", T("word or page")),
+    e40("esc+arrow", T("word or page")),    # Esc, then an arrow or ctrl-j/k
     e40("esc < >", T("top/end of doc")),
     None,
     h40(T("EDITING")),
@@ -310,6 +317,9 @@ P1_40 = [
     e40("esc z", T("delete word")),
     e40("ctrl-b i", T("bold / italic")),
     e40("esc '", T("`code` marker")),
+    # Esc ^ only exists where there are carons to draw. In Slovenian it takes
+    # the row the backtick leaves empty, so the page stays within 18.
+    *([e40("esc " + CARET, T("caron letters"))] if _LANG in _YUSCII else []),
     e40("tab", T("indent")),
     e40("ctrl-r", T("reflow para")),
     h40(T("SELECTING")),

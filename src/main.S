@@ -53,6 +53,11 @@ START        lda   #$00             ; nothing remembered about the viewport yet
 *    saves to it and fails. KNEW does this for a new document already -- the
 *    launch path simply never did the same.
              lda   #$00
+             sta   FOLDMODE         ; the ordinary drawing rule
+             lda   LANGYU           ; YUSCII letters drawn as CZS -- but only
+             and   YUINIT           ; where a key can turn it off again
+             sta   YUSHOW
+             lda   #$00
              sta   FNAME            ; length 0: no name yet, so OA-S asks
              sta   PLEN             ; nothing collected by a prompt yet
              sta   FINDLEN          ; no search pattern, so OA-G has nothing

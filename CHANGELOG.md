@@ -1,5 +1,38 @@
 # Changelog
 
+## Unreleased
+
+**Fixed: `OA-R` left the old text on screen.**
+
+Delete a selection from the middle of a line and press `OA-R`: the cursor went
+to the end of the paragraph and the text stayed exactly as it was, short line
+and all, until something else repainted the screen. The reflow had happened;
+the screen just was not told. A reflow that only moves line breaks leaves the
+document the same length, and the editor took an unchanged length to mean only
+the cursor had moved. It now notices any change to the text, whatever its
+length. In 1.4 and 1.5 both. Found on a real //e.
+
+**Changed: the ][+ splash lights up only its name.**
+
+A ][+ shows a capital letter in inverse, so every capital on the splash stood
+out -- the V of Version, the E of Esc. Now `ZIPEDIT` is inverse and the rest is
+plain.
+
+**Added: the Slovenian ][+ draws Č Ž Š as C Z S.**
+
+A Europlus had no Yugoslav character ROM, so the YUSCII codes drew as the
+symbols they share -- and š landed on the same `[` as Š. The Slovenian ][+
+now draws all ten YUSCII letters without their marks: C Z S D in inverse for
+the capitals, as every capital is on that machine, and plain for lowercase.
+`Esc ^` switches to the symbols and back, for a ][+ that has the ROM. Only the
+screen changes; files keep YUSCII.
+
+**Changed: the ][+ help says `esc+arrow`** where it said `esc + key`, which
+did not say which key. Esc then an arrow moves a word; Esc then `Ctrl-J` or
+`Ctrl-K` moves a page.
+
+All three ][+ changes from Janez Starc.
+
 ## 1.5 — 6 November 2026
 
 **Changed: bold and italic toggle, and apply to a selection.**

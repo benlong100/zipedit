@@ -56,6 +56,10 @@ THE SLOVENIAN DISKS
   first, so it needs no plural form. Help is on OA-H, since ? needs
   Shift on a YU keyboard.
 
+  On a ][+, which had no YU character ROM, the letters are drawn
+  without their marks: C Z S, with capitals in inverse as every
+  capital is there. Esc ^ switches to the plain symbols and back.
+
 
 RUNNING IT
 

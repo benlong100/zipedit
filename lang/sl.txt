@@ -199,3 +199,6 @@ HELP "start, arrows paint" = "razširi izbor"
 HELP "find" = "poišči"
 HELP "find again" = "poišči znova"
 HELP "this help, or esc ?" = "ta pomoč, ali esc ?"
+# The ][+ only: Esc ^ draws č ž š as plain C Z S (the default, for a ][+
+# without a YU character ROM) or as the symbols ^ @ [ (for one with it).
+HELP "caron letters" = "šumniki ali znaki"

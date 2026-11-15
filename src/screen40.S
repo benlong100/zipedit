@@ -65,7 +65,10 @@ DRAWLINE     ldx   #$00
              jsr   SETROW
              ldy   #$00
 :loop        lda   LINEBUF,y
-             ldx   CHROME
+             bit   YUSHOW           ; YUSCII letters without their carons?
+             bpl   :plain
+             jsr   YULETTER
+:plain       ldx   CHROME
              beq   :draw
              cmp   #$c1             ; on the chrome row a capital is not a
              bcc   :draw            ; capital, it is just a letter -- so
@@ -88,7 +91,10 @@ DRAWLINE     ldx   #$00
 * came out as "SML.D", which is a good way to be reminded that a routine
 * touching a soft switch belongs to the screen and not to the layout.
 *--------------------------------------
-PUTCELL      cmp   #$c1             ; PUTCELL only ever writes chrome -- the
+PUTCELL      bit   YUSHOW           ; as DRAWLINE: letters first
+             bpl   :plain
+             jsr   YULETTER
+:plain       cmp   #$c1             ; PUTCELL only ever writes chrome -- the
              bcc   :fold            ; filename and the line and column digits
              cmp   #$db             ; -- and it bypasses DRAWLINE, so the same
              bcs   :fold            ; rule has to be stated again here
@@ -114,7 +120,21 @@ PUTCELL      cmp   #$c1             ; PUTCELL only ever writes chrome -- the
 * once: the splash, the help screen, the prompts, and the writer's own text.
 * The buffer keeps the case that was typed; only the screen loses it.
 *--------------------------------------
-FOLDCASE     cmp   #$40
+*--- FOLDMODE changes the rule for the splash, which has one line to stand
+*    out and four that should not: bit 7 draws everything inverse, bit 6
+*    draws capitals plain. Zero is the rule above, everywhere else. BIT reads
+*    it without touching the character in A.
+FOLDCASE     bit   FOLDMODE
+             bpl   FOLDBODY
+             jsr   FOLDBODY         ; the title: its letters inverse, but
+             cmp   #$a0             ; not the blank either side of it, or
+             beq   :inv             ; the whole row lights up as a bar
+             cmp   #$80
+             bcc   :inv
+             and   #$3f
+:inv         rts
+
+FOLDBODY     cmp   #$40
              bcc   :done            ; $00-$3F is already inverse, and that is
                                     ; the one thing this ROM does properly
              cmp   #$80
@@ -150,10 +170,62 @@ FOLDCASE     cmp   #$40
              bcc   :done
              cmp   #$db             ; past 'Z'
              bcs   :done
+             bit   FOLDMODE         ; a splash line other than the title:
+             bvs   :done            ; its capitals draw plain
              and   #$3f             ; CAPITAL -> inverse capital
              rts
 :sym         sec
              sbc   #$20             ; the few symbols above 'z'
+:done        rts
+
+*--------------------------------------
+* YULETTER -- a YUSCII letter as the same letter without its caron
+*
+* For a Slovenian ][+ without a YU character ROM -- the Europlus never had
+* one -- where @ [ ^ are only symbols and the lowercase codes fold onto them,
+* so s-caron drew as [, exactly like S-caron. Here they become Z S D C C and
+* z s d c c, which the rest of this file then draws the usual way: capitals
+* inverse, lowercase plain. Only the screen; the buffer keeps YUSCII. Esc ^
+* turns it off for a machine whose ROM draws the letters itself.
+*
+* Called before the chrome row's lowercasing, so a status-bar C-caron is as
+* plain as the rest of the status bar. A only: both callers hold X and Y.
+*--------------------------------------
+YULETTER     cmp   #$c0             ; @  Z-caron
+             bne   :s
+             lda   #$da
+             rts
+:s           cmp   #$db             ; [  S-caron
+             bne   :dj
+             lda   #$d3
+             rts
+:dj          cmp   #$dc             ; \  D-stroke
+             bne   :cj
+             lda   #$c4
+             rts
+:cj          cmp   #$dd             ; ]  C-acute
+             beq   :cc
+             cmp   #$de             ; ^  C-caron
+             bne   :lz
+:cc          lda   #$c3
+             rts
+:lz          cmp   #$e0             ; `  z-caron
+             bne   :ls
+             lda   #$fa
+             rts
+:ls          cmp   #$fb             ; {  s-caron
+             bne   :ld
+             lda   #$f3
+             rts
+:ld          cmp   #$fc             ; |  d-stroke
+             bne   :lc
+             lda   #$e4
+             rts
+:lc          cmp   #$fd             ; }  c-acute
+             beq   :lcc
+             cmp   #$fe             ; ~  c-caron
+             bne   :done
+:lcc         lda   #$e3
 :done        rts
 
 *--------------------------------------

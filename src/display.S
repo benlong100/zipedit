@@ -412,3 +412,10 @@ CURSCH       ds    1                ; the byte the cursor covered
 CURSOK       ds    1                ; non-zero while the two above mean something
 SCRLOST      ds    1                ; something painted over the text area
              dend
+
+*--- Read only by screen40.S, but set by code every build shares, so they live
+*    here. $14f1 is main.S's EDITED.
+             dum   $14f2
+FOLDMODE     ds    1                ; splash: bit 7 all inverse, bit 6 plain
+YUSHOW       ds    1                ; bit 7: draw YUSCII letters as CZS
+             dend

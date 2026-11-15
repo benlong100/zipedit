@@ -14,6 +14,7 @@ BIN="${BIN:-$ROOT/build/ZIPEDIT.SYSTEM}"
 PLAINIMAGE="${PLAINIMAGE:-$ROOT/build/ZIPEDIT-PLAIN.po}"
 TWOIMAGE="${TWOIMAGE:-$ROOT/build/ZIPEDIT2P.po}"
 SLIMAGE="${SLIMAGE:-$ROOT/build/ZIPEDIT-SL.po}"
+SL2PIMAGE="${SL2PIMAGE:-$ROOT/build/ZIPEDIT2P-SL.po}"
 RELIMAGE="${RELIMAGE:-$ROOT/build/ZIPEDIT-REL.po}"
 
 # One suite at a time. Virtual ][ has exactly one front machine, so a second
@@ -159,6 +160,16 @@ ktext() { "$VII" text "$1" >/dev/null; "$VII" await "$1" 180 || bad "typing '$1'
 linenum() { "$VII" screen-raw | sed -n '24p' | cut -c41-44 | tr -d ' '; }
 SCREEN="$TMP/screen.txt"
 snapshot() { "$VII" screen-raw > "$SCREEN"; }
+
+# row40 <row> -- one 40-column row from screen MEMORY, a character per cell:
+# i for inverse, . for anything else. The emulator's screen text cannot see
+# inverse, and on a ][+ inverse is what a capital looks like.
+# row40hex <row> -- the same row as raw screen codes.
+row40hex() {
+    "$VII" dump 0x0400 1024 0 "$TMP/s40.bin" >/dev/null
+    python3 -c "d=open('$TMP/s40.bin','rb').read(); r=$1; b=0x80*(r%8)+0x28*(r//8); print(d[b:b+40].hex())"
+}
+row40() { row40hex "$1" | python3 -c "import sys; h=sys.stdin.read().strip(); print(''.join('i' if int(h[i:i+2],16)<0x40 else '.' for i in range(0,len(h),2)))"; }
 
 # assert_row <name> <0-based row> <expected substring>
 assert_row() {
@@ -1985,6 +1996,64 @@ if sed -n '21p' "$SCREEN" | grep -q "A-?"; then
 else
     ok "and not a key the ][+ does not have"
 fi
+
+# Only the name is inverse. On this machine a capital draws inverse, so the
+# splash used to light up every capital on it -- the V of Version, the N of
+# November, the E of Esc -- which Janez Starc found distracting. The emulator's
+# screen text cannot show inverse, so this reads the screen memory.
+if [ "$(row40 10 | tr -cd 'i')" = "iiiiiii" ] && row40 10 | grep -q '^\.*iiiiiii\.*$'; then
+    ok "only ZIPEDIT is inverse, and not the blank round it"
+else
+    bad "only ZIPEDIT is inverse, and not the blank round it" "row 10: $(row40 10)"
+fi
+if row40 12 | grep -q i || row40 20 | grep -q i; then
+    bad "and the other lines are plain" "row 12: $(row40 12)  row 20: $(row40 20)"
+else
+    ok "and the other lines are plain"
+fi
+fi
+fi
+
+#--------------------------------------
+# The Slovenian ][+. A Europlus had no YU character ROM, so @ [ ^ were only
+# symbols there, and s-caron folded onto the same [ as S-caron. The editor
+# draws the ten YUSCII letters as C Z S D -- capitals inverse, as every capital
+# is on this machine -- and Esc ^ switches back to the symbols for a ][+ that
+# has the ROM. The buffer keeps YUSCII either way.
+#--------------------------------------
+if section "the Slovenian ][+"; then
+if [ ! -f "$SL2PIMAGE" ]; then
+    bad "the Slovenian ][+ image exists" "no $SL2PIMAGE -- run: make LANG=sl release2p"
+else
+"$VII" boot "$SL2PIMAGE" >/dev/null || { echo "boot failed"; exit 1; }
+"$VII" await "ZIPEDIT" 120 >/dev/null || bad "the Slovenian ][+ splash never appeared"
+"$VII" settle 3 >/dev/null; snapshot
+assert_row "the caron in Različica draws as a C"    12 "RAZLICICA"
+"$VII" text " " >/dev/null; "$VII" await "BREZNASLOVA" 60 >/dev/null
+"$VII" caps false >/dev/null; "$VII" settle 2 >/dev/null
+"$VII" text "[{^~@" >/dev/null; "$VII" settle 2 >/dev/null
+# S-caron s-caron C-caron c-caron Z-caron: inverse S, S, inverse C, C, inverse Z
+if [ "$(row40hex 0 | cut -c1-10)" = "13d303c31a" ]; then ok "YUSCII draws as letters, capitals inverse"
+else bad "YUSCII draws as letters, capitals inverse" "row 0: $(row40hex 0 | cut -c1-14)"; fi
+"$VII" key esc >/dev/null; "$VII" text "^" >/dev/null; "$VII" settle 3 >/dev/null
+if [ "$(row40hex 0 | cut -c1-10)" = "dbdbdedec0" ]; then ok "Esc ^ switches to the symbols"
+else bad "Esc ^ switches to the symbols" "row 0: $(row40hex 0 | cut -c1-14)"; fi
+"$VII" key esc >/dev/null; "$VII" text "^" >/dev/null; "$VII" settle 3 >/dev/null
+if [ "$(row40hex 0 | cut -c1-10)" = "13d303c31a" ]; then ok "and back again"
+else bad "and back again" "row 0: $(row40hex 0 | cut -c1-14)"; fi
+"$VII" dump 0x12 2 0 "$TMP/g.bin" >/dev/null
+GB=$(python3 -c "d=open('$TMP/g.bin','rb').read(); print(d[0]|d[1]<<8)")
+"$VII" dump $((GB-5)) 5 0 "$TMP/t.bin" >/dev/null
+if [ "$(xxd -p "$TMP/t.bin")" = "dbfbdefec0" ]; then ok "the buffer keeps YUSCII throughout"
+else bad "the buffer keeps YUSCII throughout" "got $(xxd -p "$TMP/t.bin")"; fi
+# The help row for the key must say ^ -- in letters mode a C-caron code would
+# draw as C, which is what it first did.
+"$VII" ctrl P >/dev/null; "$VII" settle 3 >/dev/null; snapshot
+if grep -q "ESC ^ *SUMNIKI" "$SCREEN"; then ok "help names Esc ^"
+else bad "help names Esc ^" "$(grep -i 'sumniki\|esc' "$SCREEN" | head -3)"; fi
+if grep -q "ESC+ARROW" "$SCREEN"; then ok "and says which key follows Esc"
+else bad "and says which key follows Esc" "$(grep 'ESC' "$SCREEN" | head -2)"; fi
+"$VII" text " " >/dev/null; "$VII" settle 2 >/dev/null; "$VII" text " " >/dev/null
 fi
 fi
 

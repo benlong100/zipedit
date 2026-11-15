@@ -197,6 +197,8 @@ ESCTBL
                                     ; same key on that machine.
              dfb   $a7
              da    KBACKTICK        ; Esc ' -- a backtick
+             dfb   $de
+             da    KYUSHOW          ; Esc ^ -- carons: letters or symbols
              dfb   $00
 
 *--------------------------------------
@@ -206,3 +208,26 @@ ESCTBL
 * trained on the //e reaches for, and it is the one worth advertising.
 *--------------------------------------
 SPLHELP      equ   SPLHELPESC         ; the wording lives in lang_*.S
+
+*--------------------------------------
+* KYUSHOW -- Esc ^: draw YUSCII's letters as C Z S, or as the symbols they are
+*
+* A ][+ with a YU character ROM draws them itself; a Europlus has no such ROM
+* and draws @ [ ^, with s-caron landing on the same [ as S-caron. Letters is
+* where the editor starts. Ctrl-Esc was the first idea and cannot work: Ctrl
+* does not change Esc's code on this keyboard, any more than it does Tab's.
+* Nothing in English draws differently, so there it does nothing at all.
+*--------------------------------------
+KYUSHOW      lda   LANGYU
+             beq   :done
+             lda   YUSHOW
+             eor   #$80
+             sta   YUSHOW
+             lda   #$01             ; every row may draw differently now
+             sta   SCRLOST
+             jmp   DRAWSTATUS
+:done        rts
+
+*--- Whether the editor may start drawing YUSCII as letters: here it can,
+*    because Esc ^ is here to turn it off.
+YUINIT       dfb   $80

@@ -33,7 +33,11 @@ SPLASH       jsr   CLRSCRN
              jsr   SPLMID           ; centre it for whatever width this is
              tax                    ; BUFSTR starts at this column
              jsr   BUFSTR
-             ldx   SPLI
+             lda   #$40             ; on a ][+, where a capital draws
+             ldx   SPLI             ; inverse, only the name stands out:
+             bne   :mode            ; the rest has capitals in it and read
+             lda   #$80             ; as a scatter of lit letters
+:mode        sta   FOLDMODE
              lda   SPLROW,x
              jsr   DRAWLINE
              inc   SPLI
@@ -41,6 +45,8 @@ SPLASH       jsr   CLRSCRN
              cmp   #SPLN
              bne   :loop
 
+             lda   #$00
+             sta   FOLDMODE
              jsr   GETKEY
              jmp   CLRSCRN          ; leave the screen as we found it
 
