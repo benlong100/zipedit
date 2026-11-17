@@ -88,12 +88,18 @@ all: $(BIN)
 
 # Every source file, not just $(SRC): the rest are pulled in with Merlin's put
 # directive, and depending on $(SRC) alone meant edits to them never rebuilt.
+#
+# dumcheck before assembling: a dum block declares addresses without emitting
+# anything, so two can claim the same bytes and Merlin says nothing. 1.4 shipped
+# with GRABPRE and help.S's HELPI both on $1420, found by hand; ApplesIDE lost
+# its cursor-only redraw the same way. Borrowed from there, and run every build.
 SOURCES := $(wildcard src/*.S)
 
 # Merlin32 writes its object next to the source, named by the `dsk` directive.
 $(BIN): $(SOURCES) $(LANGTXT) $(TOOLS)/genlang.py $(TOOLS)/genhelp.py | $(BUILD)
 	@python3 $(TOOLS)/genlang.py $(LANGTXT) > src/lang.S
 	@python3 $(TOOLS)/genhelp.py $(HELP40) $(LANGARG) > src/helpdata.S
+	@python3 $(TOOLS)/dumcheck.py
 	@$(MERLIN) $(ASMINC) $(SRC) > $(BUILD)/merlin32.log 2>&1 || \
 		{ echo "--- Merlin32 failed ---"; cat $(BUILD)/merlin32.log; exit 1; }
 	@grep -iE '^\s+(Error|Warning)' $(BUILD)/merlin32.log && exit 1 || true
@@ -223,6 +229,7 @@ two: $(BIN2P)
 $(BIN2P): $(SOURCES) $(LANGTXT) $(TOOLS)/genlang.py $(TOOLS)/genhelp.py | $(BUILD)
 	@python3 $(TOOLS)/genlang.py $(LANGTXT) > src/lang.S
 	@python3 $(TOOLS)/genhelp.py --40 $(LANGARG) > src/helpdata.S
+	@python3 $(TOOLS)/dumcheck.py
 	@$(MERLIN) $(ASMINC) $(SRC2P) > $(BUILD)/merlin32-2p.log 2>&1 || \
 		{ echo "--- Merlin32 failed ---"; cat $(BUILD)/merlin32-2p.log; exit 1; }
 	@grep -iE '^\s+(Error|Warning)' $(BUILD)/merlin32-2p.log && exit 1 || true
