@@ -55,7 +55,7 @@ START        lda   #$00             ; nothing remembered about the viewport yet
              lda   #$00
              sta   FOLDMODE         ; the ordinary drawing rule
              lda   LANGYU           ; YUSCII letters drawn as CZS -- but only
-             and   YUINIT           ; where a key can turn it off again
+             and   YUINIT           ; on a ][+ only
              sta   YUSHOW
              lda   #$00
              sta   FNAME            ; length 0: no name yet, so OA-S asks

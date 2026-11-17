@@ -185,8 +185,7 @@ FOLDBODY     cmp   #$40
 * one -- where @ [ ^ are only symbols and the lowercase codes fold onto them,
 * so s-caron drew as [, exactly like S-caron. Here they become Z S D C C and
 * z s d c c, which the rest of this file then draws the usual way: capitals
-* inverse, lowercase plain. Only the screen; the buffer keeps YUSCII. Esc ^
-* turns it off for a machine whose ROM draws the letters itself.
+* inverse, lowercase plain. Only the screen; the buffer keeps YUSCII.
 *
 * Called before the chrome row's lowercasing, so a status-bar C-caron is as
 * plain as the rest of the status bar. A only: both callers hold X and Y.

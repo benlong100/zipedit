@@ -58,7 +58,7 @@ THE SLOVENIAN DISKS
 
   On a ][+, which had no YU character ROM, the letters are drawn
   without their marks: C Z S, with capitals in inverse as every
-  capital is there. Esc ^ switches to the plain symbols and back.
+  capital is there.
 
 
 RUNNING IT

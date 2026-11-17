@@ -114,7 +114,7 @@ directions), which must agree.
 
 The ][+ (and //e 40-column) screen draws through `FOLDCASE` in `screen40.S`.
 On the Slovenian ][+, `YULETTER` first maps the ten YUSCII codes to C Z S D C
-(display only; `Esc ^` toggles it, `YUSHOW` holds the state), and `FOLDMODE`
+(display only, always on there; `YUSHOW` holds it), and `FOLDMODE`
 lets the splash draw its title inverse and its other lines plain. Test it
 with `SL2PIMAGE=... make test` after `make LANG=sl release2p`; the screen
 text the emulator reports cannot see inverse, so the suite reads screen

@@ -23,15 +23,18 @@ plain.
 A Europlus had no Yugoslav character ROM, so the YUSCII codes drew as the
 symbols they share -- and š landed on the same `[` as Š. The Slovenian ][+
 now draws all ten YUSCII letters without their marks: C Z S D in inverse for
-the capitals, as every capital is on that machine, and plain for lowercase.
-`Esc ^` switches to the symbols and back, for a ][+ that has the ROM. Only the
-screen changes; files keep YUSCII.
+the capitals, as every capital is on that machine, and plain for lowercase,
+the help screen included. Only the screen changes; files keep YUSCII.
 
 **Changed: the ][+ help says `esc+arrow`** where it said `esc + key`, which
 did not say which key. Esc then an arrow moves a word; Esc then `Ctrl-J` or
 `Ctrl-K` moves a page.
 
-All three ][+ changes from Janez Starc.
+**Fixed: the ][+ help gave the wrong key for save as.** It said `Esc A`, which
+types a capital A; save as is `Esc Ctrl-S`, and the help says so now.
+
+All of these ][+ changes from Janez Starc -- the last found when his reference
+card faithfully copied the help.
 
 ## 1.5 — 6 November 2026
 

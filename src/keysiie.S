@@ -131,6 +131,6 @@ KEYTBL
 *--------------------------------------
 SPLHELP      equ   SPLHELPOA         ; the wording lives in lang_*.S
 
-*--- YUSCII letters drawn as C Z S is a ][+ display mode with a ][+ key to turn
-*    it off (Esc ^ in keys2p.S). A //e keeps drawing the codes as they are.
+*--- YUSCII letters drawn as C Z S is for the ][+ (keys2p.S). A //e, at 80
+*    columns or at 40, keeps drawing the codes as they are.
 YUINIT       dfb   $00

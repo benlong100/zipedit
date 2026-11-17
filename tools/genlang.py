@@ -230,7 +230,7 @@ def main(argv):
             out.append(f"{'UNTLEN'.ljust(12)} equ   {width(pieces)}")
 
     # LANGYU: non-zero in a YUSCII language, where the ][+ can draw the letters
-    # without their carons (Esc ^). A byte rather than an equate, because the
+    # without their carons. A byte rather than an equate, because the
     # code that reads it is assembled before this file is.
     out += ["", f"{'LANGYU'.ljust(12)} dfb   ${0x80 if path.stem in YUSCII else 0:02x}"]
     print("\n".join(out))

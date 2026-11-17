@@ -2018,8 +2018,7 @@ fi
 # The Slovenian ][+. A Europlus had no YU character ROM, so @ [ ^ were only
 # symbols there, and s-caron folded onto the same [ as S-caron. The editor
 # draws the ten YUSCII letters as C Z S D -- capitals inverse, as every capital
-# is on this machine -- and Esc ^ switches back to the symbols for a ][+ that
-# has the ROM. The buffer keeps YUSCII either way.
+# is on this machine, the help screen included. The buffer keeps YUSCII.
 #--------------------------------------
 if section "the Slovenian ][+"; then
 if [ ! -f "$SL2PIMAGE" ]; then
@@ -2035,25 +2034,23 @@ assert_row "the caron in Različica draws as a C"    12 "RAZLICICA"
 # S-caron s-caron C-caron c-caron Z-caron: inverse S, S, inverse C, C, inverse Z
 if [ "$(row40hex 0 | cut -c1-10)" = "13d303c31a" ]; then ok "YUSCII draws as letters, capitals inverse"
 else bad "YUSCII draws as letters, capitals inverse" "row 0: $(row40hex 0 | cut -c1-14)"; fi
-"$VII" key esc >/dev/null; "$VII" text "^" >/dev/null; "$VII" settle 3 >/dev/null
-if [ "$(row40hex 0 | cut -c1-10)" = "dbdbdedec0" ]; then ok "Esc ^ switches to the symbols"
-else bad "Esc ^ switches to the symbols" "row 0: $(row40hex 0 | cut -c1-14)"; fi
-"$VII" key esc >/dev/null; "$VII" text "^" >/dev/null; "$VII" settle 3 >/dev/null
-if [ "$(row40hex 0 | cut -c1-10)" = "13d303c31a" ]; then ok "and back again"
-else bad "and back again" "row 0: $(row40hex 0 | cut -c1-14)"; fi
 "$VII" dump 0x12 2 0 "$TMP/g.bin" >/dev/null
 GB=$(python3 -c "d=open('$TMP/g.bin','rb').read(); print(d[0]|d[1]<<8)")
 "$VII" dump $((GB-5)) 5 0 "$TMP/t.bin" >/dev/null
 if [ "$(xxd -p "$TMP/t.bin")" = "dbfbdefec0" ]; then ok "the buffer keeps YUSCII throughout"
 else bad "the buffer keeps YUSCII throughout" "got $(xxd -p "$TMP/t.bin")"; fi
-# The help row for the key must say ^ -- in letters mode a C-caron code would
-# draw as C, which is what it first did.
+# Help draws its letters the same way: brisi, not bri[i.
 "$VII" ctrl P >/dev/null; "$VII" settle 3 >/dev/null; snapshot
-if grep -q "ESC ^ *SUMNIKI" "$SCREEN"; then ok "help names Esc ^"
-else bad "help names Esc ^" "$(grep -i 'sumniki\|esc' "$SCREEN" | head -3)"; fi
+if grep -q "BRISI LEVO" "$SCREEN"; then ok "help draws the carons as letters too"
+else bad "help draws the carons as letters too" "$(grep -i 'bri' "$SCREEN" | head -2)"; fi
 if grep -q "ESC+ARROW" "$SCREEN"; then ok "and says which key follows Esc"
 else bad "and says which key follows Esc" "$(grep 'ESC' "$SCREEN" | head -2)"; fi
-"$VII" text " " >/dev/null; "$VII" settle 2 >/dev/null; "$VII" text " " >/dev/null
+# Save as is Esc Ctrl-S. The help said Esc A from the start, and Esc A types a
+# capital A -- found when Janez Starc's reference card copied it.
+"$VII" text " " >/dev/null; "$VII" settle 2 >/dev/null; snapshot
+if grep -q "ESC CTRL-S *SHRANI KOT" "$SCREEN"; then ok "help gives Esc Ctrl-S for save as"
+else bad "help gives Esc Ctrl-S for save as" "$(grep -i 'shrani' "$SCREEN" | head -2)"; fi
+"$VII" text " " >/dev/null
 fi
 fi
 
