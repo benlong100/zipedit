@@ -1,6 +1,9 @@
 # Changelog
 
-## Unreleased
+## 1.5.1 — 17 November 2026
+
+**Added: printable reference cards**, one for the //e and one for the ][+,
+made by Janez Starc and included in the archive.
 
 **Fixed: `OA-R` left the old text on screen.**
 

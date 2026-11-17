@@ -15,6 +15,10 @@ WHAT IS IN THIS FOLDER
 
   xfer.sh         A shell script for moving files between a disk
                   image and your Mac.
+  ZipEdit Quick Reference Card.pdf
+  ZipEdit 2P Quick Reference Card.pdf
+                  Every command on one printable page, for the //e
+                  and for the ][+. Made by Janez Starc.
   README.txt      This file.
 
   All four are bootable ProDOS 8 disk images, 143K, in 5.25-inch

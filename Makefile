@@ -7,7 +7,7 @@
 #   make test     run the AppleScript regression suite
 #   make clean
 
-VERSION := 1.5
+VERSION := 1.5.1
 
 # Which language the editor speaks. Every word it puts on the screen lives in
 # src/lang_$(LANG).S, which is copied to src/lang.S -- the file the three
@@ -271,6 +271,8 @@ dist: release release2p
 	@cp $(BUILD)/ZIPEDIT-SL-REL.po $(DIST)/ZIPEDIT-SL.po
 	@cp $(BUILD)/ZIPEDIT2P-SL.po $(DIST)/ZIPEDIT2P-SL.po
 	@cp $(TOOLS)/xfer.sh LICENSE $(DIST)/
+	@cp "reference cards/Quick Reference Card.pdf" "$(DIST)/ZipEdit Quick Reference Card.pdf"
+	@cp "reference cards/2P Quick Reference Card.pdf" "$(DIST)/ZipEdit 2P Quick Reference Card.pdf"
 	@sed 's/@VERSION@/$(VERSION)/g' docs/release-README.txt > $(DIST)/README.txt
 	@cd $(BUILD) && zip -qr ZipEdit-$(VERSION).zip ZipEdit-$(VERSION)
 	@rm -rf $(DIST)

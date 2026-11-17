@@ -102,7 +102,7 @@ KEYDISCARD = "D"
 # ------------------------------------------------------------------ the splash
 # Centred by measuring the string, so a translation may be any length.
 SPLNAME = "ZipEdit"
-SPLVER = "Version 1.5"
+SPLVER = "Version 1.5.1"
 SPLDATE = "November, 2026"
 SPLGO = "press any key to continue"
 
